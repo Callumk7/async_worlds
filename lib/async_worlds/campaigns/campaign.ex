@@ -10,6 +10,7 @@ defmodule AsyncWorlds.Campaigns.Campaign do
     field :dm_user_id, Snowflake
     field :public_channel_id, Snowflake
     field :current_tick_number, :integer, default: 0
+    field :clock_mutations_locked, :boolean, default: false
 
     timestamps(type: :utc_datetime)
   end
