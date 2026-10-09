@@ -136,6 +136,8 @@ defmodule AsyncWorlds.Clocks do
   defp set_lock(campaign_id, value) do
     Repo.transaction(fn ->
       campaign = campaign!(campaign_id)
+
+      if not value and frozen_tick?(campaign_id), do: Repo.rollback(:active_tick)
       persist(Repo.update(change(campaign, clock_mutations_locked: value)))
     end)
   end
@@ -144,12 +146,22 @@ defmodule AsyncWorlds.Clocks do
     if is_binary(source) and String.trim(source) != "" do
       Repo.transaction(fn ->
         campaign = campaign!(campaign_id)
-        if campaign.clock_mutations_locked, do: Repo.rollback(:tick_locked)
+
+        if campaign.clock_mutations_locked or frozen_tick?(campaign_id),
+          do: Repo.rollback(:tick_locked)
+
         fun.()
       end)
     else
       {:error, :invalid_source}
     end
+  end
+
+  defp frozen_tick?(campaign_id) do
+    Repo.exists?(
+      from t in AsyncWorlds.Ticks.Tick,
+        where: t.campaign_id == ^campaign_id and t.status in [:resolving, :in_review]
+    )
   end
 
   defp campaign!(id) do
