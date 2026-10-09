@@ -23,6 +23,44 @@ end
 config :async_worlds, AsyncWorldsWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Never connect to Discord in the normal test environment, even if the shell
+# contains production credentials. Local development is opt-in too.
+if config_env() != :test do
+  enabled = System.get_env("DISCORD_ENABLED", "false")
+
+  unless enabled in ["true", "false"] do
+    raise "DISCORD_ENABLED must be true or false"
+  end
+
+  if enabled == "true" do
+    token = System.get_env("DISCORD_BOT_TOKEN")
+
+    if is_nil(token) or String.trim(token) == "" do
+      raise "DISCORD_BOT_TOKEN is required when DISCORD_ENABLED=true"
+    end
+
+    ids =
+      for key <- ["DISCORD_GUILD_ID", "DISCORD_APPLICATION_ID"], into: %{} do
+        value = System.get_env(key, "")
+
+        unless byte_size(value) in 1..20 and Regex.match?(~r/\A[1-9][0-9]*\z/, value) and
+                 String.to_integer(value) <= 18_446_744_073_709_551_615 do
+          raise "#{key} must be a positive unsigned 64-bit Discord ID"
+        end
+
+        {key, value}
+      end
+
+    config :async_worlds, :discord,
+      enabled: true,
+      adapter: AsyncWorlds.Discord.NostrumAdapter,
+      guild_id: ids["DISCORD_GUILD_ID"],
+      application_id: ids["DISCORD_APPLICATION_ID"]
+
+    config :nostrum, token: token
+  end
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :async_worlds, AsyncWorldsWeb.Endpoint,

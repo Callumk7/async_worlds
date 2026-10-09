@@ -7,21 +7,29 @@ defmodule AsyncWorlds.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      AsyncWorldsWeb.Telemetry,
-      AsyncWorlds.Repo,
-      {DNSCluster, query: Application.get_env(:async_worlds, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: AsyncWorlds.PubSub},
-      # Start a worker by calling: AsyncWorlds.Worker.start_link(arg)
-      # {AsyncWorlds.Worker, arg},
-      # Start to serve requests, typically the last entry
-      AsyncWorldsWeb.Endpoint
-    ]
+    AsyncWorlds.Discord.LogFilter.install()
+
+    children =
+      [
+        AsyncWorldsWeb.Telemetry,
+        AsyncWorlds.Repo,
+        {DNSCluster, query: Application.get_env(:async_worlds, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: AsyncWorlds.PubSub},
+        # Start a worker by calling: AsyncWorlds.Worker.start_link(arg)
+        # {AsyncWorlds.Worker, arg},
+        # Start to serve requests, typically the last entry
+        AsyncWorldsWeb.Endpoint
+      ] ++ discord_children(Application.fetch_env!(:async_worlds, :discord))
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: AsyncWorlds.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  @doc false
+  def discord_children(opts) do
+    if Keyword.fetch!(opts, :enabled), do: [{AsyncWorlds.Discord.Supervisor, []}], else: []
   end
 
   # Tell Phoenix to update the endpoint configuration
