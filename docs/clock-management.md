@@ -61,8 +61,11 @@ campaign lock, verify the tick/revision, apply approved results/audits, mark the
 tick published and `Clocks.unlock_mutations/1` in one transaction. The guard is an
 integration primitive, not a standalone tick lifecycle; do not expose unlock to
 normal management UI, and never unlock just to run management during publication.
-Tick lifecycle implementation remains ENG-2. The publication writer must honor
-this same locking protocol; this module cannot protect uncoordinated raw SQL.
+The ENG-2 lifecycle now implements this protocol through `AsyncWorlds.Ticks`;
+see [tick-lifecycle.md](tick-lifecycle.md). Management also checks resolving/review
+tick status, and unlock refuses while a frozen active tick exists. The publication
+writer must honor this same locking protocol; this module cannot protect
+uncoordinated raw SQL.
 
 `Clocks.Rules` helpers operate on schemas or equivalent frozen maps and have no
 Repo/delivery dependencies. `adjust`, `background`, `start`, `reset` and `complete`
