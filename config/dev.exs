@@ -2,9 +2,10 @@ import Config
 
 # Configure your database
 config :async_worlds, AsyncWorlds.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
+  username: System.get_env("PGUSER") || System.get_env("USER") || "postgres",
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost"),
+  port: String.to_integer(System.get_env("PGPORT", "5432")),
   database: "async_worlds_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
