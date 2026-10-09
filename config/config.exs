@@ -11,6 +11,19 @@ config :async_worlds,
   ecto_repos: [AsyncWorlds.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Nostrum is an included application: only our opt-in bot subtree starts it.
+config :async_worlds, :discord,
+  enabled: false,
+  adapter: AsyncWorlds.Discord.NostrumAdapter,
+  guild_id: nil,
+  application_id: nil
+
+config :nostrum,
+  gateway_intents: [],
+  ffmpeg: false,
+  youtubedl: false,
+  streamlink: false
+
 # Configure the endpoint
 config :async_worlds, AsyncWorldsWeb.Endpoint,
   url: [host: "localhost"],
@@ -61,7 +74,7 @@ config :tailwind,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:request_id, :discord_stage]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

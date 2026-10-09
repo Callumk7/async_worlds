@@ -21,7 +21,10 @@ defmodule AsyncWorlds.MixProject do
   def application do
     [
       mod: {AsyncWorlds.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      # Included applications do not start their dependencies automatically.
+      # Start Nostrum's transport dependencies, but not its gateway supervisor.
+      extra_applications: [:logger, :runtime_tools, :gun, :certifi, :inets],
+      included_applications: [:nostrum]
     ]
   end
 
@@ -67,6 +70,7 @@ defmodule AsyncWorlds.MixProject do
        depth: 1},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
+      {:nostrum, "~> 0.10.4"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},

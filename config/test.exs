@@ -14,6 +14,13 @@ config :async_worlds, AsyncWorlds.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+# No bot process or real transport in the normal suite, regardless of shell credentials.
+config :async_worlds, :discord,
+  enabled: false,
+  adapter: AsyncWorlds.Discord.FakeAdapter,
+  guild_id: nil,
+  application_id: nil
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :async_worlds, AsyncWorldsWeb.Endpoint,

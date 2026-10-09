@@ -77,6 +77,14 @@ Web and Discord interfaces share `AsyncWorlds.Campaigns`:
   data. The caller must obtain the user ID from a verified Discord interaction
   or authenticated web identity, not an untrusted form field.
 
+## Discord bot
+
+The optional supervised Nostrum bot is disabled by default. See
+[Discord setup and operating notes](docs/discord.md) for installation,
+runtime secrets, repeatable `mix discord.register_commands`, permissions and
+live smoke-test steps. ENG-3 registers and secures the milestone-1 commands;
+actual command behavior is implemented later. Normal tests always stay offline.
+
 ## Run and test
 
 ```sh
