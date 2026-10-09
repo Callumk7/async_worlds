@@ -1,14 +1,16 @@
 defmodule AsyncWorldsWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :async_worlds
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
+  # The cookie carries only opaque state/session handles and is encrypted as well as signed.
   @session_options [
     store: :cookie,
     key: "_async_worlds_key",
     signing_salt: "SKgBgfQN",
-    same_site: "Lax"
+    encryption_salt: "uT41jL8y",
+    same_site: "Lax",
+    http_only: true,
+    secure: Mix.env() == :prod,
+    max_age: 28_800
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

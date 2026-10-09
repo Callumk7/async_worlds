@@ -62,18 +62,26 @@ if config_env() != :test do
 end
 
 if config_env() == :dev do
+  config :async_worlds, :discord_oauth,
+    client_id: System.get_env("DISCORD_OAUTH_CLIENT_ID"),
+    client_secret: System.get_env("DISCORD_OAUTH_CLIENT_SECRET"),
+    redirect_uri: System.get_env("DISCORD_OAUTH_REDIRECT_URI"),
+    token_url: "https://discord.com/api/oauth2/token",
+    profile_url: "https://discord.com/api/users/@me",
+    request_options: []
+
   # Reload browser tabs when matching files change.
   config :async_worlds, AsyncWorldsWeb.Endpoint,
     live_reload: [
       web_console_logger: true,
       patterns: [
         # Static assets, except user uploads
-        ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$"E,
+        ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$",
         # Gettext translations
-        ~r"priv/gettext/.*\.po$"E,
+        ~r"priv/gettext/.*\.po$",
         # Router, Controllers, LiveViews and LiveComponents
-        ~r"lib/async_worlds_web/router\.ex$"E,
-        ~r"lib/async_worlds_web/(controllers|live|components)/.*\.(ex|heex)$"E
+        ~r"lib/async_worlds_web/router\.ex$",
+        ~r"lib/async_worlds_web/(controllers|live|components)/.*\.(ex|heex)$"
       ]
     ]
 end
@@ -109,6 +117,21 @@ if config_env() == :prod do
       """
 
   host = System.get_env("PHX_HOST") || "example.com"
+
+  oauth_value = fn key ->
+    case System.get_env(key) do
+      value when is_binary(value) and value != "" -> value
+      _ -> raise "#{key} is required in production"
+    end
+  end
+
+  config :async_worlds, :discord_oauth,
+    client_id: oauth_value.("DISCORD_OAUTH_CLIENT_ID"),
+    client_secret: oauth_value.("DISCORD_OAUTH_CLIENT_SECRET"),
+    redirect_uri: oauth_value.("DISCORD_OAUTH_REDIRECT_URI"),
+    token_url: "https://discord.com/api/oauth2/token",
+    profile_url: "https://discord.com/api/users/@me",
+    request_options: []
 
   config :async_worlds, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
