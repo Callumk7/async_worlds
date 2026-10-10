@@ -1,5 +1,17 @@
 import Config
 
+# Load trusted, untracked local credentials before reading environment values.
+# Runtime config does not support import_config; this file only sets env vars.
+# Never load local secrets in tests or production.
+if config_env() == :dev and
+     System.get_env("ASYNC_WORLDS_LOAD_LOCAL_SECRETS", "true") != "false" do
+  local_secrets = Path.join(__DIR__, "dev.secret.exs")
+
+  if File.regular?(local_secrets) do
+    Code.eval_file(local_secrets)
+  end
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

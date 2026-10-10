@@ -4,6 +4,13 @@ defmodule AsyncWorlds.Discord.TransportTest do
 
   alias AsyncWorlds.Discord.{LogFilter, NostrumAdapter}
 
+  test "Nostrum acknowledgment success is normalized to the adapter contract" do
+    assert NostrumAdapter.normalize_acknowledgment({:ok}) == :ok
+
+    assert NostrumAdapter.normalize_acknowledgment({:error, :transport_failure}) ==
+             {:error, :transport_failure}
+  end
+
   test "responses defer privately and disable automatic mentions" do
     assert NostrumAdapter.deferred_response() == %{type: 5, data: %{flags: 64}}
 

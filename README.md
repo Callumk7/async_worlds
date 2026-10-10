@@ -85,6 +85,22 @@ runtime secrets, repeatable `mix discord.register_commands`, permissions and
 live smoke-test steps. ENG-3 registers and secures the milestone-1 commands;
 actual command behavior is implemented later. Normal tests always stay offline.
 
+## Local development credentials
+
+To avoid terminal exports, fill in `config/dev.secret.exs`. This ignored local
+file sets the Discord OAuth and optional bot environment values before runtime
+configuration reads them. It is loaded only in development, never in tests or
+production. Its values override matching shell variables. If the file is absent,
+the application continues using the shell environment as usual. Set
+`ASYNC_WORLDS_LOAD_LOCAL_SECRETS=false` to bypass the file explicitly (also used
+by runtime configuration tests so they never load real local credentials).
+
+For web login, provide the OAuth client ID and client secret, and register
+`http://localhost:4000/auth/discord/callback` in the Discord application's OAuth2
+redirect allowlist. Leave `DISCORD_ENABLED` as `false` unless you also configure
+the bot token, application ID and guild ID. Restart Phoenix after changes.
+Never commit or share this file; production should use deployment secrets.
+
 ## Run and test
 
 ```sh

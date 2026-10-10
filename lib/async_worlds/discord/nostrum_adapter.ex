@@ -11,7 +11,12 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
       interaction.token,
       deferred_response()
     )
+    |> normalize_acknowledgment()
   end
+
+  @doc false
+  def normalize_acknowledgment({:ok}), do: :ok
+  def normalize_acknowledgment({:error, _} = error), do: error
 
   @impl true
   def edit_response(interaction, content) do
