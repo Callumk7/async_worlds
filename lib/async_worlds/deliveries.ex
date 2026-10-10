@@ -21,6 +21,15 @@ defmodule AsyncWorlds.Deliveries do
     Repo.all(from d in Delivery, where: d.campaign_id == ^campaign_id, order_by: d.id)
   end
 
+  def recent_deliveries(campaign_id, limit \\ 50) do
+    Repo.all(
+      from d in Delivery,
+        where: d.campaign_id == ^campaign_id,
+        order_by: [desc: d.id],
+        limit: ^limit
+    )
+  end
+
   def fetch_delivery(campaign_id, id) do
     case Repo.get_by(Delivery, id: id, campaign_id: campaign_id) do
       nil -> {:error, :not_found}
