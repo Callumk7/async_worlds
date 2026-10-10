@@ -46,7 +46,7 @@ defmodule AsyncWorlds.Discord.ConsumerTest do
     _ = :sys.get_state(consumer)
     assert_receive {:discord, :defer, %{id: "1000"}}
     assert_receive {:discord, :edit_response, {_, content}}
-    assert content =~ "not implemented yet"
+    assert content =~ "No ticks yet."
     assert Process.whereis(Nostrum.Supervisor) == nil
   end
 

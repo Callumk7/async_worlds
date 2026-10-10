@@ -1,4 +1,4 @@
-# Discord bot foundation (ENG-3)
+# Discord bot and world-tick commands (ENG-3 / ENG-10)
 
 Nostrum **0.10.4**, a stable Hex release, runs as an included OTP application
 inside the optional `AsyncWorlds.Discord.Supervisor`. The bot, bounded task
@@ -16,10 +16,10 @@ normally without a bot or token. No external bot service is required.
    content). Slash commands arrive without gateway intents; this application
    explicitly configures an empty intent list and ignores ordinary messages.
 5. Use Guild Install with the `bot` and `applications.commands` scopes, installing
-   into your development guild. Do not grant Administrator. For the later public
+   into your development guild. Do not grant Administrator. For public
    announcements, grant **View Channel** and **Send Messages** in the configured
-   public channel. This foundation uses ephemeral interaction replies only; it
-   does not yet send announcements or proactive DMs.
+   public channel. Tick-open announcements and approved publication output use
+   this channel. Approved DM output needs the configured DM to accept bot DMs.
 6. Leave the application's **Interactions Endpoint URL** unset: interactions
    arrive through the gateway, not a public HTTP endpoint. Discord command
    visibility/permission settings are optional UX restrictions, never the
@@ -70,14 +70,27 @@ Registration is explicit, not repeated on every reconnect or deploy.
 
 The registered command set is:
 
-- `/clocks` — available to guild players.
-- `/tick open`, `/tick close`, `/tick status` — configured DM only.
-- `/admin` — configured DM only.
+- `/clocks` — private reply available to guild players: live public clock fills
+  and known clock names only. Hidden clocks and known fills never appear. Draft
+  state is never read. Large lists continue in private followups.
+- `/tick open` — configured DM only; opens the next tick and atomically queues
+  one public `Tick N is now open.` announcement. Repeated opens do not create
+  another tick or announcement. Web opens use the same transaction.
+- `/tick close` — configured DM only; freezes the world and queues resolution
+  into a **private draft**, without publication. Repeated closes reuse the same
+  snapshot/job. Review and approve in the web console.
+- `/tick status` — configured DM only; reports open/resolving/in-review/published
+  world readiness. No character submission counts in this milestone.
+- `/admin` — configured DM only; privately links to `/dashboard`. This is a
+  normal URL, **not** a bearer login token; web Discord OAuth verifies the DM.
 
-**ENG-3 registers and secures these commands, but does not implement gameplay or
-OAuth.** Authorized invocations currently return a private "not implemented yet"
-message. `/clocks` does not expose clocks; `/admin` does not yet issue a login
-link. Their actual behavior belongs to ENG-10 and the web authentication work.
+Only opening and explicit approved web publication enqueue public messages.
+Closing, status, admin, clock queries, and draft edits never announce draft
+content. Publication uses the existing audited domain API and privacy-filtered
+renderer; private publication output remains DM-only. Delivery failures never
+reapply world state. Inspect/retry individual outbox records in the console;
+ambiguous sends require explicit confirmation. See [delivery semantics](durable-work.md)
+and [review/publication](tick-review-publication.md).
 Unsupported component, autocomplete and modal interactions are ignored; they
 must get explicit routing/authorization when those features are implemented.
 
@@ -91,7 +104,10 @@ campaign configuration, and uses `Campaigns.authorize_dm/2` for DM commands.
 
 All slash commands defer with response type 5 and ephemeral flag 64 **before**
 database work. Denials, unknown commands and failures edit that private original
-response. Edits suppress automatic mentions. A failed/ambiguous initial response
+response. Edits and ephemeral followups suppress automatic mentions. Responses
+split at 1,900 Unicode codepoints, keeping every message within Discord's 2,000
+codepoint limit without splitting UTF-8 characters. If any reply fails, later
+chunks stop; no automatic response or command retry occurs. A failed/ambiguous initial response
 never executes a domain command. A final response failure does not rerun it.
 Application errors are logged by stage only; payloads, tokens, exceptions and
 API error bodies are never inspected. Nostrum rate-limiter logs are redacted
@@ -101,10 +117,11 @@ dumps can include credentials and private player content.
 
 Discord is not the idempotency authority. Duplicate delivery normally fails its
 second acknowledgment, but another interaction ID, bot restart or transport
-ambiguity must still be safe. Future command handlers receive the authorized
-campaign, verified user ID and interaction ID, and must use shared domain
-transactions with lifecycle/idempotency constraints. No tick transitions exist
-in ENG-3; tests use a guarded stand-in domain operation to exercise this boundary.
+ambiguity must still be safe. Command handlers receive the authorized campaign,
+verified user ID and interaction ID, and use shared domain transactions with
+lifecycle/idempotency constraints. Open announcements and publication deliveries
+are committed with their respective transitions and delivered by Oban, never by
+the command handler. Reconnects do not replay announcements.
 Do not automatically retry state-changing commands on Discord errors; inspect
 the domain state first. Nostrum handles its own REST rate limits and gateway
 reconnects. Event task concurrency is capped at 100; saturation logs a safe
@@ -126,11 +143,17 @@ After supplying real credentials, verify manually:
 
 1. Register twice and confirm there is one copy of each guild command.
 2. Start the server and confirm Nostrum reports a ready gateway connection.
-3. As the configured DM, invoke `/tick status`; expect the private placeholder.
+3. As the configured DM, invoke `/admin`; follow the private link and sign in.
 4. As another member, invoke a tick command; expect a private denial. `/clocks`
-   should return the private placeholder, not a denial.
-5. Invoke from another guild (if installed there); expect a private denial.
-6. Restart the application and invoke again; campaign configuration must persist.
+   should show only public fills and known names (or the empty state).
+5. As DM, `/tick open` twice: one tick and one public announcement. `/tick status`
+   reports open. `/tick close` twice: one private draft, no public world news.
+6. Review in the console; verify public preview excludes hidden clocks and known
+   fills. Publish once and confirm approved output arrives publicly and DM output
+   privately. Repeated publication must not send again.
+7. Invoke from another guild (if installed there); expect a private denial.
+8. Restart the application and invoke again; campaign state and pending outbox
+   records must persist. Test blocked DMs and inspect the failed delivery record.
 
 No real Discord credentials are required or provisioned by the automated suite.
 Production also needs Phoenix's existing database/endpoint secrets in

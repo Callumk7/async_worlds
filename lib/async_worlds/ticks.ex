@@ -76,12 +76,29 @@ defmodule AsyncWorlds.Ticks do
       if active_tick(campaign_id), do: Repo.rollback(:active_tick)
       if campaign.clock_mutations_locked, do: Repo.rollback(:tick_locked)
 
-      %Tick{campaign_id: campaign_id, number: campaign.current_tick_number + 1, opened_at: now()}
-      |> change()
-      |> unique_constraint(:campaign_id, name: :one_active_tick_per_campaign)
-      |> unique_constraint([:campaign_id, :number])
-      |> Repo.insert()
+      tick =
+        %Tick{
+          campaign_id: campaign_id,
+          number: campaign.current_tick_number + 1,
+          opened_at: now()
+        }
+        |> change()
+        |> unique_constraint(:campaign_id, name: :one_active_tick_per_campaign)
+        |> unique_constraint([:campaign_id, :number])
+        |> Repo.insert()
+        |> persist!()
+
+      # Shared by web and Discord: commit the announcement with the open, never
+      # perform network I/O here or enqueue from an interface after committing.
+      Deliveries.enqueue(campaign_id, tick.id, %{
+        key: "tick:#{tick.id}:opened",
+        kind: :public,
+        recipient_id: campaign.public_channel_id,
+        content: "Tick #{tick.number} is now open."
+      })
       |> persist!()
+
+      tick
     end)
   end
 
