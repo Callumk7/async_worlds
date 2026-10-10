@@ -51,7 +51,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
 
     content =
       case result do
-        {:ok, content} when is_binary(content) and byte_size(content) <= 2000 ->
+        {:ok, content} when is_binary(content) and byte_size(content) > 0 ->
           content
 
         {:error, :unknown_command} ->
@@ -66,7 +66,19 @@ defmodule AsyncWorlds.Discord.Dispatcher do
 
     adapter = Keyword.fetch!(opts, :adapter)
 
-    case safely(:response, fn -> adapter.edit_response(envelope, content) end) do
+    [first | rest] = AsyncWorlds.Discord.Content.chunks(content)
+
+    response =
+      with :ok <- safely(:response, fn -> adapter.edit_response(envelope, first) end) do
+        Enum.reduce_while(rest, :ok, fn chunk, :ok ->
+          case safely(:response, fn -> adapter.followup_response(envelope, chunk) end) do
+            :ok -> {:cont, :ok}
+            _ -> {:halt, {:error, :response_failed}}
+          end
+        end)
+      end
+
+    case response do
       :ok -> result
       _ -> {:error, :response_failed}
     end

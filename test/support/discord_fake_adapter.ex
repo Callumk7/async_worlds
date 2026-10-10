@@ -14,6 +14,9 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
   def edit_response(envelope, content), do: call(:edit_response, {envelope, content})
 
   @impl true
+  def followup_response(envelope, content), do: call(:followup_response, {envelope, content})
+
+  @impl true
   def send_public(channel, payload), do: call(:send_public, {channel, payload})
 
   @impl true
@@ -72,6 +75,7 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
     do: {:reply, {:ok, %{message_id: "1002", channel_id: "999"}}, state}
 
   defp perform(:edit_response, _, state), do: {:reply, :ok, state}
+  defp perform(:followup_response, _, state), do: {:reply, :ok, state}
 
   defp perform(:register_commands, {app, guild, commands}, state) do
     {:reply, {:ok, commands},
