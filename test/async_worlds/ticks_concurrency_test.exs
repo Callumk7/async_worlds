@@ -218,6 +218,71 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
     assert db(fn -> Deliveries.claim(delivery.id, 0) end) == {:ok, :skip}
   end
 
+  test "atomic world publication serializes state, history, and logical deliveries", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    {:ok, clock} =
+      db(fn ->
+        Clocks.create_clock(id, %{name: "World", segments: 4, background_rate: 1}, "dm")
+      end)
+
+    {:ok, tick} = db(fn -> Ticks.open_tick(id) end)
+    {:ok, %{snapshot: snapshot}} = db(fn -> Ticks.close_tick(id, tick.id) end)
+    {:ok, payload} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
+
+    {:ok, %{draft: draft}} =
+      db(fn -> Ticks.put_draft(id, tick.id, snapshot.revision, payload) end)
+
+    results =
+      race(supervisor, List.duplicate(fn -> Ticks.publish_tick(id, tick.id, draft.id) end, 4))
+
+    assert Enum.count(results, &match?({:ok, %Tick{status: :published}}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :already_published})) == 3
+    assert db(fn -> Repo.get!(Clock, clock.id).filled end) == 1
+    assert db(fn -> length(Deliveries.list_deliveries(id)) end) == 2
+    assert {:ok, _} = db(fn -> Ticks.fetch_publication(id, tick.id) end)
+  end
+
+  test "audited edit versus atomic publish respects the approved revision", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    {:ok, tick} = db(fn -> Ticks.open_tick(id) end)
+    {:ok, %{snapshot: snapshot}} = db(fn -> Ticks.close_tick(id, tick.id) end)
+    {:ok, payload} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
+
+    {:ok, %{draft: draft}} =
+      db(fn -> Ticks.put_draft(id, tick.id, snapshot.revision, payload) end)
+
+    [edited, published] =
+      race(supervisor, [
+        fn ->
+          Ticks.edit_draft(
+            id,
+            tick.id,
+            draft.id,
+            %{type: "world_news", text: ["Edited"]},
+            "456",
+            "Correction"
+          )
+        end,
+        fn -> Ticks.publish_tick(id, tick.id, draft.id) end
+      ])
+
+    case {edited, published} do
+      {{:ok, %{draft: revised}}, {:error, :stale_draft}} ->
+        assert db(fn -> Deliveries.list_deliveries(id) end) == []
+        assert {:ok, [_]} = db(fn -> Ticks.list_review_edits(id, tick.id) end)
+        assert {:ok, _} = db(fn -> Ticks.publish_tick(id, tick.id, revised.id) end)
+
+      {{:error, {:invalid_transition, :published, :edit_draft}}, {:ok, %Tick{}}} ->
+        assert {:ok, []} = db(fn -> Ticks.list_review_edits(id, tick.id) end)
+    end
+
+    assert db(fn -> length(Deliveries.list_deliveries(id)) end) == 2
+  end
+
   test "concurrent publication runs database effects once and advances number once", %{
     campaign: id,
     supervisor: supervisor

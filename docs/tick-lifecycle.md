@@ -23,21 +23,21 @@ queues durable resolution; see [durable work](durable-work.md).
    `:stale_input` / `:stale_draft`. Payload must be a JSON object; game semantics
    and recomputation belong to the engine, not this lifecycle layer. The world-only
    engine is `Ticks.WorldResolver`; see [resolution decisions](world-resolution.md).
-4. `publish_tick(campaign_id, tick_id, expected_draft_id, apply_callback)` accepts
-   only the current reviewed draft. It calls the trusted internal application
-   callback with `%{tick: tick, snapshot: snapshot, draft: draft}`. The callback
-   applies approved state, writes source-labelled audits and inserts delivery
-   outbox rows in this transaction. Return `{:ok, value}` to proceed or
-   `{:error, reason}` to roll back. After success, the tick becomes published,
-   the campaign counter advances and management unlocks. Repeated publication
-   returns `:already_published` **without calling the callback**.
+4. `edit_draft/6` appends an audited review operation and recomputes from frozen
+   inputs. Interfaces use this rather than writing arbitrary review payloads.
+5. `preview_draft/3` returns exact privacy-filtered outgoing content for the current
+   approved revision. Draft previews remain DM-only.
+6. `publish_tick(campaign_id, tick_id, expected_draft_id)` verifies the canonical
+   audited draft and live-state compatibility, applies clock effects/audits,
+   persists immutable approved history/content, and enqueues outbox rows/jobs.
+   The tick becomes published, the campaign counter advances, and management
+   unlocks in the same transaction. Repeated publication returns
+   `:already_published` without repeating effects or deliveries.
 
-Publication intentionally requires an explicit callback: ENG-8/ENG-7 implement
-validated world publication and durable delivery. ENG-4 only produces pure drafts.
-This is not a user-provided function or an excuse to publish without applying the draft. It must only perform database
-work, never network I/O or other irreversible effects. Exceptions also roll back
-DB writes and leave the tick in review for retry. The callback's success value is
-not persisted here; published records/outbox contents must be written by it.
+See [audited review/publication](tick-review-publication.md) for operation formats,
+renderer privacy, drift rejection, and atomicity. The `/4` callback form remains
+an internal trusted transaction primitive, not an interface-level publication API.
+No network I/O or other irreversible effects belong in publication transactions.
 
 ## Frozen snapshot version 1
 
