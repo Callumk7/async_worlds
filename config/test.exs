@@ -14,6 +14,9 @@ config :async_worlds, AsyncWorlds.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+# Persist jobs for assertions; never execute background queues or plugins in tests.
+config :async_worlds, Oban, testing: :manual
+
 # Dummy OAuth values are local-only. Req.Test replaces the transport in focused tests.
 config :async_worlds, :discord_oauth,
   client_id: "test-client",

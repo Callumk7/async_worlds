@@ -2,7 +2,8 @@
 
 `AsyncWorlds.Ticks` is the shared domain API. Web/Discord handlers must authorize
 with `Campaigns.authorize_dm/2` before calling it. There are no timers, submission
-requirements, automatic closes, resolver jobs or Discord calls in this module.
+requirements, automatic closes or Discord calls in this module. Closing atomically
+queues durable resolution; see [durable work](durable-work.md).
 
 ## Lifecycle API
 
@@ -11,10 +12,10 @@ requirements, automatic closes, resolver jobs or Discord calls in this module.
    Repeated/concurrent opens return `{:error, :active_tick}`. A partial unique
    database index also prohibits multiple non-published ticks per campaign.
 2. `close_tick(campaign_id, tick_id)` locks clock management, captures inputs and
-   moves `open` to `resolving` in one transaction. Returns
+   moves `open` to `resolving` and queues an Oban resolution job in one transaction. Returns
    `{:ok, %{tick: tick, snapshot: snapshot}}`. Retrying close during resolving or
    review returns that same snapshot without re-freezing inputs or regressing
-   status. Closing a published tick is an invalid transition.
+   status or adding another job. Closing a published tick is an invalid transition.
 3. `put_draft(campaign_id, tick_id, input_revision, payload, expected_draft_id)`
    appends a draft revision and moves resolving to `in_review`. The first worker
    passes nil (the default) as expected draft ID. Every subsequent review/recompute

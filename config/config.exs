@@ -11,6 +11,14 @@ config :async_worlds,
   ecto_repos: [AsyncWorlds.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Lifeline recovers executing jobs after a process/application crash. Delivery
+# claims remain persisted and turn into ambiguous records rather than resending.
+config :async_worlds, Oban,
+  repo: AsyncWorlds.Repo,
+  queues: [resolution: 2, discord_delivery: 2],
+  lifeline: [rescue_after: {5, :minutes}],
+  pruner: [max_age: {7, :days}]
+
 config :async_worlds, :web_auth,
   state_ttl_seconds: 600,
   session_ttl_seconds: 28_800

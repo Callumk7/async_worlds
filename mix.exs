@@ -64,6 +64,7 @@ defmodule AsyncWorlds.MixProject do
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
       {:nostrum, "~> 0.10.4"},
+      {:oban, "~> 2.24"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},

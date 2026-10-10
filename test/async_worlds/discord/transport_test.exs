@@ -20,6 +20,43 @@ defmodule AsyncWorlds.Discord.TransportTest do
            }
   end
 
+  test "outbound responses classify rejection versus ambiguous delivery without retaining error bodies" do
+    error = fn code ->
+      {:error, %Nostrum.Error.ApiError{status_code: code, response: "private-token"}}
+    end
+
+    assert NostrumAdapter.classify_send(error.(429), :message) ==
+             {:error, {:retryable, :rate_limited}}
+
+    assert NostrumAdapter.classify_send({:error, {:retry_after, 1000}}, :message) ==
+             {:error, {:retryable, :rate_limited}}
+
+    assert NostrumAdapter.classify_send(error.(403), :message) ==
+             {:error, {:permanent, :forbidden}}
+
+    assert NostrumAdapter.classify_send(error.(401), :message) ==
+             {:error, {:permanent, :unauthorized}}
+
+    assert NostrumAdapter.classify_send(error.(404), :message) ==
+             {:error, {:permanent, :not_found}}
+
+    assert NostrumAdapter.classify_send(error.(400), :message) ==
+             {:error, {:permanent, :invalid_request}}
+
+    assert NostrumAdapter.classify_send(error.(500), :message) ==
+             {:error, {:ambiguous, :unknown_result}}
+
+    assert NostrumAdapter.classify_send({:error, :timeout}, :message) ==
+             {:error, {:ambiguous, :unknown_result}}
+
+    # A DM-channel creation failure cannot have sent the private message yet.
+    assert NostrumAdapter.classify_send(error.(500), :channel) ==
+             {:error, {:retryable, :channel_unavailable}}
+
+    assert NostrumAdapter.classify_send({:ok, %{id: 123, channel_id: 789}}, :message) ==
+             {:ok, %{message_id: "123", channel_id: "789"}}
+  end
+
   test "Nostrum transport URLs and metadata are redacted before logging" do
     secret = "private-webhook-token"
 

@@ -1,6 +1,8 @@
 defmodule AsyncWorlds.TicksConcurrencyTest do
   use ExUnit.Case, async: false
-  alias AsyncWorlds.{Campaigns, Clocks, Repo, Ticks}
+  alias AsyncWorlds.{Campaigns, Clocks, Deliveries, Repo, Ticks}
+  alias AsyncWorlds.Deliveries.Delivery
+  alias AsyncWorlds.Workers.ResolveTick
   alias AsyncWorlds.Campaigns.Campaign
   alias AsyncWorlds.Clocks.Clock
   alias AsyncWorlds.Ticks.{Draft, Snapshot, Tick}
@@ -23,7 +25,17 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
         campaign
       end)
 
-    on_exit(fn -> db(fn -> Repo.delete!(Repo.get!(Campaign, campaign.id)) end) end)
+    on_exit(fn ->
+      db(fn ->
+        Repo.delete_all(
+          from j in Oban.Job,
+            where: fragment("?->>'campaign_id' = ?", j.args, ^to_string(campaign.id))
+        )
+
+        Repo.delete!(Repo.get!(Campaign, campaign.id))
+      end)
+    end)
+
     supervisor = start_supervised!({Task.Supervisor, name: __MODULE__.Tasks})
     %{campaign: campaign.id, supervisor: supervisor}
   end
@@ -81,6 +93,15 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
              1
 
     assert db(fn -> Repo.get!(Campaign, id).clock_mutations_locked end)
+
+    assert db(fn ->
+             Repo.aggregate(
+               from(j in Oban.Job,
+                 where: fragment("?->>'tick_id' = ?", j.args, ^to_string(tick.id))
+               ),
+               :count
+             )
+           end) == 1
   end
 
   test "clock edit either precedes snapshot or is rejected, never lost at close", %{
@@ -150,6 +171,51 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
 
     assert db(fn -> Repo.aggregate(from(d in Draft, where: d.tick_id == ^tick.id), :count) end) ==
              1
+  end
+
+  test "duplicate resolution jobs finish successfully without duplicating drafts", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    {:ok, tick} = db(fn -> Ticks.open_tick(id) end)
+    {:ok, %{snapshot: snapshot}} = db(fn -> Ticks.close_tick(id, tick.id) end)
+
+    job = %Oban.Job{
+      args: %{"campaign_id" => id, "tick_id" => tick.id, "input_revision" => snapshot.revision}
+    }
+
+    results = race(supervisor, List.duplicate(fn -> ResolveTick.perform(job) end, 3))
+    assert results == [:ok, :ok, :ok]
+
+    assert db(fn -> Repo.aggregate(from(d in Draft, where: d.tick_id == ^tick.id), :count) end) ==
+             1
+  end
+
+  test "concurrent outbox enqueue and claims produce one intent and one send reservation", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    {:ok, tick} = db(fn -> Ticks.open_tick(id) end)
+    attrs = %{key: "news", kind: :public, recipient_id: "789", content: "Approved"}
+
+    results =
+      race(supervisor, List.duplicate(fn -> Deliveries.enqueue(id, tick.id, attrs) end, 3))
+
+    assert Enum.all?(results, &match?({:ok, %Delivery{}}, &1))
+    deliveries = Enum.map(results, fn {:ok, delivery} -> delivery end)
+    assert length(Enum.uniq(deliveries)) == 1
+    delivery = hd(deliveries)
+    claims = race(supervisor, List.duplicate(fn -> Deliveries.claim(delivery.id, 0) end, 3))
+    assert Enum.count(claims, &match?({:ok, %Delivery{status: :sending}}, &1)) == 1
+    assert Enum.count(claims, &(&1 == {:ok, :skip})) == 2
+    {:ok, claim} = Enum.find(claims, &match?({:ok, %Delivery{}}, &1))
+
+    assert {:ok, %{status: :sent}} =
+             db(fn ->
+               Deliveries.settle(claim, {:ok, %{message_id: "111", channel_id: "789"}})
+             end)
+
+    assert db(fn -> Deliveries.claim(delivery.id, 0) end) == {:ok, :skip}
   end
 
   test "concurrent publication runs database effects once and advances number once", %{

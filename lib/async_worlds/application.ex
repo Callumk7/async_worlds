@@ -19,7 +19,9 @@ defmodule AsyncWorlds.Application do
         # {AsyncWorlds.Worker, arg},
         # Start to serve requests, typically the last entry
         AsyncWorldsWeb.Endpoint
-      ] ++ discord_children(Application.fetch_env!(:async_worlds, :discord))
+      ] ++
+        discord_children(Application.fetch_env!(:async_worlds, :discord)) ++
+        [{Oban, Application.fetch_env!(:async_worlds, Oban)}]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options

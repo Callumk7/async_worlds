@@ -91,8 +91,11 @@ actual command behavior is implemented later. Normal tests always stay offline.
 frozen version-1 `Ticks.Snapshot` into a DM-only, JSON-compatible draft. It applies
 background rates and world triggers without database writes or Discord calls.
 See [resolution decisions and the draft contract](docs/world-resolution.md).
-Resolution jobs, review/publication and gameplay command wiring remain separate
-follow-up work; closing a tick does not automatically resolve it yet.
+Closing now atomically queues an Oban resolution job, which persists the draft
+and moves the tick to review. The durable delivery outbox supports public/private
+sends and targeted failure retries; see [durable work](docs/durable-work.md).
+Review/publication effects, UI and gameplay command wiring remain follow-up work.
+Run `mix ecto.migrate` before starting this version.
 
 ## Local development credentials
 
