@@ -98,8 +98,11 @@ See [resolution decisions and the draft contract](docs/world-resolution.md).
 Closing now atomically queues an Oban resolution job, which persists the draft
 and moves the tick to review. The durable delivery outbox supports public/private
 sends and targeted failure retries; see [durable work](docs/durable-work.md).
-Review/publication effects, UI and gameplay command wiring remain follow-up work.
-Run `mix ecto.migrate` before starting this version.
+Audited edits and atomic publication are available through the private DM console.
+See [the console operating guide](docs/dm-console.md) for the dashboard, clock
+forms, review/preview/publish workflow, and targeted delivery retries. Gameplay
+Discord command wiring remains follow-up work. Run `mix ecto.migrate` before
+starting this version.
 
 ## Local development credentials
 

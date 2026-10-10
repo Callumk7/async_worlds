@@ -27,6 +27,11 @@ clock-ID lookups are campaign scoped; lists have stable ascending ID order.
   members. Membership fields cannot be edited through ordinary attributes.
   Management serializes on the campaign row, including pairing/unpairing.
 
+The minimal [DM console](dm-console.md) exposes these operations. `edit_clock/5`
+optionally accepts the previously loaded clock as its final argument, comparing it
+under the campaign lock and returning `:stale_clock` before any write if it has
+changed. `recent_audits/2` provides bounded descending-ID dashboard history.
+
 ## World-only triggers
 
 `triggers` is an ordered list of typed embeds:

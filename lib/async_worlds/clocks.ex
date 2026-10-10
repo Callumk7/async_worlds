@@ -22,6 +22,12 @@ defmodule AsyncWorlds.Clocks do
     Repo.all(from a in Audit, where: a.campaign_id == ^campaign_id, order_by: a.id)
   end
 
+  def recent_audits(campaign_id, limit \\ 8) do
+    Repo.all(
+      from a in Audit, where: a.campaign_id == ^campaign_id, order_by: [desc: a.id], limit: ^limit
+    )
+  end
+
   def create_clock(campaign_id, attrs, source) do
     manage(campaign_id, source, fn ->
       changeset = Clock.changeset(%Clock{campaign_id: campaign_id}, attrs)
@@ -32,9 +38,10 @@ defmodule AsyncWorlds.Clocks do
     end)
   end
 
-  def edit_clock(campaign_id, clock_id, attrs, source) do
+  def edit_clock(campaign_id, clock_id, attrs, source, expected_clock \\ nil) do
     manage(campaign_id, source, fn ->
       clock = fetch!(campaign_id, clock_id)
+      if expected_clock && expected_clock != clock, do: Repo.rollback(:stale_clock)
       if clock.completed, do: Repo.rollback(:completed)
       changeset = Clock.changeset(clock, attrs)
       validate_references!(changeset, campaign_id)
