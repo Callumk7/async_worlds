@@ -85,6 +85,15 @@ runtime secrets, repeatable `mix discord.register_commands`, permissions and
 live smoke-test steps. ENG-3 registers and secures the milestone-1 commands;
 actual command behavior is implemented later. Normal tests always stay offline.
 
+## World-only draft engine
+
+`AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)` deterministically resolves a
+frozen version-1 `Ticks.Snapshot` into a DM-only, JSON-compatible draft. It applies
+background rates and world triggers without database writes or Discord calls.
+See [resolution decisions and the draft contract](docs/world-resolution.md).
+Resolution jobs, review/publication and gameplay command wiring remain separate
+follow-up work; closing a tick does not automatically resolve it yet.
+
 ## Local development credentials
 
 To avoid terminal exports, fill in `config/dev.secret.exs`. This ignored local

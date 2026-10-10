@@ -20,7 +20,8 @@ requirements, automatic closes, resolver jobs or Discord calls in this module.
    passes nil (the default) as expected draft ID. Every subsequent review/recompute
    must pass the latest draft ID. Outdated input or draft identities return
    `:stale_input` / `:stale_draft`. Payload must be a JSON object; game semantics
-   and recomputation belong to ENG-4, not this lifecycle layer.
+   and recomputation belong to the engine, not this lifecycle layer. The world-only
+   engine is `Ticks.WorldResolver`; see [resolution decisions](world-resolution.md).
 4. `publish_tick(campaign_id, tick_id, expected_draft_id, apply_callback)` accepts
    only the current reviewed draft. It calls the trusted internal application
    callback with `%{tick: tick, snapshot: snapshot, draft: draft}`. The callback
@@ -30,9 +31,9 @@ requirements, automatic closes, resolver jobs or Discord calls in this module.
    the campaign counter advances and management unlocks. Repeated publication
    returns `:already_published` **without calling the callback**.
 
-Publication intentionally requires an explicit callback: ENG-4/ENG-7 implement
-validated world effects and durable delivery. This is not a user-provided function
-or an excuse to publish without applying the draft. It must only perform database
+Publication intentionally requires an explicit callback: ENG-8/ENG-7 implement
+validated world publication and durable delivery. ENG-4 only produces pure drafts.
+This is not a user-provided function or an excuse to publish without applying the draft. It must only perform database
 work, never network I/O or other irreversible effects. Exceptions also roll back
 DB writes and leave the tick in review for retry. The callback's success value is
 not persisted here; published records/outbox contents must be written by it.
