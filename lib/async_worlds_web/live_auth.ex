@@ -21,6 +21,8 @@ defmodule AsyncWorldsWeb.LiveAuth do
           |> assign(:current_scope, scope)
           |> assign(:web_session_token, token)
           |> attach_hook(:fresh_dm_authorization, :handle_event, &authorize_event/3)
+          |> attach_hook(:dm_session_messages, :handle_info, &session_message/2)
+          |> attach_hook(:fresh_dm_navigation, :handle_params, &authorize_event/3)
 
         {:cont, socket}
 
@@ -35,6 +37,11 @@ defmodule AsyncWorldsWeb.LiveAuth do
       {:error, _reason} -> {:halt, redirect(socket, to: "/login")}
     end
   end
+
+  defp session_message(message, socket) when message in [:session_revoked, :session_expired],
+    do: {:halt, redirect(socket, to: "/login")}
+
+  defp session_message(_message, socket), do: {:cont, socket}
 
   defp expiry_delay(expires_at) do
     expires_at

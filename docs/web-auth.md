@@ -42,7 +42,7 @@ URL is registered for the development application. Automated tests use
 * Web sessions are persisted as token digests, expire after eight hours, and can
   be revoked. Logout revokes the database row before dropping the cookie and
   broadcasts revocation to connected LiveViews, preventing cookie replay.
-* HTTP requests, disconnected mounts, connected mounts, and every LiveView event
+* HTTP requests, disconnected mounts, connected mounts, LiveView navigation, and every LiveView event
   load the current server-side session and call `Campaigns.authorize_dm/2` against
   fresh campaign configuration. Browser campaign/user IDs and cached campaign
   records are never authorization authorities.
@@ -52,5 +52,6 @@ URL is registered for the development application. Automated tests use
 
 Changing the configured DM immediately blocks the old identity on its next HTTP
 request or LiveView event. Explicit logout closes current sockets immediately.
-Expired connected sessions are redirected by a server timer as well as by the
-per-event check.
+Expired connected sessions are redirected by a shared authenticated-session hook
+and server timer as well as by the per-event check. The same protection covers
+the overview, clock editor, and private tick review; see [the console guide](dm-console.md).

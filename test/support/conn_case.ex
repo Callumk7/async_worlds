@@ -31,6 +31,36 @@ defmodule AsyncWorldsWeb.ConnCase do
     end
   end
 
+  @endpoint AsyncWorldsWeb.Endpoint
+  require Phoenix.ConnTest
+
+  def log_in_dm(conn, campaign) do
+    Req.Test.stub(AsyncWorlds.Discord.OAuth, fn request ->
+      case request.request_path do
+        "/oauth2/token" -> Req.Test.json(request, %{"access_token" => "test-access-token"})
+        "/users/@me" -> Req.Test.json(request, %{"id" => campaign.dm_user_id})
+      end
+    end)
+
+    conn = Phoenix.ConnTest.get(conn, "/auth/discord")
+
+    state =
+      conn
+      |> Phoenix.ConnTest.redirected_to()
+      |> URI.parse()
+      |> Map.fetch!(:query)
+      |> URI.decode_query()
+      |> Map.fetch!("state")
+
+    conn =
+      Phoenix.ConnTest.get(
+        Phoenix.ConnTest.recycle(conn),
+        "/auth/discord/callback?code=test-code&state=#{state}"
+      )
+
+    Phoenix.ConnTest.recycle(conn)
+  end
+
   setup tags do
     AsyncWorlds.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
