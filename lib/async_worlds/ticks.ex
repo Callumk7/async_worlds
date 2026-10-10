@@ -4,8 +4,8 @@ defmodule AsyncWorlds.Ticks do
 
   Writers lock the campaign before the tick, matching clock management's lock
   order. Snapshots and drafts are DM-only; public readers use live clocks and
-  `latest_published_tick/1`, never draft payloads. No resolution or delivery is
-  performed here: downstream writers supply a transactional publication callback.
+  `latest_published_tick/1`, never draft payloads. Close atomically queues durable
+  resolution; downstream writers supply a transactional publication callback.
   """
   import Ecto.Query
   import Ecto.Changeset
@@ -51,6 +51,21 @@ defmodule AsyncWorlds.Ticks do
     end
   end
 
+  @doc "DM-only resolution diagnostics, scoped to the owning campaign and tick."
+  def resolution_jobs(campaign_id, tick_id) do
+    with {:ok, _} <- fetch_tick(campaign_id, tick_id) do
+      {:ok,
+       Repo.all(
+         from j in Oban.Job,
+           where:
+             j.worker == "AsyncWorlds.Workers.ResolveTick" and
+               fragment("?->>'tick_id' = ?", j.args, ^to_string(tick_id)) and
+               fragment("?->>'campaign_id' = ?", j.args, ^to_string(campaign_id)),
+           order_by: j.id
+       )}
+    end
+  end
+
   @doc "Opens the next numbered tick. Duplicate opens return :active_tick, not another turn."
   def open_tick(campaign_id) do
     Repo.transaction(fn ->
@@ -82,6 +97,12 @@ defmodule AsyncWorlds.Ticks do
             })
 
           closed = update!(tick, status: :resolving, closed_at: now())
+
+          %{campaign_id: campaign_id, tick_id: tick.id, input_revision: snapshot.revision}
+          |> AsyncWorlds.Workers.ResolveTick.new()
+          |> Oban.insert()
+          |> persist!()
+
           %{tick: closed, snapshot: snapshot}
 
         status when status in [:resolving, :in_review] ->
@@ -136,7 +157,7 @@ defmodule AsyncWorlds.Ticks do
   before invoking the callback. `apply` receives %{tick, snapshot, draft} and must
   return {:ok, value} or {:error, reason}; its DB writes, tick transition, campaign
   number and management unlock commit together. It must not perform network I/O.
-  Approved state/audits/outbox writes belong inside this callback (ENG-4/ENG-7).
+  Approved state/audits/outbox writes belong inside this callback (ENG-8/ENG-7).
   """
   def publish_tick(campaign_id, tick_id, expected_draft_id, apply) when is_function(apply, 1) do
     transaction(campaign_id, tick_id, fn campaign, tick ->

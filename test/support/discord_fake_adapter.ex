@@ -14,6 +14,12 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
   def edit_response(envelope, content), do: call(:edit_response, {envelope, content})
 
   @impl true
+  def send_public(channel, payload), do: call(:send_public, {channel, payload})
+
+  @impl true
+  def send_private(user, payload), do: call(:send_private, {user, payload})
+
+  @impl true
   def register_commands(app, guild, commands),
     do: call(:register_commands, {app, guild, commands})
 
@@ -58,6 +64,12 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
       {:reply, :ok, %{state | acknowledged: MapSet.put(state.acknowledged, envelope.id)}}
     end
   end
+
+  defp perform(:send_public, {channel, _}, state),
+    do: {:reply, {:ok, %{message_id: "1001", channel_id: channel}}, state}
+
+  defp perform(:send_private, _, state),
+    do: {:reply, {:ok, %{message_id: "1002", channel_id: "999"}}, state}
 
   defp perform(:edit_response, _, state), do: {:reply, :ok, state}
 

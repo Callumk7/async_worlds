@@ -8,6 +8,13 @@ defmodule AsyncWorlds.Discord.Adapter do
   idempotency constraints, including for interactions with different IDs.
   """
 
+  @type send_result ::
+          {:ok, %{message_id: String.t(), channel_id: String.t()}}
+          | {:error, {:retryable | :permanent | :ambiguous, atom()}}
+
+  @callback send_public(String.t(), map()) :: send_result()
+  @callback send_private(String.t(), map()) :: send_result()
+
   @callback defer(map()) :: :ok | {:error, term()}
   @callback edit_response(map(), String.t()) :: :ok | {:error, term()}
   @callback register_commands(String.t(), String.t(), [map()]) ::
