@@ -3,6 +3,8 @@ defmodule AsyncWorldsWeb.AuthConfigTest do
 
   test "production runtime preserves compile-time TLS and trusted proxy settings" do
     values = %{
+      "PHX_HOST" => "example.com",
+      "DATABASE_SSL" => "disable",
       "DATABASE_URL" => "ecto://test:test@localhost/unused",
       "SECRET_KEY_BASE" => String.duplicate("test-only-", 8),
       "DISCORD_ENABLED" => "false",
@@ -18,6 +20,9 @@ defmodule AsyncWorldsWeb.AuthConfigTest do
       compiled = Config.Reader.read!("config/prod.exs", env: :prod, target: :host)
       runtime = Config.Reader.read!("config/runtime.exs", env: :prod, target: :host)
       endpoint = AsyncWorldsWeb.Endpoint
+      grace = compiled[:async_worlds][Oban][:shutdown_grace_period]
+      assert grace > AsyncWorlds.Workers.ResolveTick.timeout(%Oban.Job{})
+      assert grace > AsyncWorlds.Workers.DeliverDiscord.timeout(%Oban.Job{})
       tls = compiled[:async_worlds][endpoint][:force_ssl]
       assert tls[:rewrite_on] == [:x_forwarded_proto]
       assert Keyword.get(tls, :hsts, true)
