@@ -105,13 +105,30 @@ defmodule AsyncWorlds.Discord.Dispatcher do
         result
     end
   rescue
-    _ ->
-      log_failure(stage)
+    exception ->
+      log_exception(stage, exception.__struct__, __STACKTRACE__)
       {:error, :failed}
   catch
     _, _ ->
       log_failure(stage)
       {:error, :failed}
+  end
+
+  defp log_exception(stage, kind, stacktrace) do
+    # Only module/function/arity, never arguments or exception messages.
+    location =
+      case stacktrace do
+        [{module, function, arity, _} | _] when is_integer(arity) ->
+          "#{inspect(module)}.#{function}/#{arity}"
+
+        _ ->
+          "unavailable"
+      end
+
+    Logger.warning(
+      "Discord operation failed (#{inspect(kind)} at #{location})",
+      discord_stage: stage
+    )
   end
 
   defp log_failure(stage) do

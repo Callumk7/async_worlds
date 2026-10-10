@@ -5,6 +5,21 @@ defmodule AsyncWorlds.Discord.DispatcherTest do
   alias AsyncWorlds.Campaigns
   alias AsyncWorlds.Discord.{Dispatcher, FakeAdapter, TestHandler}
 
+  test "exception diagnostics identify the failure without exposing exception content" do
+    log =
+      capture_log(fn ->
+        assert {:error, :failed} =
+                 Dispatcher.safely(:consumer, fn ->
+                   raise "private-token-and-payload"
+                 end)
+      end)
+
+    assert log =~ "RuntimeError"
+    assert log =~ "Discord operation failed"
+    assert log =~ " at "
+    refute log =~ "private-token-and-payload"
+  end
+
   setup do
     start_supervised!({FakeAdapter, owner: self()})
 

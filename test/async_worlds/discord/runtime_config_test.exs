@@ -1,11 +1,13 @@
 defmodule AsyncWorlds.Discord.RuntimeConfigTest do
   use ExUnit.Case, async: false
 
-  @keys ~w(DISCORD_ENABLED DISCORD_BOT_TOKEN DISCORD_GUILD_ID DISCORD_APPLICATION_ID)
+  @keys ~w(DISCORD_ENABLED DISCORD_BOT_TOKEN DISCORD_GUILD_ID DISCORD_APPLICATION_ID ASYNC_WORLDS_LOAD_LOCAL_SECRETS)
 
   setup do
     previous = Map.new(@keys, &{&1, System.get_env(&1)})
     Enum.each(@keys, &System.delete_env/1)
+    # Config.Reader simulates development here; never load a developer's real secrets.
+    System.put_env("ASYNC_WORLDS_LOAD_LOCAL_SECRETS", "false")
 
     on_exit(fn ->
       Enum.each(previous, fn
