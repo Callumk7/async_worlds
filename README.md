@@ -3,6 +3,10 @@
 A Phoenix campaign engine with PostgreSQL persistence. See [the implementation
 plan](docs/project-plan.md) for the project scope.
 
+For production releases, runtime secrets/TLS, migration and campaign setup,
+health probes, single-bot rollouts, backup/restore and the repeatable external-DB
+container smoke test, see [operations](docs/operations.md).
+
 ## Local PostgreSQL setup
 
 Install Elixir/Erlang and PostgreSQL, then start PostgreSQL before running Mix.

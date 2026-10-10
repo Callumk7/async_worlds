@@ -15,7 +15,7 @@ config :async_worlds, AsyncWorldsWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [
-      # paths: ["/health"],
+      paths: ["/health/live", "/health/ready"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]
@@ -25,6 +25,10 @@ config :swoosh, api_client: Swoosh.ApiClient.Req
 
 # Disable Swoosh Local Memory Storage
 config :swoosh, local: false
+
+# Give resolution workers (60s timeout) time to finish before the 90s container
+# stop deadline. Oban stops first, while the repository and bot are still alive.
+config :async_worlds, Oban, shutdown_grace_period: :timer.seconds(65)
 
 # Do not print debug messages in production
 config :logger, level: :info
