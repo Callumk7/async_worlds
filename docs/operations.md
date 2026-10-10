@@ -69,12 +69,12 @@ docker run --rm --network worlds-private --env-file /secure/worlds.env \
 # Setup is idempotent by guild. Changing the DM immediately changes authorization;
 # it preserves tick history and does not validate guild/channel ownership remotely.
 docker run -d --name worlds-app --network worlds-private \
-  --env-file /secure/worlds.env --restart unless-stopped --stop-timeout 90 \
+  --env-file /secure/worlds.env --restart unless-stopped --stop-timeout 180 \
   -p 127.0.0.1:4000:4000 async-worlds:ENG-11
 ```
 
 For an upgrade: take/verify a backup; **stop the old app/bot before starting any
-new app instance** (`docker stop -t 90 worlds-app`); run migrations once; run setup
+new app instance** (`docker stop -t 180 worlds-app`); run migrations once; run setup
 only if configuration needs changing; replace with the new digest; check readiness
 and DM login. This is a short-downtime rollout, not a hosting commitment. Migration
 failure aborts rollout: never start a new bot against a partially upgraded DB.
@@ -104,8 +104,9 @@ are exempt from HTTP redirection. OAuth and DM routes remain protected.
   rotation and access control; do not enable transport debugging or dump process
   state. Postgrex sensitive-connection diagnostics are disabled. Readiness returns
   a safe fixed diagnostic; use secured DB tools for deeper diagnosis.
-* Exec-form entrypoint gives the BEAM SIGTERM. `docker stop -t 90` allows OTP/Oban
-  to drain workers (production Oban grace is 65s; resolution timeout is 60s)
+* Exec-form entrypoint gives the BEAM SIGTERM. `docker stop -t 180` allows OTP/Oban
+  to drain workers (production Oban grace is 130s; delivery timeout 120s,
+  resolution timeout 60s)
   before Docker SIGKILL. Avoid a default
   10s deadline. Normal exits are clean; `unless-stopped` restarts crashes/daemon
   restarts, but not an explicitly stopped container. Test operational stop/start.

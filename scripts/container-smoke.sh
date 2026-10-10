@@ -72,7 +72,7 @@ for bad in 'DATABASE_SSL=require' 'DISCORD_OAUTH_REDIRECT_URI=http://smoke.examp
   fi
   grep -q "${bad%%=*}" "$work/failure.log"
 done
-docker run -d --name "$name" "${network[@]}" "${extra[@]}" --env-file "$work/runtime.env" --restart unless-stopped --stop-timeout 90 "$image" >/dev/null
+docker run -d --name "$name" "${network[@]}" "${extra[@]}" --env-file "$work/runtime.env" --restart unless-stopped --stop-timeout 180 "$image" >/dev/null
 wait_ready() {
   for _ in {1..60}; do
     if docker exec "$name" curl -fsS http://127.0.0.1:4000/health/ready > "$work/ready.json" 2>/dev/null; then
@@ -93,7 +93,7 @@ rpc 'c = AsyncWorlds.Campaigns.fetch_campaign_by_guild("111"); {:ok, campaign} =
 # HTTP outside probes must retain HTTPS enforcement and DM login protection.
 docker exec "$name" sh -ec 'curl -sS -D /tmp/headers -o /dev/null -H "Host: smoke.example" http://127.0.0.1:4000/; grep -q "location: https://" /tmp/headers'
 docker exec "$name" sh -ec 'curl -fsS -D /tmp/oauth-headers -o /dev/null -H "Host: smoke.example" -H "X-Forwarded-Proto: https" http://127.0.0.1:4000/auth/discord; grep -qi "set-cookie:.*secure" /tmp/oauth-headers; grep -qi "set-cookie:.*HttpOnly" /tmp/oauth-headers; grep -q "location: https://discord.com/" /tmp/oauth-headers; curl -sS -D /tmp/dm-headers -o /dev/null -H "Host: smoke.example" -H "X-Forwarded-Proto: https" http://127.0.0.1:4000/dashboard; grep -q "location: /login" /tmp/dm-headers'
-docker stop -t 90 "$name" >/dev/null
+docker stop -t 180 "$name" >/dev/null
 [[ $(docker inspect -f '{{.State.ExitCode}}' "$name") == 0 ]]
 docker start "$name" >/dev/null
 wait_ready

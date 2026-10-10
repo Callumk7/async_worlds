@@ -17,6 +17,8 @@ defmodule AsyncWorlds.RuntimeConfigTest do
     previous = Map.new(keys, &{&1, System.get_env(&1)})
     Enum.each(keys, &System.delete_env/1)
     System.put_env(@values)
+    # Certifi is bundled with the app on every supported OS; no Debian CA dependency.
+    System.put_env("DATABASE_CA_CERT", List.to_string(:certifi.cacertfile()))
 
     on_exit(fn ->
       Enum.each(previous, fn
@@ -32,6 +34,7 @@ defmodule AsyncWorlds.RuntimeConfigTest do
     config = runtime()
     ssl = config[:async_worlds][AsyncWorlds.Repo][:ssl]
     assert ssl[:verify] == :verify_peer
+    assert ssl[:cacertfile] == :certifi.cacertfile()
     assert ssl[:server_name_indication] == ~c"db.example"
     assert is_function(ssl[:customize_hostname_check][:match_fun], 2)
     assert Process.whereis(AsyncWorlds.Discord.Supervisor) == nil
@@ -56,13 +59,14 @@ defmodule AsyncWorlds.RuntimeConfigTest do
           {"DISCORD_OAUTH_REDIRECT_URI", "http://worlds.example/auth/discord/callback"},
           {"DISCORD_ENABLED", "true"}
         ] do
+      previous = System.get_env(key)
       System.put_env(key, value)
       error = assert_raise RuntimeError, &runtime/0
       refute Exception.message(error) =~ "private"
 
-      if Map.has_key?(@values, key),
-        do: System.put_env(key, @values[key]),
-        else: System.delete_env(key)
+      if is_nil(previous),
+        do: System.delete_env(key),
+        else: System.put_env(key, previous)
     end
   end
 
