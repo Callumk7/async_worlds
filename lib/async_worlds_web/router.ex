@@ -8,6 +8,11 @@ defmodule AsyncWorldsWeb.Router do
     plug :put_root_layout, html: {AsyncWorldsWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug AsyncWorldsWeb.Auth, :fetch_current_scope
+  end
+
+  pipeline :require_authenticated_dm do
+    plug AsyncWorldsWeb.Auth, :require_authenticated_dm
   end
 
   pipeline :api do
@@ -18,6 +23,20 @@ defmodule AsyncWorldsWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/login", PageController, :home
+    get "/auth/discord", AuthController, :new
+    get "/auth/discord/callback", AuthController, :callback
+  end
+
+  scope "/", AsyncWorldsWeb do
+    pipe_through [:browser, :require_authenticated_dm]
+
+    delete "/auth/logout", AuthController, :delete
+
+    live_session :authenticated_dm,
+      on_mount: [{AsyncWorldsWeb.LiveAuth, :ensure_dm}] do
+      live "/dashboard", DashboardLive, :index
+    end
   end
 
   # Other scopes may use custom stacks.

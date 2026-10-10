@@ -14,6 +14,15 @@ config :async_worlds, AsyncWorlds.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+# Dummy OAuth values are local-only. Req.Test replaces the transport in focused tests.
+config :async_worlds, :discord_oauth,
+  client_id: "test-client",
+  client_secret: "test-secret",
+  redirect_uri: "http://www.example.com/auth/discord/callback",
+  token_url: "https://discord.example/oauth2/token",
+  profile_url: "https://discord.example/users/@me",
+  request_options: [plug: {Req.Test, AsyncWorlds.Discord.OAuth}]
+
 # No bot process or real transport in the normal suite, regardless of shell credentials.
 config :async_worlds, :discord,
   enabled: false,

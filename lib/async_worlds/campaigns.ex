@@ -1,6 +1,8 @@
 defmodule AsyncWorlds.Campaigns do
   @moduledoc "Shared campaign configuration, lookup and DM authorization for web and Discord."
 
+  import Ecto.Query
+
   alias AsyncWorlds.Campaigns.Campaign
   alias AsyncWorlds.Discord.Snowflake
   alias AsyncWorlds.Repo
@@ -27,6 +29,19 @@ defmodule AsyncWorlds.Campaigns do
       case Repo.get_by(Campaign, discord_guild_id: id) do
         nil -> {:error, :not_found}
         campaign -> {:ok, campaign}
+      end
+    end
+  end
+
+  @doc "Finds the single campaign currently administered by a Discord user."
+  def authorize_dm_user(user_id) do
+    with {:ok, id} <- normalize_id(user_id) do
+      case Repo.all(
+             from c in Campaign, where: c.dm_user_id == ^id, select: c.discord_guild_id, limit: 2
+           ) do
+        [guild_id] -> authorize_dm(guild_id, id)
+        [] -> {:error, :unauthorized}
+        _multiple -> {:error, :ambiguous_campaign}
       end
     end
   end

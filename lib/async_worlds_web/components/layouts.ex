@@ -35,40 +35,44 @@ defmodule AsyncWorldsWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
+    <div class="min-h-screen bg-[#090b12] text-slate-100 selection:bg-amber-300 selection:text-slate-950">
+      <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+        <div class="absolute -left-40 -top-48 size-[34rem] rounded-full bg-indigo-600/15 blur-3xl">
+        </div>
+        <div class="absolute -right-52 top-1/3 size-[38rem] rounded-full bg-amber-400/10 blur-3xl">
+        </div>
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
-
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+      <header class="relative border-b border-white/10">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
+          <a
+            href={if @current_scope, do: ~p"/dashboard", else: ~p"/login"}
+            class="group flex items-center gap-3"
+          >
+            <span class="grid size-10 place-items-center rounded-xl border border-amber-300/30 bg-amber-300/10 text-amber-300 transition group-hover:rotate-3 group-hover:bg-amber-300/15">
+              <.icon name="hero-sparkles" class="size-5" />
+            </span>
+            <span>
+              <span class="block text-sm font-semibold tracking-wide text-white">World Games</span>
+              <span class="block text-[10px] uppercase tracking-[0.2em] text-slate-500">DM console</span>
+            </span>
+          </a>
+          <%= if @current_scope do %>
+            <.link
+              id="logout-link"
+              href={~p"/auth/logout"}
+              method="delete"
+              class="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-300"
+            >
+              Sign out
+            </.link>
+          <% end %>
+        </div>
+      </header>
+      <main class="relative mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-20">
         {render_slot(@inner_block)}
-      </div>
-    </main>
-
-    <.flash_group flash={@flash} />
+      </main>
+      <.flash_group flash={@flash} />
+    </div>
     """
   end
 
@@ -117,43 +121,6 @@ defmodule AsyncWorldsWeb.Layouts do
         {gettext("Attempting to reconnect")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
-    </div>
-    """
-  end
-
-  @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
-
-  See <head> in root.html.heex which applies the theme before page load.
-  """
-  def theme_toggle(assigns) do
-    ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="system"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
-      >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
-      >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
     </div>
     """
   end

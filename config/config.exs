@@ -11,6 +11,18 @@ config :async_worlds,
   ecto_repos: [AsyncWorlds.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :async_worlds, :web_auth,
+  state_ttl_seconds: 600,
+  session_ttl_seconds: 28_800
+
+config :async_worlds, :discord_oauth,
+  client_id: nil,
+  client_secret: nil,
+  redirect_uri: nil,
+  token_url: "https://discord.com/api/oauth2/token",
+  profile_url: "https://discord.com/api/users/@me",
+  request_options: []
+
 # Nostrum is an included application: only our opt-in bot subtree starts it.
 config :async_worlds, :discord,
   enabled: false,
@@ -75,6 +87,9 @@ config :tailwind,
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id, :discord_stage]
+
+# Prevent short-lived OAuth codes and all credential-like parameters from logs.
+config :phoenix, :filter_parameters, ["password", "token", "secret", "code"]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
