@@ -9,16 +9,36 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
   @phases ~w(quest_choices resource_assignments background_rates clock_triggers quest_conditions)
 
-  def resolve(%Snapshot{schema_version: 1, revision: revision, data: data})
+  def resolve(snapshot, review \\ %{})
+
+  def resolve(%Snapshot{schema_version: 1, revision: revision, data: data}, review)
       when is_binary(revision) and byte_size(revision) > 0 and is_map(data) do
-    if valid?(data) do
-      {:ok, run(data, revision)}
+    if valid?(data) and valid_review?(review, data["clocks"]) do
+      payload = run(data, revision, review)
+      payload = if map_size(review) == 0, do: payload, else: Map.put(payload, "review", review)
+      {:ok, payload}
     else
       {:error, :invalid_snapshot}
     end
   end
 
-  def resolve(_), do: {:error, :invalid_snapshot}
+  def resolve(_, _), do: {:error, :invalid_snapshot}
+
+  defp valid_review?(review, clocks) when is_map(review) do
+    ids = Enum.map(clocks, &to_string(&1["id"]))
+    deltas = Map.get(review, "clock_deltas", %{})
+    news = Map.get(review, "world_news", [])
+
+    Enum.all?(Map.keys(review), &(&1 in ["clock_deltas", "world_news"])) and
+      is_map(deltas) and
+      Enum.all?(deltas, fn {id, delta} ->
+        id in ids and is_integer(delta) and
+          not Enum.find(clocks, &(to_string(&1["id"]) == id))["completed"]
+      end) and is_list(news) and length(news) <= 100 and
+      Enum.all?(news, &(is_binary(&1) and String.trim(&1) != "" and String.length(&1) <= 2000))
+  end
+
+  defp valid_review?(_, _), do: false
 
   defp valid?(data) do
     with %{"id" => campaign_id} when is_integer(campaign_id) <- data["campaign"],
@@ -73,7 +93,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
   defp valid_trigger?(_, _, _), do: false
 
-  defp run(data, revision) do
+  defp run(data, revision, review) do
     order = data["ordering"]["clocks"]
 
     state = %{
@@ -82,7 +102,8 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       races: %{},
       log: [],
       sequence: 0,
-      tick: data["tick_number"]
+      tick: data["tick_number"],
+      deltas: Map.get(review, "clock_deltas", %{})
     }
 
     state = Enum.reduce(order, state, &latch/2)
@@ -103,7 +124,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       "effects" => Enum.filter(log, &(&1["kind"] == "clock_change")),
       "trigger_results" => triggers,
       "log" => log,
-      "world_news" => intents(triggers, "world_news"),
+      "world_news" => Map.get(review, "world_news", intents(triggers, "world_news")),
       "dm_notifications" => intents(triggers, "notify_dm")
     }
   end
@@ -131,19 +152,27 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
   defp background(id, state) do
     clock = Map.fetch!(state.clocks, id)
 
-    if clock["paused"] or clock["completed"] do
+    override = Map.get(state.deltas, to_string(id))
+    delta = override || clock["background_rate"]
+
+    if (clock["paused"] and is_nil(override)) or clock["completed"] do
       state
     else
       updated =
         Map.put(
           clock,
           "filled",
-          max(0, min(clock["segments"], clock["filled"] + clock["background_rate"]))
+          max(0, min(clock["segments"], clock["filled"] + delta))
         )
 
+      source =
+        if is_nil(override),
+          do: "background:tick:#{state.tick}",
+          else: "review:tick:#{state.tick}:clock:#{id}"
+
       state
-      |> change(clock, updated, "background:tick:#{state.tick}", "background_rates", %{
-        "requested_delta" => clock["background_rate"],
+      |> change(clock, updated, source, "background_rates", %{
+        "requested_delta" => delta,
         "applied_delta" => updated["filled"] - clock["filled"]
       })
       |> then(&latch(id, &1))

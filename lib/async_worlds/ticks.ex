@@ -5,13 +5,16 @@ defmodule AsyncWorlds.Ticks do
   Writers lock the campaign before the tick, matching clock management's lock
   order. Snapshots and drafts are DM-only; public readers use live clocks and
   `latest_published_tick/1`, never draft payloads. Close atomically queues durable
-  resolution; downstream writers supply a transactional publication callback.
+  resolution. Audited review operations and atomic world publication share this
+  boundary. Interfaces authorize all DM-only reads and mutations.
   """
   import Ecto.Query
   import Ecto.Changeset
   alias AsyncWorlds.{Clocks, Repo}
   alias AsyncWorlds.Campaigns.Campaign
-  alias AsyncWorlds.Ticks.{Draft, Snapshot, Tick}
+  alias AsyncWorlds.Ticks.{Draft, Output, Publication, ReviewEdit, Snapshot, Tick, WorldResolver}
+  alias AsyncWorlds.Clocks.{Audit, Clock}
+  alias AsyncWorlds.Deliveries
 
   def fetch_tick(campaign_id, tick_id) do
     case Repo.get_by(Tick, id: tick_id, campaign_id: campaign_id) do
@@ -159,6 +162,8 @@ defmodule AsyncWorlds.Ticks do
   number and management unlock commit together. It must not perform network I/O.
   Approved state/audits/outbox writes belong inside this callback (ENG-8/ENG-7).
   """
+  # Trusted transaction primitive retained for future engine extensions. Interfaces
+  # must use publish_tick/3, not supply their own state/publication implementation.
   def publish_tick(campaign_id, tick_id, expected_draft_id, apply) when is_function(apply, 1) do
     transaction(campaign_id, tick_id, fn campaign, tick ->
       if tick.status == :published, do: Repo.rollback(:already_published)
@@ -180,6 +185,183 @@ defmodule AsyncWorlds.Ticks do
       published
     end)
   end
+
+  @doc "Audited DM edit: replace a clock's tick delta or world-news narration; nil clears an override."
+  def edit_draft(campaign_id, tick_id, expected_draft_id, operation, actor_id, reason) do
+    with {:ok, operation} <- json_payload(operation) do
+      transaction(campaign_id, tick_id, fn campaign, tick ->
+        if actor_id != campaign.dm_user_id, do: Repo.rollback(:unauthorized)
+
+        unless is_binary(reason) and String.trim(reason) != "" and String.length(reason) <= 2000,
+          do: Repo.rollback(:invalid_reason)
+
+        if tick.status != :in_review, do: invalid_transition!(tick, :edit_draft)
+        draft = current_draft(tick)
+        if draft.id != expected_draft_id, do: Repo.rollback(:stale_draft)
+        snapshot = snapshot!(tick)
+        review = review_state(tick)
+        verify_draft!(draft, snapshot, review)
+        validate_review_target!(operation, snapshot)
+        review = apply_review_operation(review, operation)
+
+        payload =
+          case WorldResolver.resolve(snapshot, review) do
+            {:ok, payload} -> payload
+            _ -> Repo.rollback(:invalid_edit)
+          end
+
+        {:ok, result} = put_draft(campaign_id, tick_id, snapshot.revision, payload, draft.id)
+
+        edit =
+          Repo.insert!(%ReviewEdit{
+            tick_id: tick.id,
+            previous_draft_id: draft.id,
+            draft_id: result.draft.id,
+            actor_id: actor_id,
+            reason: reason,
+            operation: operation
+          })
+
+        Map.put(result, :edit, edit)
+      end)
+    end
+  end
+
+  def list_review_edits(campaign_id, tick_id) do
+    with {:ok, _} <- fetch_tick(campaign_id, tick_id) do
+      {:ok, Repo.all(from e in ReviewEdit, where: e.tick_id == ^tick_id, order_by: e.id)}
+    end
+  end
+
+  def fetch_publication(campaign_id, tick_id) do
+    with {:ok, _} <- fetch_tick(campaign_id, tick_id) do
+      case Repo.get_by(Publication, tick_id: tick_id) do
+        nil -> {:error, :not_published}
+        publication -> {:ok, publication}
+      end
+    end
+  end
+
+  @doc "DM-only preview of exact outgoing content for a selected current revision."
+  def preview_draft(campaign_id, tick_id, expected_draft_id) do
+    transaction(campaign_id, tick_id, fn _campaign, tick ->
+      if tick.status != :in_review, do: invalid_transition!(tick, :preview)
+      draft = current_draft(tick)
+      if draft.id != expected_draft_id, do: Repo.rollback(:stale_draft)
+      snapshot = snapshot!(tick)
+      verify_draft!(draft, snapshot, review_state(tick))
+      Output.render(draft.payload, snapshot.data["campaign"])
+    end)
+  end
+
+  @doc "Apply the selected audited world draft, immutable history, and outbox in one transaction."
+  def publish_tick(campaign_id, tick_id, expected_draft_id) do
+    publish_tick(campaign_id, tick_id, expected_draft_id, fn %{
+                                                               tick: tick,
+                                                               snapshot: snapshot,
+                                                               draft: draft
+                                                             } ->
+      verify_draft!(draft, snapshot, review_state(tick))
+      campaign = Repo.get!(Campaign, campaign_id)
+
+      if not campaign.clock_mutations_locked or campaign.current_tick_number != tick.number - 1,
+        do: Repo.rollback(:stale_live_state)
+
+      live = freeze(campaign, tick)
+      if live != snapshot.data, do: Repo.rollback(:stale_live_state)
+
+      Enum.each(draft.payload["effects"], fn effect ->
+        before = effect["before"]
+        after_clock = effect["after"]
+        clock = Repo.get_by!(Clock, campaign_id: campaign_id, id: effect["clock_id"])
+
+        update!(clock,
+          filled: after_clock["filled"],
+          paused: after_clock["paused"],
+          completed: after_clock["completed"]
+        )
+
+        Repo.insert!(%Audit{
+          campaign_id: campaign_id,
+          clock_id: clock.id,
+          operation: "publish",
+          source: effect["source"],
+          before: before,
+          after: after_clock
+        })
+      end)
+
+      outputs = Output.render(draft.payload, snapshot.data["campaign"])
+
+      Repo.insert!(%Publication{
+        tick_id: tick.id,
+        draft_id: draft.id,
+        payload: draft.payload,
+        outputs: outputs
+      })
+
+      for {audience, messages} <- outputs, {message, index} <- Enum.with_index(messages) do
+        attrs =
+          Map.put(
+            message,
+            "key",
+            "tick:#{tick.id}:#{audience}:#{message["recipient_id"]}:#{index}"
+          )
+
+        case Deliveries.enqueue(campaign_id, tick.id, attrs) do
+          {:ok, _} -> :ok
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end
+
+      {:ok, :applied}
+    end)
+  end
+
+  defp verify_draft!(draft, snapshot, review) do
+    case WorldResolver.resolve(snapshot, review) do
+      {:ok, payload} when payload == draft.payload -> :ok
+      _ -> Repo.rollback(:invalid_draft)
+    end
+  end
+
+  defp review_state(tick) do
+    Repo.all(from e in ReviewEdit, where: e.tick_id == ^tick.id, order_by: e.id)
+    |> Enum.reduce(%{}, fn edit, review -> apply_review_operation(review, edit.operation) end)
+  end
+
+  defp apply_review_operation(
+         review,
+         %{"type" => "clock_delta", "clock_id" => id, "delta" => delta} = operation
+       )
+       when is_integer(id) and (is_integer(delta) or is_nil(delta)) and map_size(operation) == 3 do
+    deltas = Map.get(review, "clock_deltas", %{})
+
+    deltas =
+      if is_nil(delta),
+        do: Map.delete(deltas, to_string(id)),
+        else: Map.put(deltas, to_string(id), delta)
+
+    if map_size(deltas) == 0,
+      do: Map.delete(review, "clock_deltas"),
+      else: Map.put(review, "clock_deltas", deltas)
+  end
+
+  defp apply_review_operation(review, %{"type" => "world_news", "text" => news} = operation)
+       when (is_list(news) or is_nil(news)) and map_size(operation) == 2 do
+    if is_nil(news),
+      do: Map.delete(review, "world_news"),
+      else: Map.put(review, "world_news", news)
+  end
+
+  defp apply_review_operation(_, _), do: Repo.rollback(:invalid_edit)
+
+  defp validate_review_target!(%{"type" => "clock_delta", "clock_id" => id}, snapshot) do
+    unless Enum.any?(snapshot.data["clocks"], &(&1["id"] == id and not &1["completed"])),
+      do: Repo.rollback(:invalid_edit)
+  end
+
+  defp validate_review_target!(_, _), do: :ok
 
   defp transaction(campaign_id, tick_id, fun) do
     Repo.transaction(fn ->

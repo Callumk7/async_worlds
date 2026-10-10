@@ -52,6 +52,10 @@ log as clock changes; all trigger outcomes enter it as trigger results.
 
 The resolver performs no database, network, random, clock-time or UUID operations.
 Identical snapshots yield identical payloads, suitable for `Ticks.put_draft/5`.
-ENG-7's [durable worker](durable-work.md) now owns job orchestration; ENG-8 owns
-validated review/recomputation/publication.
-Re-resolve the original frozen snapshot, not the resulting draft clocks.
+ENG-7's [durable worker](durable-work.md) owns job orchestration; ENG-8's
+[audited review/publication](tick-review-publication.md) owns validated edits and
+atomic publication. `resolve(snapshot, review)` accepts clock-delta and narration
+overrides, producing the same deterministic contract plus a `review` map when
+nonempty. Clock overrides replace the selected background delta and label effects
+with a `review:tick:...:clock:...` source. Re-resolve the original frozen snapshot,
+not the resulting draft clocks.

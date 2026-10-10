@@ -51,12 +51,13 @@ Private records use kind `:private` and a Discord user ID; the adapter opens a D
 channel before sending. Recipients and content are fixed in the record; later
 campaign setup changes do not silently redirect approved delivery. The caller
 must filter hidden clocks, known-clock fills and private content **before** enqueue.
-This ticket does not implement rendering, approval/publication effects or automatic
-announcements. Do not enqueue a raw engine draft.
+ENG-8's [review/publication boundary](tick-review-publication.md) now renders
+approved privacy-filtered output and enqueues it atomically with state/history.
+Do not enqueue a raw engine draft. Tick-open announcements remain ENG-10.
 
 Ownership is checked against the tick. Content is non-blank and at most 2000
-characters; IDs are canonical snowflakes. Split larger approved output into stable,
-individually keyed records in the later renderer. A campaign-scoped key deduplicates
+characters; IDs are canonical snowflakes. The shared ENG-8 renderer splits larger approved output into stable,
+individually keyed records. A campaign-scoped key deduplicates
 identical intent creation; changing its tick/recipient/kind/content returns
 `:delivery_conflict`. Records and their jobs roll back with the outer transaction.
 Job args contain IDs/generation only, never content, tokens or whole drafts.
