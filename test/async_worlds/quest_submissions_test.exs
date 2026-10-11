@@ -261,6 +261,37 @@ defmodule AsyncWorlds.QuestSubmissionsTest do
              WorldResolver.resolve(%{snapshot | data: Map.put(snapshot.data, "clocks", [nil])})
   end
 
+  test "an earlier tick component is stale once a newer tick exists, not a current-close race",
+       c do
+    {:ok, %{snapshot: first_snapshot}} = Ticks.close_tick(c.campaign.id, c.tick.id)
+    {:ok, payload} = WorldResolver.resolve(first_snapshot)
+
+    {:ok, %{draft: draft}} =
+      Ticks.put_draft(c.campaign.id, c.tick.id, first_snapshot.revision, payload)
+
+    {:ok, _} = Ticks.publish_tick(c.campaign.id, c.tick.id, draft.id)
+
+    # The component still identifies the latest tick until a new window exists.
+    assert {:error, :tick_closed} = Submissions.submit("123", "991", c.identity, "loop")
+    assert {:error, :tick_closed} = Submissions.clear("123", "991", c.identity)
+
+    {:ok, next_tick} = Ticks.open_tick(c.campaign.id)
+    {:ok, state} = Submissions.player_state("123", "991")
+    assert state.identity.tick_id == next_tick.id
+    {:ok, _} = Submissions.submit("123", "991", state.identity, "loop")
+    assert {:error, :stale_identity} = Submissions.submit("123", "991", c.identity, "finish")
+    assert {:error, :stale_identity} = Submissions.clear("123", "991", c.identity)
+    assert {:ok, %{choice_id: "loop"}} = Submissions.player_state("123", "991")
+    assert {:ok, ^first_snapshot} = Ticks.fetch_snapshot(c.campaign.id, c.tick.id)
+
+    {:ok, %{snapshot: next_snapshot}} = Ticks.close_tick(c.campaign.id, next_tick.id)
+    assert {:error, :stale_identity} = Submissions.submit("123", "991", c.identity, "finish")
+    assert {:error, :stale_identity} = Submissions.clear("123", "991", c.identity)
+    assert {:error, :tick_closed} = Submissions.submit("123", "991", state.identity, "finish")
+    assert {:error, :tick_closed} = Submissions.clear("123", "991", state.identity)
+    assert hd(next_snapshot.data["quest_inputs"]["submissions"])["choice_id"] == "loop"
+  end
+
   test "new authored revisions cannot stale a world-only publication", c do
     {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, c.tick.id)
     {:ok, payload} = WorldResolver.resolve(snapshot)

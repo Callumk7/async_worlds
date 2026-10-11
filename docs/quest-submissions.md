@@ -28,7 +28,10 @@ Assign/swap/end/move and all character mutations lock during resolution/review,
 sharing the campaign-before-tick lock order used by submissions and close.
 Authoring immutable new quest revisions remains allowed after close. Serialized
 submit/change/clear racing close either commits before the freeze or receives
-`tick_closed`; stale/foreign components receive `stale_identity` without changes.
+`tick_closed` for the latest tick; stale/foreign components receive
+`stale_identity` without changes. Once a newer tick exists, an earlier tick's
+component is always stale, including when its old tick was published. Clients
+must refresh their current interaction window on `stale_identity`.
 
 ## Snapshot v2
 
@@ -49,6 +52,12 @@ The quest executor is ENG-18, not this issue. The world-only resolver supports v
 only when there are no valid quest submissions or quest-dependent triggers. It
 explicitly rejects unsupported quest work with `quest_executor_required`, never
 silently publishes a world-only result that drops submitted turns. Such closes
-still freeze and queue successfully, but remain resolving until the executor is
-implemented. Existing v1 snapshots remain supported. Discord components and
+still freeze and queue successfully, entering an explicit, resumable capability
+hold: management stays locked and the same durable job snoozes for five minutes,
+then rechecks the original snapshot. Snoozing consumes no retry attempt and
+survives application restarts; deploying the quest executor lets this scheduled
+job proceed automatically, without an operator retry or another close. Discord
+close/status and the dashboard explain this waiting behavior. Invalid snapshots
+still cancel for investigation; they are not capability holds. Existing v1
+snapshots remain supported. Discord components and
 commands are ENG-19; minimal DM intervention UI is ENG-17.

@@ -145,7 +145,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
               id="resolution-pending"
               class="mt-2 text-sm text-amber-200"
             >
-              Processing frozen inputs. Refresh to check for a draft or failed job.
+              Frozen inputs are queued. Quest work waits for executor support and retries automatically every five minutes; management remains locked until publication. Refresh to check the job status or draft.
             </p>
           </div>
           <div class="flex flex-wrap gap-3">
@@ -250,7 +250,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
         <section class="admin-panel">
           <h2 class="mb-2 text-lg font-semibold">Resolution jobs</h2>
           <p class="mb-5 text-sm text-slate-400">
-            Failed processing keeps the tick locked. Investigate discarded or cancelled jobs before retrying via authorized operations.
+            Quest-executor holds snooze and retry automatically every five minutes. Failed processing also keeps the tick locked; investigate discarded or cancelled jobs before retrying via authorized operations.
           </p>
           <div id="resolution-jobs" phx-update="stream" class="space-y-2">
             <p id="resolution-jobs-empty" class="hidden only:block text-sm text-slate-400">

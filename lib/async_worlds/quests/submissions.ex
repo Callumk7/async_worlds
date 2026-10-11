@@ -189,6 +189,16 @@ defmodule AsyncWorlds.Quests.Submissions do
           lock: "FOR UPDATE"
       ) || Repo.rollback(:stale_identity)
 
+    latest_tick_id =
+      Repo.one(
+        from t in Tick,
+          where: t.campaign_id == ^campaign.id,
+          order_by: [desc: t.number],
+          limit: 1,
+          select: t.id
+      )
+
+    if tick.id != latest_tick_id, do: Repo.rollback(:stale_identity)
     if tick.status != :open, do: Repo.rollback(:tick_closed)
     progression = active(campaign.id, character.id) || Repo.rollback(:stale_identity)
     unless identity == identity(tick.id, progression), do: Repo.rollback(:stale_identity)
