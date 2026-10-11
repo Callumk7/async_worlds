@@ -17,6 +17,7 @@ defmodule AsyncWorlds.Discord.Adapter do
 
   @callback defer(map()) :: :ok | {:error, term()}
   @callback edit_response(map(), String.t()) :: :ok | {:error, term()}
+  @callback followup_response(map(), String.t()) :: :ok | {:error, term()}
   @callback register_commands(String.t(), String.t(), [map()]) ::
               {:ok, [map()]} | {:error, term()}
 end

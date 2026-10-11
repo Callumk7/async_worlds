@@ -19,7 +19,14 @@ defmodule AsyncWorlds.DeliveriesTest do
         public_channel_id: "789"
       })
 
-    {:ok, tick} = Ticks.open_tick(campaign.id)
+    # Isolate delivery mechanics from the open-tick announcement tested by commands.
+    tick =
+      Repo.insert!(%AsyncWorlds.Ticks.Tick{
+        campaign_id: campaign.id,
+        number: 1,
+        opened_at: DateTime.utc_now()
+      })
+
     %{campaign: campaign.id, tick: tick}
   end
 

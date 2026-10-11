@@ -32,6 +32,29 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
   end
 
   @impl true
+  def followup_response(interaction, content) do
+    Interaction.create_followup_message(
+      integer_id(interaction.application_id),
+      interaction.token,
+      followup_data(content)
+    )
+    |> case do
+      {:ok, _} -> :ok
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc false
+  def followup_data(content) do
+    # Webhook.execute normalizes mentions using Nostrum's option format, unlike
+    # Interaction.edit_response, which accepts the Discord payload map directly.
+    content
+    |> response_data()
+    |> Map.put(:flags, 64)
+    |> Map.put(:allowed_mentions, :none)
+  end
+
+  @impl true
   def register_commands(application_id, guild_id, commands) do
     ApplicationCommand.bulk_overwrite_guild_commands(
       integer_id(application_id),

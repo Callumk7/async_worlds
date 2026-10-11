@@ -48,7 +48,8 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
       tick: tick,
       draft: draft,
       clock: clock,
-      known: known
+      known: known,
+      opening_deliveries: Deliveries.list_deliveries(campaign.id)
     }
   end
 
@@ -89,7 +90,7 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
     assert Repo.get!(Clock, c.clock.id).completed
     {:ok, publication} = Ticks.fetch_publication(c.campaign.id, c.tick.id)
     assert publication.outputs == preview
-    assert length(Deliveries.list_deliveries(c.campaign.id)) == 2
+    assert length(Deliveries.list_deliveries(c.campaign.id)) == 3
   end
 
   test "stale revision disables actions until explicit reload", c do
@@ -111,7 +112,7 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
     assert has_element?(view, "#publish-tick[disabled]")
     assert has_element?(view, "#world-news-form fieldset[disabled]")
     assert has_element?(view, "#save-draft-clock-#{c.clock.id}[disabled]")
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
     view |> element("#refresh-review") |> render_click()
     refute has_element?(view, "#stale-review")
     assert has_element?(view, "#public-preview", "Other window")
@@ -133,13 +134,13 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
 
     view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
     assert has_element?(view, "#flash-error", "another window")
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
     assert has_element?(view, "#public-preview", "Elsewhere")
     Repo.update!(Ecto.Changeset.change(c.clock, filled: 1))
     view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
     assert has_element?(view, "#flash-error", "no longer match")
     assert {:ok, %{status: :in_review}} = Ticks.fetch_tick(c.campaign.id, c.tick.id)
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
   end
 
   test "missing confirmation and invalid audit edits leave state unchanged", c do
@@ -162,7 +163,7 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
     {:ok, draft} = Ticks.fetch_draft(c.campaign.id, c.tick.id)
     assert draft.id == c.draft.id
     assert Repo.get!(Clock, c.clock.id).filled == 2
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
   end
 
   test "generated narration can be restored and overridden deltas cleared", c do
@@ -255,6 +256,6 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
 
     view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
     assert_redirect(view, ~p"/login")
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
   end
 end

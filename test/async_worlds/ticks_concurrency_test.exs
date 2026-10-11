@@ -72,6 +72,9 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
     assert Enum.count(results, &match?({:ok, %Tick{}}, &1)) == 1
     assert Enum.count(results, &(&1 == {:error, :active_tick})) == 3
     assert db(fn -> Repo.aggregate(from(t in Tick, where: t.campaign_id == ^id), :count) end) == 1
+
+    assert [%{content: "Tick 1 is now open.", kind: :public}] =
+             db(fn -> Deliveries.list_deliveries(id) end)
   end
 
   test "concurrent close retries return one immutable snapshot", %{
@@ -240,7 +243,7 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
     assert Enum.count(results, &match?({:ok, %Tick{status: :published}}, &1)) == 1
     assert Enum.count(results, &(&1 == {:error, :already_published})) == 3
     assert db(fn -> Repo.get!(Clock, clock.id).filled end) == 1
-    assert db(fn -> length(Deliveries.list_deliveries(id)) end) == 2
+    assert db(fn -> length(Deliveries.list_deliveries(id)) end) == 3
     assert {:ok, _} = db(fn -> Ticks.fetch_publication(id, tick.id) end)
   end
 
@@ -272,7 +275,8 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
 
     case {edited, published} do
       {{:ok, %{draft: revised}}, {:error, :stale_draft}} ->
-        assert db(fn -> Deliveries.list_deliveries(id) end) == []
+        assert [%{key: key}] = db(fn -> Deliveries.list_deliveries(id) end)
+        assert key == "tick:#{tick.id}:opened"
         assert {:ok, [_]} = db(fn -> Ticks.list_review_edits(id, tick.id) end)
         assert {:ok, _} = db(fn -> Ticks.publish_tick(id, tick.id, revised.id) end)
 
@@ -280,7 +284,7 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
         assert {:ok, []} = db(fn -> Ticks.list_review_edits(id, tick.id) end)
     end
 
-    assert db(fn -> length(Deliveries.list_deliveries(id)) end) == 2
+    assert db(fn -> length(Deliveries.list_deliveries(id)) end) == 3
   end
 
   test "concurrent publication runs database effects once and advances number once", %{

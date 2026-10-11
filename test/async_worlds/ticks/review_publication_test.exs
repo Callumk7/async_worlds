@@ -57,7 +57,8 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
       draft: draft,
       source: source,
       target: target,
-      public: public
+      public: public,
+      opening_deliveries: Deliveries.list_deliveries(campaign.id)
     }
   end
 
@@ -110,7 +111,7 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
     assert {:ok, publication} = Ticks.fetch_publication(c.campaign.id, c.tick.id)
     assert publication.payload == narrated.payload
     assert publication.outputs == preview
-    deliveries = Deliveries.list_deliveries(c.campaign.id)
+    deliveries = Deliveries.list_deliveries(c.campaign.id) -- c.opening_deliveries
     assert length(deliveries) == 2
 
     assert Enum.sort(Enum.map(deliveries, & &1.content)) ==
@@ -125,7 +126,7 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
     assert {:error, {:invalid_transition, :published, :edit_draft}} =
              edit(c, narrated, %{type: "world_news", text: []})
 
-    assert length(Deliveries.list_deliveries(c.campaign.id)) == 2
+    assert length(Deliveries.list_deliveries(c.campaign.id)) == 3
     assert {:ok, [_, _]} = Ticks.list_review_edits(c.campaign.id, c.tick.id)
     assert Repo.get!(Draft, c.draft.id).payload == c.draft.payload
 
@@ -282,7 +283,7 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
     Repo.update!(change(c.campaign, public_channel_id: "888"))
     assert {:error, :stale_live_state} = Ticks.publish_tick(c.campaign.id, c.tick.id, c.draft.id)
     assert Repo.aggregate(Publication, :count) == 0
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
     assert Repo.get!(Tick, c.tick.id).status == :in_review
   end
 
@@ -299,7 +300,7 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
     assert {:error, :invalid_draft} = Ticks.publish_tick(c.campaign.id, c.tick.id, tampered.id)
     assert {:error, :invalid_draft} = Ticks.preview_draft(c.campaign.id, c.tick.id, tampered.id)
     assert {:error, :invalid_draft} = edit(c, tampered, %{type: "world_news", text: []})
-    assert Deliveries.list_deliveries(c.campaign.id) == []
+    assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
   end
 
   test "outbox failure after state/history writes rolls everything back", c do
@@ -325,7 +326,7 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
     assert length(Clocks.list_audits(c.campaign.id)) == audit_count
     assert Repo.aggregate(Publication, :count) == 0
     assert Repo.aggregate(Oban.Job, :count) == jobs
-    assert length(Deliveries.list_deliveries(c.campaign.id)) == 1
+    assert length(Deliveries.list_deliveries(c.campaign.id)) == 2
     assert Repo.get!(Tick, c.tick.id).status == :in_review
     assert Repo.get!(Campaign, c.campaign.id).current_tick_number == 0
     assert Repo.get!(Campaign, c.campaign.id).clock_mutations_locked

@@ -1,12 +1,11 @@
 defmodule AsyncWorlds.Discord.Commands do
   @moduledoc """
-  Milestone-1 slash-command definitions and routing. Command behavior ships in
-  ENG-10; these placeholders never change campaign state.
-
-  Future handlers receive the authorized campaign, verified user and interaction
-  ID. They must call shared domain operations and enforce transitions/idempotency
-  in database transactions, not rely on Discord acknowledgments for correctness.
+  World-only commands using the shared lifecycle APIs. The dispatcher authorizes
+  the configured campaign DM before invoking admin operations. Replies are always
+  private; public announcements belong exclusively to the durable domain outbox.
   """
+
+  alias AsyncWorlds.{Clocks, Ticks}
 
   def definitions do
     [
@@ -51,6 +50,65 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(_), do: {:error, :unknown_command}
 
-  def execute(_command, _context),
-    do: {:ok, "This command is registered, but its campaign behavior is not implemented yet."}
+  def execute(:clocks, %{campaign: campaign}) do
+    lines =
+      campaign.id
+      |> Clocks.list_clocks()
+      |> Enum.reject(&(&1.visibility == :hidden))
+      |> Enum.map(fn clock ->
+        if clock.visibility == :known,
+          do: clock.name,
+          else: "#{clock.name}: #{clock.filled}/#{clock.segments}"
+      end)
+
+    {:ok, if(lines == [], do: "No visible clocks yet.", else: Enum.join(lines, "\n"))}
+  end
+
+  def execute(:admin, _context) do
+    {:ok, "DM console: #{admin_url()}\nSign in with your configured DM Discord account."}
+  end
+
+  def execute(:tick_open, %{campaign: campaign}) do
+    case Ticks.open_tick(campaign.id) do
+      {:ok, tick} ->
+        {:ok, "Tick #{tick.number} is open. Its public announcement is queued."}
+
+      {:error, :active_tick} ->
+        {:ok, "A tick is already active. Use /tick status before retrying."}
+
+      error ->
+        error
+    end
+  end
+
+  def execute(:tick_close, %{campaign: campaign}) do
+    case Ticks.active_tick(campaign.id) do
+      nil ->
+        {:ok, "No active tick to close."}
+
+      tick ->
+        with {:ok, %{tick: closed}} <- Ticks.close_tick(campaign.id, tick.id) do
+          {:ok,
+           "Tick #{closed.number}: #{status(closed.status)}\nClosing creates a private draft; nothing is published automatically. Review in #{admin_url()}"}
+        end
+    end
+  end
+
+  def execute(:tick_status, %{campaign: campaign}) do
+    tick = Ticks.active_tick(campaign.id) || Ticks.latest_published_tick(campaign.id)
+
+    content =
+      if tick,
+        do: "Tick #{tick.number}: #{status(tick.status)}",
+        else: "No ticks yet. Ready to open the first world tick."
+
+    {:ok, content <> "\nWorld-only status; character submissions are not tracked yet."}
+  end
+
+  defp status(:open), do: "open — ready to close and resolve the world."
+  defp status(:resolving), do: "resolving — private draft pending."
+  defp status(:in_review), do: "in review — private draft ready for DM review/publication."
+  defp status(:published), do: "published — ready to open the next world tick."
+
+  defp admin_url, do: AsyncWorldsWeb.Endpoint.url() <> "/dashboard"
 end

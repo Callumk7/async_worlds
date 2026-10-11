@@ -53,7 +53,9 @@ campaign setup changes do not silently redirect approved delivery. The caller
 must filter hidden clocks, known-clock fills and private content **before** enqueue.
 ENG-8's [review/publication boundary](tick-review-publication.md) now renders
 approved privacy-filtered output and enqueues it atomically with state/history.
-Do not enqueue a raw engine draft. Tick-open announcements remain ENG-10.
+Do not enqueue a raw engine draft. Opening a tick (from web or Discord) also
+atomically enqueues one public announcement with key `tick:<id>:opened` (ENG-10).
+Closing/resolution never queues public draft output.
 
 Ownership is checked against the tick. Content is non-blank and at most 2000
 characters; IDs are canonical snowflakes. The shared ENG-8 renderer splits larger approved output into stable,

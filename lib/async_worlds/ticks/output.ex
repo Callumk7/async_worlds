@@ -37,10 +37,9 @@ defmodule AsyncWorlds.Ticks.Output do
   defp messages(lines, kind, recipient) do
     lines
     |> Enum.join("\n")
-    |> String.codepoints()
-    |> Enum.chunk_every(1900)
+    |> AsyncWorlds.Discord.Content.chunks()
     |> Enum.map(fn chunk ->
-      %{"kind" => kind, "recipient_id" => recipient, "content" => Enum.join(chunk)}
+      %{"kind" => kind, "recipient_id" => recipient, "content" => chunk}
     end)
   end
 end

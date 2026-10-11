@@ -243,7 +243,7 @@ defmodule AsyncWorlds.Discord.DispatcherTest do
                      "The command could not be completed. Please check its status before retrying."}}
   end
 
-  test "production placeholder does not change state", %{
+  test "production status command does not change state", %{
     opts: opts,
     interaction: interaction,
     campaign: campaign
