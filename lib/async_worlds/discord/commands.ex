@@ -103,12 +103,12 @@ defmodule AsyncWorlds.Discord.Commands do
       tick ->
         with {:ok, %{tick: closed}} <- Ticks.close_tick(campaign.id, tick.id) do
           {:ok,
-           "Tick #{closed.number}: #{status(closed.status)}\nClosing creates a private draft; nothing is published automatically. Review in #{admin_url()}"}
+           "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest work waits for executor support and retries automatically every five minutes; management stays locked until publication. Review in #{admin_url()}"}
         end
     end
   end
 
-  def execute(:tick_status, %{campaign: campaign}) do
+  def execute(:tick_status, %{campaign: campaign, user_id: user_id}) do
     tick = Ticks.active_tick(campaign.id) || Ticks.latest_published_tick(campaign.id)
 
     content =
@@ -116,11 +116,28 @@ defmodule AsyncWorlds.Discord.Commands do
         do: "Tick #{tick.number}: #{status(tick.status)}",
         else: "No ticks yet. Ready to open the first world tick."
 
-    {:ok, content <> "\nWorld-only status; character submissions are not tracked yet."}
+    readiness =
+      if tick do
+        case AsyncWorlds.Quests.Submissions.readiness(campaign, user_id, tick.id) do
+          {:ok, counts} ->
+            "\nQuest choices: #{counts.submitted}/#{counts.active} ready, #{counts.missing} missing. Informational only; no automatic close."
+
+          _ ->
+            ""
+        end
+      else
+        ""
+      end
+
+    {:ok, content <> readiness}
   end
 
   defp status(:open), do: "open — ready to close and resolve the world."
-  defp status(:resolving), do: "resolving — private draft pending."
+
+  defp status(:resolving),
+    do:
+      "resolving — private draft pending; quest work waits for executor support and retries automatically."
+
   defp status(:in_review), do: "in review — private draft ready for DM review/publication."
   defp status(:published), do: "published — ready to open the next world tick."
 

@@ -60,6 +60,15 @@ defmodule AsyncWorldsWeb.DashboardLive do
     clocks = Clocks.list_clocks(id)
     jobs = if tick, do: elem(Ticks.resolution_jobs(id, tick.id), 1), else: []
 
+    readiness =
+      if tick,
+        do:
+          elem(
+            AsyncWorlds.Quests.Submissions.readiness(campaign, scope.discord_user_id, tick.id),
+            1
+          ),
+        else: nil
+
     deliveries =
       Enum.map(Deliveries.recent_deliveries(id), fn delivery ->
         %{
@@ -76,7 +85,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
       end)
 
     socket
-    |> assign(tick: tick, clock_count: length(clocks))
+    |> assign(tick: tick, clock_count: length(clocks), readiness: readiness)
     |> stream(:clocks, clocks, reset: true)
     |> stream(:audits, Clocks.recent_audits(id), reset: true)
     |> stream(:jobs, jobs, reset: true)
@@ -127,12 +136,16 @@ defmodule AsyncWorldsWeb.DashboardLive do
                 do: "Tick #{@tick.number} · #{status_label(@tick.status)}",
                 else: "Ready for a new turn"}
             </p>
+            <p :if={@readiness} id="quest-readiness" class="mt-2 text-sm text-slate-400">
+              {@readiness.submitted}/{@readiness.active} quest choices ready · {@readiness.missing} missing.
+              Counts are informational; close whenever you are ready.
+            </p>
             <p
               :if={@tick && @tick.status == :resolving}
               id="resolution-pending"
               class="mt-2 text-sm text-amber-200"
             >
-              Processing frozen inputs. Refresh to check for a draft or failed job.
+              Frozen inputs are queued. Quest work waits for executor support and retries automatically every five minutes; management remains locked until publication. Refresh to check the job status or draft.
             </p>
           </div>
           <div class="flex flex-wrap gap-3">
@@ -151,7 +164,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
               phx-click="close_tick"
               phx-value-id={@tick.id}
               disabled={@tick.status != :open}
-              data-confirm="Close this tick and freeze all world inputs? Clock management will lock until publication."
+              data-confirm="Close this tick and freeze world and quest inputs? Clock and character management will lock until publication."
               phx-disable-with="Closing…"
               class="admin-button admin-secondary"
             >
@@ -237,7 +250,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
         <section class="admin-panel">
           <h2 class="mb-2 text-lg font-semibold">Resolution jobs</h2>
           <p class="mb-5 text-sm text-slate-400">
-            Failed processing keeps the tick locked. Investigate discarded or cancelled jobs before retrying via authorized operations.
+            Quest-executor holds snooze and retry automatically every five minutes. Failed processing also keeps the tick locked; investigate discarded or cancelled jobs before retrying via authorized operations.
           </p>
           <div id="resolution-jobs" phx-update="stream" class="space-y-2">
             <p id="resolution-jobs-empty" class="hidden only:block text-sm text-slate-400">

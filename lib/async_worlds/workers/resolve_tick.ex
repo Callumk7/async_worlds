@@ -37,6 +37,11 @@ defmodule AsyncWorlds.Workers.ResolveTick do
          {:ok, _} <- Ticks.put_draft(campaign, tick, snapshot.revision, payload) do
       :ok
     else
+      {:error, :quest_executor_required} ->
+        # Capability hold, not a failed turn. Keep the same durable job eligible
+        # after a deployment adds quest execution, without exhausting retries.
+        {:snooze, 300}
+
       {:error, :invalid_snapshot} ->
         {:cancel, :invalid_snapshot}
 

@@ -76,7 +76,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     refute_receive {:discord, :send_public, _}
   end
 
-  test "DM lifecycle is repeat-safe, closes privately, and reports world-only readiness", c do
+  test "DM lifecycle is repeat-safe, closes privately, and reports informational readiness", c do
     assert {:ok, initial} = invoke(c, :status, 1)
     assert initial =~ "Ready to open"
     assert {:ok, "No active tick to close."} = invoke(c, :close, 2)
@@ -86,8 +86,8 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     assert repeated =~ "already active"
     assert {:ok, status} = invoke(c, :status, 5)
     assert status =~ "ready to close"
-    assert status =~ "World-only"
-    refute status =~ "submission count"
+    assert status =~ "Quest choices: 0/0 ready, 0 missing"
+    assert status =~ "Informational only; no automatic close"
 
     tick = Ticks.active_tick(c.campaign.id)
     [announcement] = Deliveries.list_deliveries(c.campaign.id)
@@ -100,10 +100,16 @@ defmodule AsyncWorlds.Discord.CommandsTest do
 
     assert {:ok, closed} = invoke(c, :close, 6)
     assert closed =~ "nothing is published automatically"
+
+    assert closed =~
+             "Quest work waits for executor support and retries automatically every five minutes"
+
+    assert closed =~ "management stays locked until publication"
     assert {:ok, _} = invoke(c, :close, 7)
     assert length(all_enqueued(worker: ResolveTick)) == 1
     assert {:ok, status} = invoke(c, :status, 8)
     assert status =~ "private draft pending"
+    assert status =~ "quest work waits for executor support and retries automatically"
     {:ok, snapshot} = Ticks.fetch_snapshot(c.campaign.id, tick.id)
 
     assert :ok =

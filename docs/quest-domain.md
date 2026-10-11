@@ -55,9 +55,9 @@ flag keys/values (including hidden facts), outcomes and DM metadata are never
 included. Ending projections have no choices.
 
 `freeze_definitions` returns JSON definition copies with revision identities for
-later tick close integration; it is DM-only and must be called within the future
-close transaction. Authoring updates cannot affect those copies or pinned
-assignments. ENG-14 does not alter the existing world-only snapshot format.
+authorized callers; it is DM-only. Authoring updates cannot affect those copies
+or pinned assignments. ENG-16 adds full v2 tick inputs via `Submissions.freeze/2`
+in the close transaction; see [quest-submissions.md](quest-submissions.md).
 
 ## Character/quest on-fill targets
 
@@ -66,8 +66,7 @@ same-campaign `character_id` with `key` and typed `flag`. `unlock_quest` targets
 exactly one same-campaign `character_id` and `quest_id` (stable quest row, not a
 mutable node). Unlock means availability, not assignment or interruption of an
 active quest. These are validated modeled actions for the milestone-2 executor;
-ENG-14 does not apply them during the world-only tick. World-only resolution
-rejects close with `quest_executor_required` when dependent triggers are
-configured; the pure world resolver also rejects those snapshots. It cannot
-silently publish unapplied actions. Future close snapshots must copy target character/quest
-state and definitions before executing them.
+ENG-14 does not apply them during the world-only tick. ENG-16 now freezes these
+targets and definitions on close. The world-only resolver refuses execution with
+`quest_executor_required` when dependent triggers are configured. It cannot
+silently publish unapplied actions. The quest executor is ENG-18.

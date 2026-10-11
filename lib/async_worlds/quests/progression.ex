@@ -6,6 +6,7 @@ defmodule AsyncWorlds.Quests.Progression do
     field :character_id, :id
     field :revision_id, :id
     field :node_id, :string
+    field :position_version, :integer, default: 1
     field :status, Ecto.Enum, values: [:active, :completed, :ended]
   end
 end
