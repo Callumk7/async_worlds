@@ -23,6 +23,14 @@ defmodule AsyncWorldsWeb.AdminComponents do
       >
         <.icon name="hero-clock" class="size-4" /> Clocks
       </.link>
+      <.link
+        id="nav-characters"
+        navigate={~p"/characters"}
+        aria-current={@active == "characters" && "page"}
+        class={["admin-tab", @active == "characters" && "admin-tab-active"]}
+      >
+        <.icon name="hero-user-group" class="size-4" /> Characters
+      </.link>
     </nav>
     """
   end

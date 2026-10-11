@@ -81,11 +81,14 @@ The registered command set is:
   snapshot/job. Review and approve in the web console.
 - `/tick status` — configured DM only; reports open/resolving/in-review/published
   world readiness. No character submission counts in this milestone.
+- `/character` — private owner-only character name and explicitly visible typed
+  flags. Identity comes from the interaction member, never a command option.
+  Bootstrap characters at `/characters`; see [shared APIs](characters.md).
 - `/admin` — configured DM only; privately links to `/dashboard`. This is a
   normal URL, **not** a bearer login token; web Discord OAuth verifies the DM.
 
 Only opening and explicit approved web publication enqueue public messages.
-Closing, status, admin, clock queries, and draft edits never announce draft
+Closing, status, admin, character/clock queries, and draft edits never announce draft
 content. Publication uses the existing audited domain API and privacy-filtered
 renderer; private publication output remains DM-only. Delivery failures never
 reapply world state. Inspect/retry individual outbox records in the console;

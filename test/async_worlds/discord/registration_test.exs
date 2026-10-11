@@ -24,7 +24,7 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
     end
 
     assert FakeAdapter.commands() == %{{"111", "123"} => Commands.definitions()}
-    assert Enum.map(Commands.definitions(), & &1.name) == ["clocks", "tick", "admin"]
+    assert Enum.map(Commands.definitions(), & &1.name) == ["clocks", "tick", "admin", "character"]
 
     assert Enum.map(Enum.at(Commands.definitions(), 1).options, & &1.name) == [
              "open",
