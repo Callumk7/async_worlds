@@ -68,7 +68,10 @@ defmodule AsyncWorldsWeb.DashboardLive do
           form:
             params_form(
               %{"generation" => to_string(delivery.generation), "confirm" => "false"},
-              [:generation, :confirm], as: :retry, id: "retry-delivery-#{delivery.id}")
+              [:generation, :confirm],
+              as: :retry,
+              id: "retry-delivery-#{delivery.id}"
+            )
         }
       end)
 
@@ -102,7 +105,9 @@ defmodule AsyncWorldsWeb.DashboardLive do
             id="refresh-authorization"
             phx-click="refresh_authorization"
             class="admin-button admin-secondary"
-          ><.icon name="hero-arrow-path" class="size-4" /> Refresh status</button>
+          >
+            <.icon name="hero-arrow-path" class="size-4" /> Refresh status
+          </button>
         </header>
 
         <section
@@ -137,7 +142,9 @@ defmodule AsyncWorldsWeb.DashboardLive do
               disabled={@tick != nil}
               phx-disable-with="Opening…"
               class="admin-button"
-            >Open next tick</button>
+            >
+              Open next tick
+            </button>
             <button
               :if={@tick}
               id="close-tick"
@@ -147,13 +154,17 @@ defmodule AsyncWorldsWeb.DashboardLive do
               data-confirm="Close this tick and freeze all world inputs? Clock management will lock until publication."
               phx-disable-with="Closing…"
               class="admin-button admin-secondary"
-            >Close & resolve</button>
+            >
+              Close & resolve
+            </button>
             <.link
               :if={@tick && @tick.status == :in_review}
               id="review-tick"
               navigate={~p"/ticks/#{@tick.id}/review"}
               class="admin-button"
-            >Review draft <.icon name="hero-arrow-right" class="size-4" /></.link>
+            >
+              Review draft <.icon name="hero-arrow-right" class="size-4" />
+            </.link>
           </div>
         </section>
 
@@ -162,11 +173,14 @@ defmodule AsyncWorldsWeb.DashboardLive do
             <div class="mb-5 flex items-center justify-between">
               <h2 class="text-lg font-semibold">
                 Live clocks <span class="text-sm text-slate-500">{@clock_count}</span>
-              </h2><.link
+              </h2>
+              <.link
                 id="manage-clocks"
                 navigate={~p"/clocks"}
                 class="text-sm text-amber-300 hover:text-amber-100"
-              >Manage clocks</.link>
+              >
+                Manage clocks
+              </.link>
             </div>
             <div id="dashboard-clocks" phx-update="stream" class="space-y-3">
               <p id="dashboard-clocks-empty" class="hidden only:block text-sm text-slate-400">
@@ -178,9 +192,12 @@ defmodule AsyncWorldsWeb.DashboardLive do
                 class="rounded-xl border border-white/10 p-4"
               >
                 <div class="flex justify-between gap-4">
-                  <h3 class="font-medium">{clock.name}</h3><span class="text-xs text-slate-400">{clock.visibility} · {if clock.completed,
-                    do: "completed",
-                    else: if(clock.paused, do: "paused", else: "running")}</span>
+                  <h3 class="font-medium">{clock.name}</h3>
+                  <span class="text-xs text-slate-400">
+                    {clock.visibility} · {if clock.completed,
+                      do: "completed",
+                      else: if(clock.paused, do: "paused", else: "running")}
+                  </span>
                 </div>
                 <div class="mt-3 flex items-center gap-4">
                   <progress
@@ -188,7 +205,10 @@ defmodule AsyncWorldsWeb.DashboardLive do
                     value={clock.filled}
                     max={clock.segments}
                     class="h-2 w-full accent-amber-300"
-                  ></progress><span class="whitespace-nowrap text-sm tabular-nums text-amber-200">{clock.filled}/{clock.segments}</span>
+                  ></progress>
+                  <span class="whitespace-nowrap text-sm tabular-nums text-amber-200">
+                    {clock.filled}/{clock.segments}
+                  </span>
                 </div>
               </article>
             </div>
@@ -215,7 +235,8 @@ defmodule AsyncWorldsWeb.DashboardLive do
         </div>
 
         <section class="admin-panel">
-          <h2 class="mb-2 text-lg font-semibold">Resolution jobs</h2><p class="mb-5 text-sm text-slate-400">
+          <h2 class="mb-2 text-lg font-semibold">Resolution jobs</h2>
+          <p class="mb-5 text-sm text-slate-400">
             Failed processing keeps the tick locked. Investigate discarded or cancelled jobs before retrying via authorized operations.
           </p>
           <div id="resolution-jobs" phx-update="stream" class="space-y-2">
@@ -228,7 +249,9 @@ defmodule AsyncWorldsWeb.DashboardLive do
               class="rounded-xl bg-white/5 p-3 text-sm"
             >
               Job #{job.id} ·
-              <span class={job.state in ["retryable", "discarded", "cancelled"] && "text-rose-300"}>{job.state}</span>
+              <span class={job.state in ["retryable", "discarded", "cancelled"] && "text-rose-300"}>
+                {job.state}
+              </span>
               · attempts {job.attempt}/{job.max_attempts}
             </p>
           </div>
@@ -237,7 +260,8 @@ defmodule AsyncWorldsWeb.DashboardLive do
         <section class="admin-panel">
           <h2 class="text-lg font-semibold">
             Outgoing deliveries <span class="text-xs text-slate-500">Latest 50</span>
-          </h2><p class="mb-5 mt-2 text-sm text-slate-400">
+          </h2>
+          <p class="mb-5 mt-2 text-sm text-slate-400">
             Retry a specific failed send, never republish. Ambiguous sends may already exist in Discord.
           </p>
           <div id="delivery-list" phx-update="stream" class="space-y-4">
@@ -253,7 +277,8 @@ defmodule AsyncWorldsWeb.DashboardLive do
                 <div>
                   <p class="font-medium">
                     Tick #{item.delivery.tick_id} · {item.delivery.kind} · {item.delivery.status}
-                  </p><p class="mt-1 text-xs text-slate-400">
+                  </p>
+                  <p class="mt-1 text-xs text-slate-400">
                     Recipient {item.delivery.recipient_id} · attempts {item.delivery.attempts}
                     <span :if={item.delivery.last_error}>· {item.delivery.last_error}</span>
                   </p>
@@ -278,7 +303,9 @@ defmodule AsyncWorldsWeb.DashboardLive do
                     id={"retry-delivery-button-#{item.id}"}
                     class="admin-button admin-secondary"
                     phx-disable-with="Queueing…"
-                  >Retry this delivery</button>
+                  >
+                    Retry this delivery
+                  </button>
                 </.form>
               </div>
             </article>
