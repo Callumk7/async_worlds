@@ -48,16 +48,10 @@ active-character choices. Close does not depend on readiness. Missing characters
 remain at their frozen nodes; submission collection does not advance progression.
 Private definitions, flags, submissions and snapshots are DM-only.
 
-The quest executor is ENG-18, not this issue. The world-only resolver supports v2
-only when there are no valid quest submissions or quest-dependent triggers. It
-explicitly rejects unsupported quest work with `quest_executor_required`, never
-silently publishes a world-only result that drops submitted turns. Such closes
-still freeze and queue successfully, entering an explicit, resumable capability
-hold: management stays locked and the same durable job snoozes for five minutes,
-then rechecks the original snapshot. Snoozing consumes no retry attempt and
-survives application restarts; deploying the quest executor lets this scheduled
-job proceed automatically, without an operator retry or another close. Discord
-close/status and the dashboard explain this waiting behavior. Invalid snapshots
-still cancel for investigation; they are not capability holds. Existing v1
-snapshots remain supported. Discord components and
-commands are ENG-19; minimal DM intervention UI is ENG-17.
+ENG-18 now resolves submitted choices and quest-dependent triggers into DM-only
+drafts with separately committed recorded dice. Previously scheduled capability-hold
+jobs can execute the same frozen input on their next retry. Invalid snapshots still
+cancel for investigation. Existing v1 snapshots remain supported. Ordering, stable
+die identities and the no-live-mutation boundary are documented in
+[world-resolution.md](world-resolution.md). Quest publication/review expansion is
+ENG-20. Discord components and commands are ENG-19; minimal DM intervention UI is ENG-17.

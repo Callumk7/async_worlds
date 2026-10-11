@@ -102,14 +102,14 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     assert closed =~ "nothing is published automatically"
 
     assert closed =~
-             "Quest work waits for executor support and retries automatically every five minutes"
+             "Quest choices resolve privately from frozen inputs"
 
     assert closed =~ "management stays locked until publication"
     assert {:ok, _} = invoke(c, :close, 7)
     assert length(all_enqueued(worker: ResolveTick)) == 1
     assert {:ok, status} = invoke(c, :status, 8)
     assert status =~ "private draft pending"
-    assert status =~ "quest work waits for executor support and retries automatically"
+    assert status =~ "frozen quest choices and world effects are queued"
     {:ok, snapshot} = Ticks.fetch_snapshot(c.campaign.id, tick.id)
 
     assert :ok =

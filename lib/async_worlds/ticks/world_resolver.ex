@@ -1,17 +1,18 @@
 defmodule AsyncWorlds.Ticks.WorldResolver do
   @moduledoc """
-  Pure, deterministic world-only resolution of v1 and world-compatible v2 snapshots.
+  Pure, deterministic quest and world resolution of frozen v1/v2 snapshots and recorded dice.
 
   Returns a DM-only JSON-compatible draft, never published state or deliveries.
   See docs/world-resolution.md for ordering, latching and extension boundaries.
   """
-  alias AsyncWorlds.Ticks.Snapshot
+  alias AsyncWorlds.Ticks.{Snapshot, QuestDice}
+  alias AsyncWorlds.Quests.Rules
 
   @phases ~w(quest_choices resource_assignments background_rates clock_triggers quest_conditions)
 
-  def resolve(snapshot, review \\ %{})
+  def resolve(snapshot, review \\ %{}, rolls \\ [])
 
-  def resolve(%Snapshot{schema_version: 1, revision: revision, data: data}, review)
+  def resolve(%Snapshot{schema_version: 1, revision: revision, data: data}, review, [])
       when is_binary(revision) and byte_size(revision) > 0 and is_map(data) do
     if valid?(data) and valid_review?(review, data["clocks"]) do
       payload = run(data, revision, review)
@@ -22,26 +23,40 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     end
   end
 
-  def resolve(%Snapshot{schema_version: 2, data: data} = snapshot, review) when is_map(data) do
-    inputs = data["quest_inputs"]
-    clocks = data["clocks"]
-
+  def resolve(
+        %Snapshot{schema_version: 2, revision: revision, data: data} = snapshot,
+        review,
+        rolls
+      )
+      when is_map(data) and is_binary(revision) and byte_size(revision) > 0 do
     cond do
-      not valid_v2?(data) ->
+      not valid_v2?(data) or not valid_review?(review, data["clocks"]) ->
         {:error, :invalid_snapshot}
 
-      inputs["submissions"] != [] or
-          Enum.any?(clocks, fn clock ->
-            Enum.any?(clock["triggers"] || [], &(&1["type"] in ["set_flag", "unlock_quest"]))
-          end) ->
-        {:error, :quest_executor_required}
+      not QuestDice.valid?(snapshot, rolls) ->
+        {:error, :invalid_rolls}
 
       true ->
-        resolve(%{snapshot | schema_version: 1, data: Map.delete(data, "quest_inputs")}, review)
+        payload = run(data, revision, review, rolls)
+        payload = if map_size(review) == 0, do: payload, else: Map.put(payload, "review", review)
+
+        if Enum.all?(payload["characters"], &AsyncWorlds.Characters.Flags.valid?(&1["flags"])),
+          do: {:ok, payload},
+          else: {:error, :invalid_flags}
     end
   end
 
-  def resolve(_, _), do: {:error, :invalid_snapshot}
+  def resolve(_, _, _), do: {:error, :invalid_snapshot}
+
+  def valid_snapshot?(snapshot) do
+    case snapshot do
+      %Snapshot{schema_version: 1, data: data} -> valid?(data)
+      %Snapshot{schema_version: 2, data: data} -> valid_v2?(data)
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
 
   defp valid_v2?(data) do
     world =
@@ -127,7 +142,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
   defp valid_trigger?(_, _, _), do: false
 
-  defp run(data, revision, review) do
+  defp run(data, revision, review, rolls \\ []) do
     order = data["ordering"]["clocks"]
 
     state = %{
@@ -137,16 +152,21 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       log: [],
       sequence: 0,
       tick: data["tick_number"],
-      deltas: Map.get(review, "clock_deltas", %{})
+      deltas: Map.get(review, "clock_deltas", %{}),
+      characters: Map.new(get_in(data, ["quest_inputs", "characters"]) || [], &{&1["id"], &1}),
+      progressions:
+        Map.new(get_in(data, ["quest_inputs", "progressions"]) || [], &{&1["character_id"], &1}),
+      unlocked: %{}
     }
 
     state = Enum.reduce(order, state, &latch/2)
+    state = quests(state, data["quest_inputs"], rolls)
     state = Enum.reduce(order, state, &background/2)
     state = Enum.reduce(order, state, &complete/2)
     log = Enum.reverse(state.log)
     triggers = Enum.filter(log, &(&1["kind"] == "trigger_result"))
 
-    %{
+    payload = %{
       "schema_version" => 1,
       "input_revision" => revision,
       "tick_number" => state.tick,
@@ -161,6 +181,164 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       "world_news" => Map.get(review, "world_news", intents(triggers, "world_news")),
       "dm_notifications" => intents(triggers, "notify_dm")
     }
+
+    if data["quest_inputs"] do
+      Map.merge(payload, %{
+        "schema_version" => 2,
+        "rolls" => rolls,
+        "characters" => state.characters |> Map.values() |> Enum.sort_by(& &1["id"]),
+        "progressions" => state.progressions |> Map.values() |> Enum.sort_by(& &1["id"]),
+        "unlocked_quests" =>
+          state.unlocked
+          |> Enum.sort()
+          |> Enum.map(fn {id, quests} ->
+            %{"character_id" => id, "quest_ids" => Enum.sort(quests)}
+          end),
+        "private_results" => Enum.filter(log, &(&1["kind"] == "quest_result")),
+        "next_nodes" => next_nodes(state, data["quest_inputs"])
+      })
+    else
+      payload
+    end
+  end
+
+  defp quests(state, nil, _), do: state
+
+  defp quests(state, inputs, rolls) do
+    revisions = Map.new(inputs["revisions"], &{&1["id"], &1["definition"]})
+
+    Enum.reduce(inputs["submissions"], state, fn submission, acc ->
+      choice = QuestDice.choice(submission, revisions)
+      dice = Enum.filter(rolls, &(&1["input"] == submission))
+      {:ok, outcome, critical} = Rules.outcome(choice, Enum.map(dice, & &1["value"]))
+      result = choice["outcomes"][outcome]
+
+      source =
+        "quest:tick:#{acc.tick}:character:#{submission["character_id"]}:choice:#{submission["choice_id"]}"
+
+      acc =
+        Enum.reduce(dice, acc, fn die, acc ->
+          entry(
+            acc,
+            Map.merge(die, %{"kind" => "roll", "phase" => "quest_choices", "source" => source})
+          )
+        end)
+
+      effects = result["effects"] ++ if(critical, do: choice["critical_effects"], else: [])
+
+      acc =
+        effects
+        |> Enum.with_index()
+        |> Enum.reduce(acc, fn {effect, index}, acc ->
+          effect_source = "#{source}:effect:#{index}"
+          acc = quest_effect(acc, submission["character_id"], effect, effect_source)
+
+          entry(acc, %{
+            "kind" => "quest_effect",
+            "character_id" => submission["character_id"],
+            "effect" => effect,
+            "source" => effect_source,
+            "phase" => "quest_choices"
+          })
+        end)
+
+      progression = acc.progressions[submission["character_id"]]
+      next = Rules.node(revisions[submission["revision_id"]], result["next_node"])
+
+      updated =
+        Map.merge(progression, %{
+          "node_id" => next["id"],
+          "status" => if(next["ending"], do: "completed", else: "active"),
+          "position_version" =>
+            progression["position_version"] +
+              if(next["id"] == progression["node_id"], do: 0, else: 1)
+        })
+
+      acc = %{acc | progressions: Map.put(acc.progressions, submission["character_id"], updated)}
+
+      entry(acc, %{
+        "kind" => "quest_result",
+        "phase" => "quest_choices",
+        "source" => source,
+        "character_id" => submission["character_id"],
+        "input" => submission,
+        "outcome" => outcome,
+        "critical" => critical,
+        "text" => result["text"],
+        "before" => progression,
+        "after" => updated
+      })
+    end)
+  end
+
+  defp quest_effect(
+         state,
+         _id,
+         %{"type" => "clock_delta", "clock_id" => id, "delta" => delta},
+         source
+       ) do
+    before = state.clocks[id]
+
+    updated =
+      if before["completed"],
+        do: before,
+        else: Map.put(before, "filled", max(0, min(before["segments"], before["filled"] + delta)))
+
+    state
+    |> change(before, updated, source, "quest_choices", %{
+      "requested_delta" => delta,
+      "applied_delta" => updated["filled"] - before["filled"]
+    })
+    |> then(&latch(id, &1))
+  end
+
+  defp quest_effect(state, id, effect, source) do
+    before = state.characters[id]
+
+    flags =
+      if effect["type"] == "set_flag",
+        do: Map.put(before["flags"], effect["key"], effect["flag"]),
+        else: Map.delete(before["flags"], effect["key"])
+
+    character_change(state, before, Map.put(before, "flags", flags), source, "quest_choices")
+  end
+
+  defp character_change(state, before, updated, source, phase) do
+    if before == updated do
+      state
+    else
+      state = %{state | characters: Map.put(state.characters, before["id"], updated)}
+
+      entry(state, %{
+        "kind" => "character_change",
+        "character_id" => before["id"],
+        "before" => before,
+        "after" => updated,
+        "source" => source,
+        "phase" => phase
+      })
+    end
+  end
+
+  defp next_nodes(state, inputs) do
+    revisions = Map.new(inputs["revisions"], &{&1["id"], &1["definition"]})
+    clocks = Map.new(state.clocks, fn {id, c} -> {id, %{filled: c["filled"]}} end)
+
+    state.progressions
+    |> Enum.sort()
+    |> Enum.map(fn {id, p} ->
+      status = if p["status"] == "completed", do: :completed, else: :active
+
+      projection =
+        Rules.project(revisions[p["revision_id"]], %{
+          node_id: p["node_id"],
+          status: status,
+          flags: state.characters[id]["flags"],
+          clocks: clocks
+        })
+
+      %{"character_id" => id, "projection" => Jason.decode!(Jason.encode!(projection))}
+    end)
   end
 
   defp intents(triggers, type),
@@ -244,15 +422,32 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     result = Map.merge(trigger, %{"clock_id" => id, "trigger_index" => index})
 
     {state, result} =
-      if trigger["type"] == "start_clock" do
-        target = Map.fetch!(state.clocks, trigger["clock_id"])
-        updated = if target["completed"], do: target, else: Map.put(target, "paused", false)
-        state = change(state, target, updated, source, "clock_triggers")
+      cond do
+        trigger["type"] == "set_flag" ->
+          character = state.characters[trigger["character_id"]]
+          updated = put_in(character, ["flags", trigger["key"]], trigger["flag"])
+          state = character_change(state, character, updated, source, "clock_triggers")
+          {state, Map.put(result, "changed", character != updated)}
 
-        {state,
-         Map.merge(result, %{"target_clock_id" => target["id"], "changed" => target != updated})}
-      else
-        {state, result}
+        trigger["type"] == "unlock_quest" ->
+          id = trigger["character_id"]
+          quests = Map.get(state.unlocked, id, [])
+          changed = trigger["quest_id"] not in quests
+          quests = Enum.uniq(quests ++ [trigger["quest_id"]])
+
+          {%{state | unlocked: Map.put(state.unlocked, id, quests)},
+           Map.put(result, "changed", changed)}
+
+        trigger["type"] == "start_clock" ->
+          target = Map.fetch!(state.clocks, trigger["clock_id"])
+          updated = if target["completed"], do: target, else: Map.put(target, "paused", false)
+          state = change(state, target, updated, source, "clock_triggers")
+
+          {state,
+           Map.merge(result, %{"target_clock_id" => target["id"], "changed" => target != updated})}
+
+        true ->
+          {state, result}
       end
 
     entry(

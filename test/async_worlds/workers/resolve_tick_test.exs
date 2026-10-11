@@ -110,7 +110,7 @@ defmodule AsyncWorlds.Workers.ResolveTickTest do
 
   for kind <- [:submission, :trigger] do
     @kind kind
-    test "unsupported #{@kind} work snoozes the same durable job without exhausting attempts", %{
+    test "#{@kind} work resolves and restart/retries preserve the draft", %{
       campaign: id,
       tick: tick
     } do
@@ -119,52 +119,22 @@ defmodule AsyncWorlds.Workers.ResolveTickTest do
       start_supervised!({Oban, opts})
       {:ok, %{snapshot: snapshot}} = Ticks.close_tick(id, tick.id)
       args = %{campaign_id: id, tick_id: tick.id, input_revision: snapshot.revision}
-      assert {:snooze, 300} = perform_job(ResolveTick, args)
-      {:ok, [original]} = Ticks.resolution_jobs(id, tick.id)
-
-      # Exceed max_attempts to prove the capability hold cannot discard the job.
-      for snoozes <- 1..12 do
-        assert %{snoozed: 1, failure: 0, success: 0} =
-                 Oban.drain_queue(__MODULE__.Oban, queue: :resolution, with_scheduled: true)
-
-        {:ok, [waiting]} = Ticks.resolution_jobs(id, tick.id)
-        assert waiting.id == original.id
-        assert waiting.args == original.args
-        assert waiting.state == "scheduled"
-        assert waiting.attempt == 0
-        assert waiting.max_attempts == 10
-        assert waiting.meta["snoozed"] == snoozes
-        assert DateTime.compare(waiting.scheduled_at, DateTime.utc_now()) == :gt
-        assert {:ok, %{status: :resolving}} = Ticks.fetch_tick(id, tick.id)
-        assert {:error, :no_draft} = Ticks.fetch_draft(id, tick.id)
-        assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
-      end
-
+      assert :ok = perform_job(ResolveTick, args)
+      assert {:ok, %{status: :in_review}} = Ticks.fetch_tick(id, tick.id)
+      assert {:ok, draft} = Ticks.fetch_draft(id, tick.id)
+      assert draft.payload["schema_version"] == 2
+      for _ <- 1..12, do: assert(:ok == perform_job(ResolveTick, args))
+      assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
       assert :ok = stop_supervised(__MODULE__.Oban)
       start_supervised!({Oban, opts})
 
-      assert %{snoozed: 1, failure: 0} =
-               Oban.drain_queue(__MODULE__.Oban, queue: :resolution, with_scheduled: true)
-
-      assert {:ok, %{snapshot: ^snapshot}} = Ticks.close_tick(id, tick.id)
-      {:ok, [waiting]} = Ticks.resolution_jobs(id, tick.id)
-      assert waiting.id == original.id
-      assert waiting.state == "scheduled"
-
       assert {:error, :tick_locked} =
                Clocks.create_clock(id, %{name: "Locked", segments: 4}, "dm")
-
-      # Another authorized executor may finish the original frozen revision.
-      # Once it has done so, the still-scheduled job acknowledges that state
-      # rather than cancelling or overwriting the resulting draft.
-      {:ok, %{draft: draft}} =
-        Ticks.put_draft(id, tick.id, snapshot.revision, %{"test_executor" => "finished"})
 
       assert %{success: 1, snoozed: 0} =
                Oban.drain_queue(__MODULE__.Oban, queue: :resolution, with_scheduled: true)
 
       {:ok, [finished]} = Ticks.resolution_jobs(id, tick.id)
-      assert finished.id == original.id
       assert finished.state == "completed"
       assert {:ok, ^draft} = Ticks.fetch_draft(id, tick.id)
     end

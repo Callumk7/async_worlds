@@ -22,12 +22,11 @@ resolve that snapshot, not live clocks. They append the initial draft using the
 existing revision checks; duplicate workers finish successfully if another worker
 already wrote it. They never replace a reviewed/edited or published draft.
 
-Unsupported quest work is a resumable capability hold: the job snoozes for five
-minutes without consuming a retry attempt. It remains scheduled across restarts
-and rechecks the same immutable snapshot until the quest executor is deployed.
-Close does not reopen input or queue another job; no out-of-band operator retry is
-needed. Management stays locked during this hold, and no world-only draft drops
-submitted choices or dependent triggers.
+ENG-18 executes frozen quest work, including previously scheduled capability-hold
+jobs, without reopening or refreezing input. The worker commits stable individual
+quest dice before pure resolution; retries and concurrent workers reuse those rows.
+See [world-resolution.md](world-resolution.md) for identities and ordering. Management
+stays locked during resolution/review; drafts never change published player state.
 
 Transient failures retry up to ten times. Invalid input/schema, missing records and
 stale input cancel safely. Invalid snapshots leave the tick resolving and clock

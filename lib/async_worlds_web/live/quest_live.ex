@@ -120,7 +120,9 @@ defmodule AsyncWorldsWeb.QuestLive do
       move_form:
         params_form(
           %{"node_id" => if(progression, do: progression.node_id, else: ""), "reason" => ""},
-          [:node_id, :reason], as: :intervention),
+          [:node_id, :reason],
+          as: :intervention
+        ),
       end_form: params_form(%{"reason" => ""}, [:reason], as: :intervention)
     )
     |> stream(:characters, state.characters, reset: true)

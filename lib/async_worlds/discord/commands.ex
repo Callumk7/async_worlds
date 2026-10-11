@@ -103,7 +103,7 @@ defmodule AsyncWorlds.Discord.Commands do
       tick ->
         with {:ok, %{tick: closed}} <- Ticks.close_tick(campaign.id, tick.id) do
           {:ok,
-           "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest work waits for executor support and retries automatically every five minutes; management stays locked until publication. Review in #{admin_url()}"}
+           "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest choices resolve privately from frozen inputs; management stays locked until publication. Review in #{admin_url()}"}
         end
     end
   end
@@ -135,8 +135,7 @@ defmodule AsyncWorlds.Discord.Commands do
   defp status(:open), do: "open — ready to close and resolve the world."
 
   defp status(:resolving),
-    do:
-      "resolving — private draft pending; quest work waits for executor support and retries automatically."
+    do: "resolving — private draft pending; frozen quest choices and world effects are queued."
 
   defp status(:in_review), do: "in review — private draft ready for DM review/publication."
   defp status(:published), do: "published — ready to open the next world tick."
