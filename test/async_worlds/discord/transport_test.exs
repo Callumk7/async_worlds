@@ -41,6 +41,34 @@ defmodule AsyncWorlds.Discord.TransportTest do
            }
   end
 
+  test "public and private outbox payloads survive Nostrum normalization without mentions" do
+    for kind <- [:public, :private] do
+      delivery = %AsyncWorlds.Deliveries.Delivery{
+        id: 42,
+        kind: kind,
+        content: "@everyone @here <@123> <@&456> 🌍",
+        inserted_at: ~U[2026-10-11 12:00:00.000000Z],
+        generation: 0
+      }
+
+      payload = AsyncWorlds.Workers.DeliverDiscord.payload(delivery)
+
+      # send_private delegates the message send to send_public; both convert
+      # the adapter-neutral payload before Message.create normalizes options.
+      options = NostrumAdapter.message_options(payload)
+      assert options.allowed_mentions == :none
+      normalized = Nostrum.Api.Helpers.prepare_allowed_mentions(options)
+      assert normalized == payload
+      assert normalized.allowed_mentions == %{parse: []}
+      assert normalized.content == delivery.content
+      assert normalized.nonce == payload.nonce
+      assert normalized.enforce_nonce
+
+      # Conversion is safe even if an upstream caller already used :none.
+      assert NostrumAdapter.message_options(options) == options
+    end
+  end
+
   test "outbound responses classify rejection versus ambiguous delivery without retaining error bodies" do
     error = fn code ->
       {:error, %Nostrum.Error.ApiError{status_code: code, response: "private-token"}}
