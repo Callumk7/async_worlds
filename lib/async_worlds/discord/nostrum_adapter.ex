@@ -51,7 +51,14 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
     content
     |> response_data()
     |> Map.put(:flags, 64)
-    |> Map.put(:allowed_mentions, :none)
+    |> message_options()
+  end
+
+  @doc false
+  def message_options(payload) do
+    # Message.create (public posts and DMs) and Webhook.execute (followups)
+    # both require Nostrum's :none option, not Discord's %{parse: []} map.
+    Map.put(payload, :allowed_mentions, :none)
   end
 
   @impl true
@@ -65,7 +72,10 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
 
   @impl true
   def send_public(channel_id, payload) do
-    send_request(fn -> Message.create(integer_id(channel_id), payload) end, :message)
+    send_request(
+      fn -> Message.create(integer_id(channel_id), message_options(payload)) end,
+      :message
+    )
   end
 
   @impl true
