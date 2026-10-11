@@ -218,7 +218,9 @@ defmodule AsyncWorlds.Discord.CommandsTest do
 
     assert byte_size(first) > 2000
 
-    assert NostrumAdapter.followup_data(second) == %{
+    assert second
+           |> NostrumAdapter.followup_data()
+           |> Nostrum.Api.Helpers.prepare_allowed_mentions() == %{
              content: second,
              flags: 64,
              allowed_mentions: %{parse: []}

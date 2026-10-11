@@ -45,7 +45,14 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
   end
 
   @doc false
-  def followup_data(content), do: Map.put(response_data(content), :flags, 64)
+  def followup_data(content) do
+    # Webhook.execute normalizes mentions using Nostrum's option format, unlike
+    # Interaction.edit_response, which accepts the Discord payload map directly.
+    content
+    |> response_data()
+    |> Map.put(:flags, 64)
+    |> Map.put(:allowed_mentions, :none)
+  end
 
   @impl true
   def register_commands(application_id, guild_id, commands) do

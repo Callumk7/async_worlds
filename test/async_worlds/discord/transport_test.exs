@@ -20,6 +20,27 @@ defmodule AsyncWorlds.Discord.TransportTest do
            }
   end
 
+  test "followups retain private flags and mention suppression after Nostrum normalization" do
+    content = "@everyone @here <@123> <@&456>"
+
+    payload =
+      content
+      |> NostrumAdapter.followup_data()
+      |> Nostrum.Api.Helpers.prepare_allowed_mentions()
+
+    assert payload == %{
+             content: content,
+             flags: 64,
+             allowed_mentions: %{parse: []}
+           }
+
+    # Original-response edits bypass Webhook.execute's option normalization.
+    assert NostrumAdapter.response_data(content) == %{
+             content: content,
+             allowed_mentions: %{parse: []}
+           }
+  end
+
   test "outbound responses classify rejection versus ambiguous delivery without retaining error bodies" do
     error = fn code ->
       {:error, %Nostrum.Error.ApiError{status_code: code, response: "private-token"}}
