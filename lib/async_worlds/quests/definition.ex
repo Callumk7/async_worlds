@@ -2,7 +2,7 @@ defmodule AsyncWorlds.Quests.Definition do
   @moduledoc "Strict typed quest content validation. Clock references are supplied by the owning campaign."
   alias AsyncWorlds.Characters.Flags
 
-  def valid?(definition, clocks) do
+  def valid?(definition, clocks, mode \\ :authoring) do
     with true <- valid_clocks?(clocks),
          true <- keys?(definition, ~w(start_node nodes)),
          nodes when is_list(nodes) and nodes != [] <- definition["nodes"],
@@ -12,7 +12,7 @@ defmodule AsyncWorlds.Quests.Definition do
          true <- definition["start_node"] in ids,
          choices = Enum.flat_map(nodes, & &1["choices"]),
          true <- unique?(Enum.map(choices, & &1["id"])) do
-      Enum.all?(choices, &choice?(&1, ids, clocks))
+      Enum.all?(choices, &choice?(&1, ids, clocks, mode))
     else
       _ -> false
     end
@@ -52,13 +52,13 @@ defmodule AsyncWorlds.Quests.Definition do
       Enum.all?(node["choices"], &(is_map(&1) and not is_struct(&1)))
   end
 
-  defp choice?(choice, nodes, clocks) do
+  defp choice?(choice, nodes, clocks, mode) do
     fields = ~w(id label eligibility conditions mode outcomes)
     fields = if choice["mode"] == "rolled", do: fields ++ ~w(dice critical_effects), else: fields
 
     keys?(choice, fields) and id?(choice["id"]) and text?(choice["label"]) and
       choice["eligibility"] in ~w(hidden disabled) and is_list(choice["conditions"]) and
-      Enum.all?(choice["conditions"], &condition?(&1, clocks)) and
+      Enum.all?(choice["conditions"], &condition?(&1, clocks, mode)) and
       config?(choice, nodes, clocks)
   end
 
@@ -87,24 +87,28 @@ defmodule AsyncWorlds.Quests.Definition do
       keys?(outcome, ~w(text next_node effects)) and text?(outcome["text"]) and
         outcome["next_node"] in nodes and effects?(outcome["effects"], clocks)
 
-  def condition?(
-        %{"type" => "clock_threshold", "clock_id" => id, "operator" => op, "value" => value} = c,
-        clocks
-      ) do
+  defp condition?(
+         %{"type" => "clock_threshold", "clock_id" => id, "operator" => op, "value" => value} = c,
+         clocks,
+         mode
+       ) do
     keys?(c, ~w(type clock_id operator value)) and is_integer(id) and Map.has_key?(clocks, id) and
       op in ~w(gte lte) and is_integer(value) and value >= 0 and
-      value <= Map.fetch!(clocks, id).segments
+      (mode == :frozen or value <= Map.fetch!(clocks, id).segments)
   end
 
-  def condition?(
-        %{"type" => "character_flag", "key" => key, "value" => value, "flag_type" => type} = c,
-        _
-      ),
-      do:
-        keys?(c, ~w(type key value flag_type)) and Flags.valid_key?(key) and
-          Flags.valid_flag?(%{"type" => type, "value" => value, "player_visible" => false})
+  defp condition?(
+         %{"type" => "character_flag", "key" => key, "value" => value, "flag_type" => type} = c,
+         _,
+         _mode
+       ),
+       do:
+         keys?(c, ~w(type key value flag_type)) and Flags.valid_key?(key) and
+           Flags.valid_flag?(%{"type" => type, "value" => value, "player_visible" => false})
 
-  def condition?(_, _), do: false
+  defp condition?(_, _, _), do: false
+
+  def condition?(condition, clocks), do: condition?(condition, clocks, :authoring)
 
   def effects?(effects, clocks), do: is_list(effects) and Enum.all?(effects, &effect?(&1, clocks))
 

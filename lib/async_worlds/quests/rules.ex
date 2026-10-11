@@ -62,7 +62,7 @@ defmodule AsyncWorlds.Quests.Rules do
        when is_map(clocks),
        do:
          Definition.id?(id) and status in [:active, :completed, :ended] and
-           Flags.valid?(flags) and Definition.valid?(definition, clocks)
+           Flags.valid?(flags) and Definition.valid?(definition, clocks, :frozen)
 
   defp valid_state?(_, _), do: false
 

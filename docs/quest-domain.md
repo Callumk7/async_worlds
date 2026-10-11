@@ -23,7 +23,10 @@ Conditions are ANDed. A `clock_threshold` has `clock_id`, `operator` (`gte` or
 `lte`), and integer `value` within the referenced clock's size. A `character_flag`
 has `key`, `flag_type`, `value`: equality is type-sensitive, absent flags fail. Types
 and values follow ENG-13 boolean/integer/string flags. Conditions cannot change
-visibility or explain facts to players.
+visibility or explain facts to players. Authoring validates thresholds against
+current clock size. Frozen runtime validation preserves authored thresholds after
+a clock resize: an unreachable threshold simply fails eligibility, without
+invalidating unrelated choices or rewriting the pinned revision.
 
 Effects run in list order: `clock_delta` (`clock_id`, integer `delta`), `set_flag`
 (`key`, `flag` = ENG-13 type/value/player_visible), `clear_flag` (`key`). Flag

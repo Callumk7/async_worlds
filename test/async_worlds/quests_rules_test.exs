@@ -49,6 +49,30 @@ defmodule AsyncWorlds.QuestsRulesTest do
     end
   end
 
+  test "resizing a clock does not invalidate unrelated choices in pinned content" do
+    [hub, ending] = definition()["nodes"]
+
+    gated =
+      Map.put(choice("gated", "end"), "conditions", [
+        %{"type" => "clock_threshold", "clock_id" => 1, "operator" => "gte", "value" => 6}
+      ])
+
+    d =
+      put_in(definition()["nodes"], [
+        Map.put(hub, "choices", [gated, choice("free", "end")]),
+        ending
+      ])
+
+    original = %Clock{id: 1, segments: 8, filled: 0, completed: false}
+    assert Definition.valid?(d, %{1 => original})
+    resized = %{original | segments: 4}
+    s = %{state() | clocks: %{1 => resized}}
+    refute Definition.valid?(d, s.clocks)
+    assert {:ok, %{status: :completed}, _} = Rules.transition(d, s, "free")
+    assert {:error, :invalid_transition} = Rules.transition(d, s, "gated")
+    assert %{choices: [%{enabled: false}, %{enabled: true}]} = Rules.project(d, s)
+  end
+
   test "recorded dice use highest, with two sixes success then bonus effects" do
     d = replace_choice(definition(), rolled())
 
