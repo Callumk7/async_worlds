@@ -1,11 +1,11 @@
 defmodule AsyncWorlds.Discord.Commands do
   @moduledoc """
-  World-only commands using the shared lifecycle APIs. The dispatcher authorizes
+  World-tick and character commands using shared domain APIs. The dispatcher authorizes
   the configured campaign DM before invoking admin operations. Replies are always
   private; public announcements belong exclusively to the durable domain outbox.
   """
 
-  alias AsyncWorlds.{Clocks, Ticks}
+  alias AsyncWorlds.{Characters, Clocks, Ticks}
 
   def definitions do
     [
@@ -20,15 +20,17 @@ defmodule AsyncWorlds.Discord.Commands do
           %{name: "status", description: "View the current tick status", type: 1}
         ]
       },
-      %{name: "admin", description: "Access the campaign web admin (DM only)", type: 1}
+      %{name: "admin", description: "Access the campaign web admin (DM only)", type: 1},
+      %{name: "character", description: "View your character and visible flags", type: 1}
     ]
   end
 
-  def route(%{name: name} = data) when name in ["clocks", "admin"] do
+  def route(%{name: name} = data) when name in ["clocks", "admin", "character"] do
     if Map.get(data, :options) in [nil, []] do
       case name do
         "clocks" -> {:ok, :clocks, :player}
         "admin" -> {:ok, :admin, :dm}
+        "character" -> {:ok, :character, :player}
       end
     else
       {:error, :unknown_command}
@@ -62,6 +64,18 @@ defmodule AsyncWorlds.Discord.Commands do
       end)
 
     {:ok, if(lines == [], do: "No visible clocks yet.", else: Enum.join(lines, "\n"))}
+  end
+
+  def execute(:character, %{campaign: campaign, user_id: verified_user_id}) do
+    with {:ok, payload} <-
+           Characters.player_character(campaign.discord_guild_id, verified_user_id) do
+      facts =
+        payload.flags
+        |> Enum.sort()
+        |> Enum.map(fn {key, flag} -> "#{key}: #{Jason.encode!(flag["value"])}" end)
+
+      {:ok, Enum.join([payload.name | facts], "\n")}
+    end
   end
 
   def execute(:admin, _context) do

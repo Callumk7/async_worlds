@@ -104,6 +104,14 @@ forms, review/preview/publish workflow, and targeted delivery retries. Gameplay
 Discord command wiring remains follow-up work. Run `mix ecto.migrate` before
 starting this version.
 
+## Characters
+
+The minimal DM bootstrap at `/characters` links Discord players and manages
+strictly typed flags with explicit visibility. `/character` privately retrieves
+only the invoking member's permitted state. See [character APIs and security
+boundaries](docs/characters.md). Apply migrations and re-register guild commands
+when upgrading; no quest/resource or full authoring admin is included yet.
+
 ## Local development credentials
 
 To avoid terminal exports, fill in `config/dev.secret.exs`. This ignored local

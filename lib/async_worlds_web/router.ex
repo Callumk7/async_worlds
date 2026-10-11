@@ -37,6 +37,7 @@ defmodule AsyncWorldsWeb.Router do
       on_mount: [{AsyncWorldsWeb.LiveAuth, :ensure_dm}] do
       live "/dashboard", DashboardLive, :index
       live "/clocks", ClockLive, :index
+      live "/characters", CharacterLive, :index
       live "/ticks/:id/review", TickReviewLive, :show
     end
   end
