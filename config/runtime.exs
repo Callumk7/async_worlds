@@ -99,48 +99,84 @@ if config_env() == :dev do
 end
 
 if config_env() == :prod do
-  database_url =
-    System.get_env("DATABASE_URL") ||
-      raise """
-      environment variable DATABASE_URL is missing.
-      For example: ecto://USER:PASS@HOST/DATABASE
-      """
+  required = fn key ->
+    case System.get_env(key) do
+      value when is_binary(value) ->
+        if String.trim(value) == "", do: raise("#{key} is required in production"), else: value
+
+      _ ->
+        raise "#{key} is required in production"
+    end
+  end
+
+  database_url = required.("DATABASE_URL")
+
+  database_uri =
+    case URI.new(database_url) do
+      {:ok, uri} -> uri
+      {:error, _} -> raise "DATABASE_URL must be a PostgreSQL connection URL"
+    end
+
+  unless database_uri.scheme in ["ecto", "postgres", "postgresql"] and
+           is_binary(database_uri.host) and database_uri.host != "" and
+           is_binary(database_uri.path) and Regex.match?(~r/\A\/[^\/]+\z/, database_uri.path) and
+           is_nil(database_uri.fragment) do
+    raise "DATABASE_URL must be a PostgreSQL connection URL"
+  end
+
+  # Do not let URL query options override the explicit TLS policy below.
+  if database_uri.query,
+    do: raise("DATABASE_URL query options are not supported; use DATABASE_SSL")
+
+  ssl =
+    case System.get_env("DATABASE_SSL", "verify") do
+      "verify" ->
+        ca_file = System.get_env("DATABASE_CA_CERT", "/etc/ssl/certs/ca-certificates.crt")
+        unless File.regular?(ca_file), do: raise("DATABASE_CA_CERT must name a readable CA file")
+
+        [
+          verify: :verify_peer,
+          cacertfile: String.to_charlist(ca_file),
+          server_name_indication: String.to_charlist(database_uri.host),
+          customize_hostname_check: [
+            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+          ]
+        ]
+
+      "disable" ->
+        false
+
+      _ ->
+        raise "DATABASE_SSL must be verify or disable"
+    end
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :async_worlds, AsyncWorlds.Repo,
-    # ssl: true,
     url: database_url,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
-    socket_options: maybe_ipv6
+    ssl: ssl,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE", "10")),
+    socket_options: maybe_ipv6,
+    # Postgrex connection errors can contain credentials; suppress driver detail
+    # in production. Readiness exposes only a fixed diagnostic code.
+    show_sensitive_data_on_connection_error: false
 
-  # The secret key base is used to sign/encrypt cookies and other secrets.
-  # A default value is used in config/dev.exs and config/test.exs but you
-  # want to use a different value for prod and you most likely don't want
-  # to check this value into version control, so we use an environment
-  # variable instead.
-  secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
-      raise """
-      environment variable SECRET_KEY_BASE is missing.
-      You can generate one by calling: mix phx.gen.secret
-      """
+  secret_key_base = required.("SECRET_KEY_BASE")
+  if byte_size(secret_key_base) < 64, do: raise("SECRET_KEY_BASE must be at least 64 bytes")
+  host = required.("PHX_HOST")
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  unless Regex.match?(~r/\A[a-zA-Z0-9][a-zA-Z0-9.-]*\z/, host),
+    do: raise("PHX_HOST must be a hostname without scheme or port")
 
-  oauth_value = fn key ->
-    case System.get_env(key) do
-      value when is_binary(value) and value != "" -> value
-      _ -> raise "#{key} is required in production"
-    end
-  end
+  redirect_uri = required.("DISCORD_OAUTH_REDIRECT_URI")
+
+  unless redirect_uri == "https://#{host}/auth/discord/callback",
+    do: raise("DISCORD_OAUTH_REDIRECT_URI must match the HTTPS PHX_HOST callback")
 
   config :async_worlds, :discord_oauth,
-    client_id: oauth_value.("DISCORD_OAUTH_CLIENT_ID"),
-    client_secret: oauth_value.("DISCORD_OAUTH_CLIENT_SECRET"),
-    redirect_uri: oauth_value.("DISCORD_OAUTH_REDIRECT_URI"),
+    client_id: required.("DISCORD_OAUTH_CLIENT_ID"),
+    client_secret: required.("DISCORD_OAUTH_CLIENT_SECRET"),
+    redirect_uri: redirect_uri,
     token_url: "https://discord.com/api/oauth2/token",
     profile_url: "https://discord.com/api/users/@me",
     request_options: []
