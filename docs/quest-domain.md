@@ -59,6 +59,13 @@ authorized callers; it is DM-only. Authoring updates cannot affect those copies
 or pinned assignments. ENG-16 adds full v2 tick inputs via `Submissions.freeze/2`
 in the close transaction; see [quest-submissions.md](quest-submissions.md).
 
+## DM operational controls
+
+ENG-17 exposes assignment, replacement, ending and manual moves at `/quests`.
+Shared operations are freshly authorized, audited and support an optimistic
+`expected_progression` option. See [quest-operations.md](quest-operations.md) for
+UI usage, stale-editor handling and immutable intervention history.
+
 ## Character/quest on-fill targets
 
 Existing world triggers retain their behavior. `set_flag` targets exactly one

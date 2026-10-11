@@ -38,6 +38,7 @@ defmodule AsyncWorldsWeb.Router do
       live "/dashboard", DashboardLive, :index
       live "/clocks", ClockLive, :index
       live "/characters", CharacterLive, :index
+      live "/quests", QuestLive, :index
       live "/ticks/:id/review", TickReviewLive, :show
     end
   end

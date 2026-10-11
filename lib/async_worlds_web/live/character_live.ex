@@ -228,12 +228,19 @@ defmodule AsyncWorldsWeb.CharacterLive do
                     Discord {character.discord_user_id}
                   </p>
                 </div>
-                <button
-                  id={"edit-character-#{character.id}"}
-                  phx-click="edit"
-                  phx-value-id={character.id}
-                  class="admin-button admin-secondary"
-                >Edit</button>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    id={"edit-character-#{character.id}"}
+                    phx-click="edit"
+                    phx-value-id={character.id}
+                    class="admin-button admin-secondary"
+                  >Edit</button>
+                  <.link
+                    id={"character-quests-#{character.id}"}
+                    navigate={~p"/quests?character_id=#{character.id}"}
+                    class="admin-button admin-secondary"
+                  >Quests</.link>
+                </div>
               </article>
             </div>
           </section>
