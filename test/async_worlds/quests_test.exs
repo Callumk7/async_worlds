@@ -334,16 +334,17 @@ defmodule AsyncWorlds.QuestsTest do
     end
 
     {:ok, tick} = Ticks.open_tick(c.campaign.id)
-    assert {:error, :quest_executor_required} = Ticks.close_tick(c.campaign.id, tick.id)
-    assert {:ok, %{status: :open}} = Ticks.fetch_tick(c.campaign.id, tick.id)
-    assert {:error, :not_closed} = Ticks.fetch_snapshot(c.campaign.id, tick.id)
+    assert {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, tick.id)
+    assert {:error, :quest_executor_required} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
+    assert {:ok, %{status: :resolving}} = Ticks.fetch_tick(c.campaign.id, tick.id)
+    assert snapshot.data["quest_inputs"]["characters"] != []
 
-    assert {:ok, _} =
+    assert {:error, :tick_locked} =
              Quests.configure_clock_triggers(c.campaign, "456", clock.id, [
                %{type: :world_news, text: "News"}
              ])
 
-    assert {:ok, _} = Ticks.close_tick(c.campaign.id, tick.id)
+    assert {:ok, %{snapshot: ^snapshot}} = Ticks.close_tick(c.campaign.id, tick.id)
   end
 
   defp assert_db_reject(sql, params) do

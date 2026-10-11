@@ -102,21 +102,17 @@ defmodule AsyncWorlds.Ticks do
     end)
   end
 
-  @doc "Atomically freezes world inputs and locks management. Retries return the original snapshot."
+  @doc "Atomically freezes world/quest inputs and locks management. Retries return the original snapshot."
   def close_tick(campaign_id, tick_id) do
     transaction(campaign_id, tick_id, fn campaign, tick ->
       case tick.status do
         :open ->
-          if Enum.any?(Clocks.list_clocks(campaign_id), fn clock ->
-               Enum.any?(clock.triggers, &(&1.type in [:set_flag, :unlock_quest]))
-             end),
-             do: Repo.rollback(:quest_executor_required)
-
           {:ok, _} = Clocks.lock_mutations(campaign_id)
 
           snapshot =
             Repo.insert!(%Snapshot{
               tick_id: tick.id,
+              schema_version: 2,
               revision: Ecto.UUID.generate(),
               data: freeze(campaign, tick)
             })
@@ -290,7 +286,10 @@ defmodule AsyncWorlds.Ticks do
         do: Repo.rollback(:stale_live_state)
 
       live = freeze(campaign, tick)
-      if live != snapshot.data, do: Repo.rollback(:stale_live_state)
+      # v1 predates character inputs. New immutable revisions may be authored
+      # after close; they cannot affect the pinned frozen turn.
+      live = if snapshot.schema_version == 1, do: Map.delete(live, "quest_inputs"), else: live
+      if comparable(live) != comparable(snapshot.data), do: Repo.rollback(:stale_live_state)
 
       Enum.each(draft.payload["effects"], fn effect ->
         before = effect["before"]
@@ -428,6 +427,14 @@ defmodule AsyncWorlds.Ticks do
 
   defp json_payload(_), do: {:error, :invalid_payload}
 
+  defp comparable(data) do
+    if data["quest_inputs"] do
+      update_in(data["quest_inputs"], &Map.drop(&1, ["quests", "revisions"]))
+    else
+      data
+    end
+  end
+
   defp freeze(campaign, tick) do
     clocks = Clocks.list_clocks(campaign.id)
 
@@ -441,6 +448,7 @@ defmodule AsyncWorlds.Ticks do
           :current_tick_number
         ]),
       "tick_number" => tick.number,
+      "quest_inputs" => AsyncWorlds.Quests.Submissions.freeze(campaign.id, tick.id),
       "ordering" => %{
         "clocks" => Enum.map(clocks, & &1.id),
         "race_tie_break" => "ascending_clock_id",

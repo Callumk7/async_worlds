@@ -44,7 +44,7 @@ renderer privacy, drift rejection, and atomicity. The `/4` callback form remains
 an internal trusted transaction primitive, not an interface-level publication API.
 No network I/O or other irreversible effects belong in publication transactions.
 
-## Frozen snapshot version 1
+## Frozen snapshot versions 1 and 2
 
 Snapshots are DM-only and contain:
 
@@ -55,7 +55,14 @@ Snapshots are DM-only and contain:
   ordered typed trigger payloads and campaign ownership.
 - Explicit clock ordering, ascending-ID racing tie-break, and phase sequence:
   quest choices, resource assignments, background rates, clock triggers, then
-  quest conditions. Quest/resource inputs will be added when those systems exist.
+  quest conditions. Resource inputs remain reserved.
+
+New closes use version 2 and also freeze quest submissions, pinned revisions,
+character positions/flags and trigger target inputs. Missing or invalid choices
+are not turns or penalties. See [quest-submissions.md](quest-submissions.md) for
+identity, intervention, revalidation and readiness rules. Version 1 remains
+readable. The world-only executor explicitly refuses submitted quest work until
+ENG-18; it cannot drop choices while publishing world changes.
 
 The snapshot has a schema version and a unique UUID input revision. There is
 exactly one snapshot per tick. Drafts have unique UUID identities and increasing

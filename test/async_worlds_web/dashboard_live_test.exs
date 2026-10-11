@@ -42,6 +42,34 @@ defmodule AsyncWorldsWeb.DashboardLiveTest do
     assert has_element?(view, "#logout-link")
   end
 
+  test "readiness is informational and missing choices never disable close", %{
+    conn: conn,
+    campaign: campaign
+  } do
+    {:ok, character} =
+      AsyncWorlds.Characters.create_character(campaign, "22002", %{
+        name: "Player",
+        discord_user_id: "991"
+      })
+
+    {:ok, revision} =
+      AsyncWorlds.Quests.create_quest(
+        campaign,
+        "22002",
+        %{content_id: "quest", name: "Quest"},
+        AsyncWorlds.QuestFixtures.definition()
+      )
+
+    {:ok, _} = AsyncWorlds.Quests.assign(campaign, "22002", character.id, revision.id)
+    {:ok, _} = AsyncWorlds.Ticks.open_tick(campaign.id)
+    {:ok, view, _} = live(conn, ~p"/dashboard")
+    assert has_element?(view, "#quest-readiness", "0/1 quest choices ready")
+    assert has_element?(view, "#close-tick:not([disabled])")
+    view |> element("#close-tick") |> render_click()
+    assert has_element?(view, "#resolution-pending")
+    assert has_element?(view, "#quest-readiness", "1 missing")
+  end
+
   test "logout-style revocation disconnects an already connected socket", %{
     conn: conn,
     token: token

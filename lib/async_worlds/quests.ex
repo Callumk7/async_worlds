@@ -6,7 +6,7 @@ defmodule AsyncWorlds.Quests do
   alias AsyncWorlds.Campaigns.Campaign
   alias AsyncWorlds.Characters.Character
   alias AsyncWorlds.Discord.Snowflake
-  alias AsyncWorlds.Quests.{Definition, Progression, Quest, Revision, Rules}
+  alias AsyncWorlds.Quests.{Definition, Progression, Quest, Revision, Rules, Submissions}
 
   def create_quest(campaign, dm_id, attrs, definition) do
     manage(campaign, dm_id, fn current ->
@@ -56,12 +56,17 @@ defmodule AsyncWorlds.Quests do
     do: manage(campaign, dm_id, fn current -> fetch!(Progression, current.id, progression_id) end)
 
   def assign(campaign, dm_id, character_id, revision_id) do
-    manage(campaign, dm_id, fn current -> assign!(current.id, character_id, revision_id) end)
+    manage(campaign, dm_id, fn current ->
+      mutable!(current)
+      assign!(current.id, character_id, revision_id)
+    end)
   end
 
   def swap(campaign, dm_id, character_id, revision_id) do
     manage(campaign, dm_id, fn current ->
+      mutable!(current)
       fetch!(Character, current.id, character_id)
+      Submissions.invalidate_open(current.id, character_id)
 
       if active = active(current.id, character_id),
         do: Repo.update!(change(active, status: :ended))
@@ -72,23 +77,39 @@ defmodule AsyncWorlds.Quests do
 
   def end_quest(campaign, dm_id, progression_id) do
     manage(campaign, dm_id, fn current ->
+      mutable!(current)
       progression = fetch!(Progression, current.id, progression_id)
       if progression.status != :active, do: Repo.rollback(:not_active)
+      Submissions.invalidate_open(current.id, progression.character_id)
       Repo.update!(change(progression, status: :ended))
     end)
   end
 
   def move(campaign, dm_id, progression_id, node_id) do
     manage(campaign, dm_id, fn current ->
+      mutable!(current)
       progression = fetch!(Progression, current.id, progression_id)
       if progression.status != :active, do: Repo.rollback(:not_active)
       revision = fetch!(Revision, current.id, progression.revision_id)
       node = Rules.node(revision.definition, node_id) || Repo.rollback(:invalid_node)
-      Repo.update!(change(progression, node_id: node_id, status: status(node)))
+
+      if progression.node_id == node_id do
+        progression
+      else
+        Submissions.invalidate_open(current.id, progression.character_id)
+
+        Repo.update!(
+          change(progression,
+            node_id: node_id,
+            status: status(node),
+            position_version: progression.position_version + 1
+          )
+        )
+      end
     end)
   end
 
-  @doc "DM-only definition copies; call inside the future tick-close transaction. No tick integration yet."
+  @doc "DM-only immutable definition copies. Tick close uses Submissions.freeze/2 for full inputs."
   def freeze_definitions(campaign, dm_id) do
     manage(campaign, dm_id, fn current ->
       Repo.all(
@@ -162,6 +183,7 @@ defmodule AsyncWorlds.Quests do
     character = fetch!(Character, campaign_id, character_id)
     revision = fetch!(Revision, campaign_id, revision_id)
     if active(campaign_id, character.id), do: Repo.rollback(:active_quest)
+    Submissions.invalidate_open(campaign_id, character.id)
     node = Rules.node(revision.definition, revision.definition["start_node"])
 
     %Progression{
@@ -175,6 +197,10 @@ defmodule AsyncWorlds.Quests do
     |> unique_constraint(:character_id, name: :one_active_quest_per_character)
     |> Repo.insert()
     |> persist()
+  end
+
+  defp mutable!(campaign) do
+    if campaign.clock_mutations_locked, do: Repo.rollback(:tick_locked)
   end
 
   defp status(%{"ending" => true}), do: :completed

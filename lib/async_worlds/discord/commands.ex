@@ -108,7 +108,7 @@ defmodule AsyncWorlds.Discord.Commands do
     end
   end
 
-  def execute(:tick_status, %{campaign: campaign}) do
+  def execute(:tick_status, %{campaign: campaign, user_id: user_id}) do
     tick = Ticks.active_tick(campaign.id) || Ticks.latest_published_tick(campaign.id)
 
     content =
@@ -116,7 +116,20 @@ defmodule AsyncWorlds.Discord.Commands do
         do: "Tick #{tick.number}: #{status(tick.status)}",
         else: "No ticks yet. Ready to open the first world tick."
 
-    {:ok, content <> "\nWorld-only status; character submissions are not tracked yet."}
+    readiness =
+      if tick do
+        case AsyncWorlds.Quests.Submissions.readiness(campaign, user_id, tick.id) do
+          {:ok, counts} ->
+            "\nQuest choices: #{counts.submitted}/#{counts.active} ready, #{counts.missing} missing. Informational only; no automatic close."
+
+          _ ->
+            ""
+        end
+      else
+        ""
+      end
+
+    {:ok, content <> readiness}
   end
 
   defp status(:open), do: "open — ready to close and resolve the world."

@@ -8,6 +8,7 @@ defmodule AsyncWorlds.Characters do
 
   def create_character(campaign, dm_id, attrs) do
     manage(campaign, dm_id, fn current ->
+      mutable!(current)
       persist(Repo.insert(Character.changeset(%Character{campaign_id: current.id}, attrs)))
     end)
   end
@@ -24,16 +25,20 @@ defmodule AsyncWorlds.Characters do
 
   def update_character(campaign, dm_id, character_id, attrs) do
     manage(campaign, dm_id, fn current ->
-      current.id
-      |> fetch!(character_id)
-      |> Character.changeset(attrs)
-      |> Repo.update()
-      |> persist()
+      mutable!(current)
+      character = fetch!(current.id, character_id)
+      updated = character |> Character.changeset(attrs) |> Repo.update() |> persist()
+
+      if updated.discord_user_id != character.discord_user_id,
+        do: AsyncWorlds.Quests.Submissions.invalidate_open(current.id, character.id)
+
+      updated
     end)
   end
 
   def set_flag(campaign, dm_id, character_id, key, flag) do
     manage(campaign, dm_id, fn current ->
+      mutable!(current)
       unless Flags.valid_key?(key) and Flags.valid_flag?(flag), do: Repo.rollback(:invalid_flag)
       character = fetch!(current.id, character_id)
       save_flags(character, Map.put(character.flags, key, flag))
@@ -42,6 +47,7 @@ defmodule AsyncWorlds.Characters do
 
   def clear_flag(campaign, dm_id, character_id, key) do
     manage(campaign, dm_id, fn current ->
+      mutable!(current)
       unless Flags.valid_key?(key), do: Repo.rollback(:invalid_flag)
       character = fetch!(current.id, character_id)
       save_flags(character, Map.delete(character.flags, key))
@@ -98,6 +104,10 @@ defmodule AsyncWorlds.Characters do
     else
       _ -> Repo.rollback(:not_found)
     end
+  end
+
+  defp mutable!(campaign) do
+    if campaign.clock_mutations_locked, do: Repo.rollback(:tick_locked)
   end
 
   defp save_flags(character, flags),

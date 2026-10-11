@@ -1,6 +1,6 @@
 defmodule AsyncWorlds.Ticks.WorldResolver do
   @moduledoc """
-  Pure, deterministic world-only resolution of version-1 frozen snapshots.
+  Pure, deterministic world-only resolution of v1 and world-compatible v2 snapshots.
 
   Returns a DM-only JSON-compatible draft, never published state or deliveries.
   See docs/world-resolution.md for ordering, latching and extension boundaries.
@@ -22,7 +22,41 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     end
   end
 
+  def resolve(%Snapshot{schema_version: 2, data: data} = snapshot, review) when is_map(data) do
+    inputs = data["quest_inputs"]
+    clocks = data["clocks"]
+
+    cond do
+      not valid_v2?(data) ->
+        {:error, :invalid_snapshot}
+
+      inputs["submissions"] != [] or
+          Enum.any?(clocks, fn clock ->
+            Enum.any?(clock["triggers"] || [], &(&1["type"] in ["set_flag", "unlock_quest"]))
+          end) ->
+        {:error, :quest_executor_required}
+
+      true ->
+        resolve(%{snapshot | schema_version: 1, data: Map.delete(data, "quest_inputs")}, review)
+    end
+  end
+
   def resolve(_, _), do: {:error, :invalid_snapshot}
+
+  defp valid_v2?(data) do
+    world =
+      Map.update!(data, "clocks", fn clocks ->
+        Enum.map(clocks, fn clock ->
+          Map.update!(clock, "triggers", fn triggers ->
+            Enum.reject(triggers, &(&1["type"] in ["set_flag", "unlock_quest"]))
+          end)
+        end)
+      end)
+
+    valid?(world) and AsyncWorlds.Quests.FrozenInputs.valid?(data["quest_inputs"], data["clocks"])
+  rescue
+    _ -> false
+  end
 
   defp valid_review?(review, clocks) when is_map(review) do
     ids = Enum.map(clocks, &to_string(&1["id"]))

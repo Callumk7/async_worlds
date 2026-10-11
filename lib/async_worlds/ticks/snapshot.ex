@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.Ticks.Snapshot do
-  @moduledoc "Immutable, versioned world inputs captured exactly once at close. DM-only."
+  @moduledoc "Immutable, versioned world and quest inputs captured exactly once at close. DM-only."
   use Ecto.Schema
 
   schema "tick_snapshots" do

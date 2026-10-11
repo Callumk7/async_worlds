@@ -52,6 +52,12 @@ log as clock changes; all trigger outcomes enter it as trigger results.
 
 The resolver performs no database, network, random, clock-time or UUID operations.
 Identical snapshots yield identical payloads, suitable for `Ticks.put_draft/5`.
+Version-2 snapshots are also supported when there are no valid quest submissions
+or dependent character/quest triggers. The frozen quest contract is validated;
+unsupported quest work returns `{:error, :quest_executor_required}` and durable
+resolution cancels safely, leaving management locked. ENG-18 supplies the quest
+executor; ENG-16 never silently drops submitted choices. See
+[quest-submissions.md](quest-submissions.md).
 ENG-7's [durable worker](durable-work.md) owns job orchestration; ENG-8's
 [audited review/publication](tick-review-publication.md) owns validated edits and
 atomic publication. `resolve(snapshot, review)` accepts clock-delta and narration
