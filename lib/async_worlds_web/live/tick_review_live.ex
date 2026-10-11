@@ -162,7 +162,9 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               "mode" => "override",
               "reason" => ""
             },
-            [:draft_id, :text, :mode, :reason], as: :news),
+            [:draft_id, :text, :mode, :reason],
+            as: :news
+          ),
         publish_form:
           params_form(%{"draft_id" => draft.id, "confirm" => "false"}, [:draft_id, :confirm],
             as: :publish
@@ -193,7 +195,10 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               "amount" => if(is_nil(override), do: "", else: to_string(override)),
               "reason" => ""
             },
-            [:draft_id, :amount, :reason], as: :delta, id: "draft-clock-#{clock["id"]}")
+            [:draft_id, :amount, :reason],
+            as: :delta,
+            id: "draft-clock-#{clock["id"]}"
+          )
       }
     end)
   end
@@ -208,17 +213,22 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           <div>
             <p class="text-xs uppercase tracking-widest text-amber-300">
               Private draft · not yet live
-            </p><h1 class="mt-2 text-4xl font-semibold tracking-tight">Review tick {@tick.number}</h1><p
+            </p>
+            <h1 class="mt-2 text-4xl font-semibold tracking-tight">Review tick {@tick.number}</h1>
+            <p
               id="draft-revision"
               class="mt-3 text-sm text-slate-400"
             >
               Revision {@draft.revision} · reload after changes in another window.
             </p>
-          </div><button
+          </div>
+          <button
             id="refresh-review"
             phx-click="refresh"
             class="admin-button admin-secondary self-start"
-          ><.icon name="hero-arrow-path" class="size-4" /> Reload review</button>
+          >
+            <.icon name="hero-arrow-path" class="size-4" /> Reload review
+          </button>
         </header>
         <p
           :if={@stale}
@@ -230,7 +240,8 @@ defmodule AsyncWorldsWeb.TickReviewLive do
         </p>
         <div class="grid gap-7 lg:grid-cols-[1.1fr_1fr]">
           <section class="admin-panel">
-            <h2 class="mb-2 text-xl font-semibold">Clock results</h2><p class="mb-5 text-sm text-slate-400">
+            <h2 class="mb-2 text-xl font-semibold">Clock results</h2>
+            <p class="mb-5 text-sm text-slate-400">
               Replace a clock's signed tick delta, not its live fill. Blank restores the frozen rate. Completion and triggers recompute; initially-full completion latches remain.
             </p>
             <div id="review-clocks" phx-update="stream" class="space-y-4">
@@ -243,15 +254,15 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 class="rounded-xl border border-white/10 p-4"
               >
                 <div class="flex justify-between gap-3">
-                  <h3 class="font-semibold">{item.clock["name"]}</h3><span class="text-xs text-slate-400">{item.clock[
-                    "visibility"
-                  ]}</span>
+                  <h3 class="font-semibold">{item.clock["name"]}</h3>
+                  <span class="text-xs text-slate-400">{item.clock["visibility"]}</span>
                 </div>
                 <p id={"clock-result-#{item.id}"} class="mt-3 text-sm">
                   <span class="text-slate-400">Frozen {item.frozen["filled"]}/{item.frozen["segments"]}</span>
-                  <.icon name="hero-arrow-right" class="mx-2 size-4" /><span class="text-amber-200">{item.clock[
-                    "filled"
-                  ]}/{item.clock["segments"]}</span>
+                  <.icon name="hero-arrow-right" class="mx-2 size-4" />
+                  <span class="text-amber-200">
+                    {item.clock["filled"]}/{item.clock["segments"]}
+                  </span>
                   · {if item.clock["completed"],
                     do: "completed",
                     else: if(item.clock["paused"], do: "paused", else: "running")}
@@ -284,14 +295,17 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                     disabled={@stale || item.frozen["completed"]}
                     phx-disable-with="Recomputing…"
                     class="admin-button admin-secondary"
-                  >Recompute result</button>
+                  >
+                    Recompute result
+                  </button>
                 </.form>
               </article>
             </div>
           </section>
           <div class="space-y-7">
             <section class="admin-panel">
-              <h2 class="mb-2 text-xl font-semibold">World news</h2><p class="mb-5 text-sm text-slate-400">
+              <h2 class="mb-2 text-xl font-semibold">World news</h2>
+              <p class="mb-5 text-sm text-slate-400">
                 Public narration. Separate paragraphs with a blank line; each at most 2000 characters. Empty text suppresses news.
               </p>
               <.form
@@ -330,12 +344,15 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                     id="save-world-news"
                     phx-disable-with="Saving…"
                     class="admin-button admin-secondary"
-                  >Save world news</button>
+                  >
+                    Save world news
+                  </button>
                 </fieldset>
               </.form>
             </section>
             <section class="admin-panel border-amber-300/30">
-              <h2 class="text-xl font-semibold">Exact public preview</h2><p class="mb-5 mt-2 text-sm text-slate-400">
+              <h2 class="text-xl font-semibold">Exact public preview</h2>
+              <p class="mb-5 mt-2 text-sm text-slate-400">
                 The same content queued for delivery. Hidden clocks and private notifications are excluded; known clocks expose names only.
               </p>
               <p
@@ -374,7 +391,9 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                   disabled={!@preview_ready || @stale}
                   phx-disable-with="Publishing…"
                   class="admin-button"
-                ><.icon name="hero-check-circle" class="size-5" /> Publish approved tick</button>
+                >
+                  <.icon name="hero-check-circle" class="size-5" /> Publish approved tick
+                </button>
               </.form>
             </section>
           </div>
@@ -424,7 +443,8 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               id={dom_id}
               class="border-b border-white/10 pb-3 text-sm"
             >
-              <p>{edit.operation["type"]} · DM {edit.actor_id}</p><p class="mt-1 text-slate-400">
+              <p>{edit.operation["type"]} · DM {edit.actor_id}</p>
+              <p class="mt-1 text-slate-400">
                 {edit.reason}
               </p>
             </article>

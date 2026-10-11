@@ -193,16 +193,21 @@ defmodule AsyncWorldsWeb.ClockLive do
       <section id="clock-management" class="space-y-7">
         <header class="flex flex-wrap justify-between gap-4">
           <div>
-            <p class="text-xs uppercase tracking-widest text-amber-300">World machinery</p><h1 class="mt-2 text-4xl font-semibold tracking-tight">
+            <p class="text-xs uppercase tracking-widest text-amber-300">World machinery</p>
+            <h1 class="mt-2 text-4xl font-semibold tracking-tight">
               Clocks & consequences
-            </h1><p class="mt-3 text-sm text-slate-400">
+            </h1>
+            <p class="mt-3 text-sm text-slate-400">
               Configure live inputs before closing. Review edits never change these inputs.
             </p>
-          </div><button
+          </div>
+          <button
             id="refresh-clocks"
             phx-click="refresh"
             class="admin-button admin-secondary self-start"
-          >Refresh</button>
+          >
+            Refresh
+          </button>
         </header>
         <p
           :if={@locked}
@@ -217,12 +222,15 @@ defmodule AsyncWorldsWeb.ClockLive do
             <div class="mb-5 flex justify-between gap-4">
               <h2 class="text-xl font-semibold">
                 {if @editing, do: "Edit #{@editing.name}", else: "Create a clock"}
-              </h2><button
+              </h2>
+              <button
                 :if={@editing}
                 id="new-clock"
                 phx-click="new"
                 class="text-sm text-amber-300"
-              >New clock</button>
+              >
+                New clock
+              </button>
             </div>
             <.form
               for={@form}
@@ -248,7 +256,8 @@ defmodule AsyncWorldsWeb.ClockLive do
                     options={[4, 6, 8]}
                     class="admin-input"
                     error_class="admin-input-error"
-                  /><.input
+                  />
+                  <.input
                     field={@form[:filled]}
                     type="number"
                     label="Current fill (clamped to size)"
@@ -264,7 +273,8 @@ defmodule AsyncWorldsWeb.ClockLive do
                     options={[Public: :public, "Known (name only)": :known, Hidden: :hidden]}
                     class="admin-input"
                     error_class="admin-input-error"
-                  /><.input
+                  />
+                  <.input
                     field={@form[:background_rate]}
                     type="number"
                     label="Signed change each tick"
@@ -279,12 +289,15 @@ defmodule AsyncWorldsWeb.ClockLive do
                   class="admin-checkbox"
                 />
                 <div class="flex items-center justify-between">
-                  <h3 class="text-sm font-semibold">When filled</h3><button
+                  <h3 class="text-sm font-semibold">When filled</h3>
+                  <button
                     id="add-trigger"
                     type="button"
                     phx-click="add_trigger"
                     class="admin-button admin-secondary"
-                  ><.icon name="hero-plus" class="size-4" /> Add trigger</button>
+                  >
+                    <.icon name="hero-plus" class="size-4" /> Add trigger
+                  </button>
                 </div>
                 <p class="text-xs text-slate-400">
                   World news is public narration, even for a hidden source. Starting a clock unpauses it without applying another rate.
@@ -336,10 +349,14 @@ defmodule AsyncWorldsWeb.ClockLive do
                       phx-click="remove_trigger"
                       phx-value-index={trigger_form.index}
                       class="text-xs text-rose-300 hover:text-rose-100"
-                    >Remove trigger</button>
+                    >
+                      Remove trigger
+                    </button>
                   </div>
                 </.inputs_for>
-                <button id="save-clock" phx-disable-with="Saving…" class="admin-button">Save clock</button>
+                <button id="save-clock" phx-disable-with="Saving…" class="admin-button">
+                  Save clock
+                </button>
               </fieldset>
             </.form>
             <p
@@ -363,7 +380,10 @@ defmodule AsyncWorldsWeb.ClockLive do
                   class="rounded-xl border border-white/10 p-4"
                 >
                   <div class="flex justify-between gap-3">
-                    <h3 class="font-semibold">{item.clock.name}</h3><span class="text-amber-200 tabular-nums">{item.clock.filled}/{item.clock.segments}</span>
+                    <h3 class="font-semibold">{item.clock.name}</h3>
+                    <span class="text-amber-200 tabular-nums">
+                      {item.clock.filled}/{item.clock.segments}
+                    </span>
                   </div>
                   <p class="mt-1 text-xs text-slate-400">
                     {item.clock.visibility} · rate {item.clock.background_rate} · {if item.clock.completed,
@@ -378,7 +398,9 @@ defmodule AsyncWorldsWeb.ClockLive do
                       phx-value-id={item.id}
                       disabled={@locked || item.clock.completed}
                       class="admin-button admin-secondary"
-                    >Edit</button>
+                    >
+                      Edit
+                    </button>
                     <button
                       id={"pause-clock-#{item.id}"}
                       phx-click="pause"
@@ -386,7 +408,9 @@ defmodule AsyncWorldsWeb.ClockLive do
                       phx-value-paused={to_string(not item.clock.paused)}
                       disabled={@locked || item.clock.completed}
                       class="admin-button admin-secondary"
-                    >{if item.clock.paused, do: "Resume", else: "Pause"}</button>
+                    >
+                      {if item.clock.paused, do: "Resume", else: "Pause"}
+                    </button>
                     <button
                       id={"reset-clock-#{item.id}"}
                       phx-click="reset"
@@ -394,7 +418,9 @@ defmodule AsyncWorldsWeb.ClockLive do
                       disabled={@locked}
                       data-confirm="Reset fill and completion for this clock and its racing partner?"
                       class="admin-button admin-danger"
-                    >Reset</button>
+                    >
+                      Reset
+                    </button>
                     <button
                       :if={item.clock.racing_group}
                       id={"unpair-clock-#{item.id}"}
@@ -402,7 +428,9 @@ defmodule AsyncWorldsWeb.ClockLive do
                       phx-value-id={item.id}
                       disabled={@locked}
                       class="admin-button admin-secondary"
-                    >Unpair</button>
+                    >
+                      Unpair
+                    </button>
                   </div>
                   <.form
                     for={item.form}
@@ -422,13 +450,16 @@ defmodule AsyncWorldsWeb.ClockLive do
                       id={"adjust-clock-button-#{item.id}"}
                       disabled={@locked || item.clock.completed}
                       class="admin-button admin-secondary mb-2"
-                    >Apply</button>
+                    >
+                      Apply
+                    </button>
                   </.form>
                 </article>
               </div>
             </section>
             <section class="admin-panel">
-              <h2 class="mb-3 text-lg font-semibold">Link a racing pair</h2><p class="mb-4 text-sm text-slate-400">
+              <h2 class="mb-3 text-lg font-semibold">Link a racing pair</h2>
+              <p class="mb-4 text-sm text-slate-400">
                 The first clock to fill wins; both complete, only the winner triggers.
               </p>
               <.form for={@race_form} id="race-form" phx-submit="pair" class="admin-form space-y-4">
@@ -454,7 +485,9 @@ defmodule AsyncWorldsWeb.ClockLive do
                   id="pair-clocks"
                   disabled={@locked || length(@race_options) < 2}
                   class="admin-button admin-secondary"
-                >Link race</button>
+                >
+                  Link race
+                </button>
               </.form>
             </section>
           </div>
