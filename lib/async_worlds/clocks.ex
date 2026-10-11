@@ -200,6 +200,33 @@ defmodule AsyncWorlds.Clocks do
                 add_error(changeset, :triggers, "must reference another clock in this campaign")
               )
         end
+
+        if trigger.type in [:set_flag, :unlock_quest] do
+          character =
+            Repo.get_by(AsyncWorlds.Characters.Character,
+              id: trigger.character_id,
+              campaign_id: campaign_id
+            )
+
+          quest =
+            if trigger.type == :unlock_quest,
+              do:
+                Repo.get_by(AsyncWorlds.Quests.Quest,
+                  id: trigger.quest_id,
+                  campaign_id: campaign_id
+                ),
+              else: true
+
+          if is_nil(character) or is_nil(quest),
+            do:
+              Repo.rollback(
+                add_error(
+                  changeset,
+                  :triggers,
+                  "must reference character and quest in this campaign"
+                )
+              )
+        end
       end)
     end
   end
@@ -232,6 +259,6 @@ defmodule AsyncWorlds.Clocks do
       :completed,
       :racing_group
     ])
-    |> Map.put(:triggers, Enum.map(clock.triggers, &Map.take(&1, [:type, :text, :clock_id])))
+    |> Map.put(:triggers, Enum.map(clock.triggers, &AsyncWorlds.Clocks.Trigger.snapshot/1))
   end
 end

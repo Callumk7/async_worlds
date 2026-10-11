@@ -107,6 +107,11 @@ defmodule AsyncWorlds.Ticks do
     transaction(campaign_id, tick_id, fn campaign, tick ->
       case tick.status do
         :open ->
+          if Enum.any?(Clocks.list_clocks(campaign_id), fn clock ->
+               Enum.any?(clock.triggers, &(&1.type in [:set_flag, :unlock_quest]))
+             end),
+             do: Repo.rollback(:quest_executor_required)
+
           {:ok, _} = Clocks.lock_mutations(campaign_id)
 
           snapshot =
@@ -464,7 +469,7 @@ defmodule AsyncWorlds.Ticks do
           ])
           |> Map.put(
             :triggers,
-            Enum.map(clock.triggers, &Map.take(&1, [:type, :text, :clock_id]))
+            Enum.map(clock.triggers, &AsyncWorlds.Clocks.Trigger.snapshot/1)
           )
         end)
     }
