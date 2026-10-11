@@ -6,7 +6,19 @@ defmodule AsyncWorlds.Quests do
   alias AsyncWorlds.Campaigns.Campaign
   alias AsyncWorlds.Characters.Character
   alias AsyncWorlds.Discord.Snowflake
-  alias AsyncWorlds.Quests.{Definition, Progression, Quest, Revision, Rules, Submissions}
+
+  alias AsyncWorlds.Quests.{
+    Definition,
+    Intervention,
+    Progression,
+    Quest,
+    Revision,
+    Rules,
+    Submission,
+    Submissions
+  }
+
+  alias AsyncWorlds.Ticks.Tick
 
   def create_quest(campaign, dm_id, attrs, definition) do
     manage(campaign, dm_id, fn current ->
@@ -55,57 +67,140 @@ defmodule AsyncWorlds.Quests do
   def get_progression(campaign, dm_id, progression_id),
     do: manage(campaign, dm_id, fn current -> fetch!(Progression, current.id, progression_id) end)
 
-  def assign(campaign, dm_id, character_id, revision_id) do
+  @doc "Audited assignment. Optional expected_progression prevents stale operational editors."
+  def assign(campaign, dm_id, character_id, revision_id, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
-      assign!(current.id, character_id, revision_id)
+      character = fetch!(Character, current.id, character_id)
+      expect!(active(current.id, character.id), opts)
+      reason = reason!(opts, "Assign quest")
+      invalidated = open_submission_count(current.id, character.id)
+      assigned = assign!(current.id, character.id, revision_id)
+      audit!(current, "assign", nil, assigned, reason, invalidated)
+      assigned
     end)
   end
 
-  def swap(campaign, dm_id, character_id, revision_id) do
+  def swap(campaign, dm_id, character_id, revision_id, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
-      fetch!(Character, current.id, character_id)
-      Submissions.invalidate_open(current.id, character_id)
-
-      if active = active(current.id, character_id),
-        do: Repo.update!(change(active, status: :ended))
-
-      assign!(current.id, character_id, revision_id)
+      character = fetch!(Character, current.id, character_id)
+      previous = active(current.id, character.id)
+      expect!(previous, opts)
+      reason = reason!(opts, "Swap quest")
+      invalidated = open_submission_count(current.id, character.id)
+      Submissions.invalidate_open(current.id, character.id)
+      if previous, do: Repo.update!(change(previous, status: :ended))
+      assigned = assign!(current.id, character.id, revision_id)
+      audit!(current, "swap", previous, assigned, reason, invalidated)
+      assigned
     end)
   end
 
-  def end_quest(campaign, dm_id, progression_id) do
+  def end_quest(campaign, dm_id, progression_id, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
       progression = fetch!(Progression, current.id, progression_id)
+      expect!(progression, opts)
       if progression.status != :active, do: Repo.rollback(:not_active)
+      reason = reason!(opts, "End quest")
+      invalidated = open_submission_count(current.id, progression.character_id)
       Submissions.invalidate_open(current.id, progression.character_id)
-      Repo.update!(change(progression, status: :ended))
+      ended = Repo.update!(change(progression, status: :ended))
+      audit!(current, "end", progression, ended, reason, invalidated)
+      ended
     end)
   end
 
-  def move(campaign, dm_id, progression_id, node_id) do
+  def move(campaign, dm_id, progression_id, node_id, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
       progression = fetch!(Progression, current.id, progression_id)
+      expect!(progression, opts)
       if progression.status != :active, do: Repo.rollback(:not_active)
       revision = fetch!(Revision, current.id, progression.revision_id)
       node = Rules.node(revision.definition, node_id) || Repo.rollback(:invalid_node)
+      reason = reason!(opts, "Move quest node")
 
       if progression.node_id == node_id do
         progression
       else
+        invalidated = open_submission_count(current.id, progression.character_id)
         Submissions.invalidate_open(current.id, progression.character_id)
 
-        Repo.update!(
-          change(progression,
-            node_id: node_id,
-            status: status(node),
-            position_version: progression.position_version + 1
+        moved =
+          Repo.update!(
+            change(progression,
+              node_id: node_id,
+              status: status(node),
+              position_version: progression.position_version + 1
+            )
           )
-        )
+
+        audit!(current, "move", progression, moved, reason, invalidated)
+        moved
       end
+    end)
+  end
+
+  @doc "Freshly authorized, consistent operational view; definitions/history never go to players."
+  def management_state(campaign, dm_id, character_id \\ nil) do
+    manage(campaign, dm_id, fn current ->
+      characters =
+        Repo.all(
+          from c in Character,
+            left_join: p in Progression,
+            on: p.character_id == c.id and p.status == :active,
+            left_join: r in Revision,
+            on: r.id == p.revision_id,
+            left_join: q in Quest,
+            on: q.id == r.quest_id,
+            where: c.campaign_id == ^current.id,
+            order_by: c.id,
+            select: %{
+              id: c.id,
+              name: c.name,
+              discord_user_id: c.discord_user_id,
+              progression: p,
+              quest_name: q.name,
+              revision_number: r.number
+            }
+        )
+
+      revisions =
+        Repo.all(
+          from r in Revision,
+            join: q in Quest,
+            on: q.id == r.quest_id,
+            where: r.campaign_id == ^current.id,
+            order_by: [q.name, q.id, desc: r.number],
+            select: %{id: r.id, quest_name: q.name, content_id: q.content_id, number: r.number}
+        )
+
+      selected =
+        if character_id do
+          character = fetch!(Character, current.id, character_id)
+          row = Enum.find(characters, &(&1.id == character.id))
+          revision = row.progression && fetch!(Revision, current.id, row.progression.revision_id)
+          Map.put(row, :revision, revision)
+        end
+
+      audits = if selected, do: recent_interventions(current.id, selected.id), else: []
+
+      %{
+        characters: characters,
+        revisions: revisions,
+        selected: selected,
+        audits: audits,
+        locked: current.clock_mutations_locked
+      }
+    end)
+  end
+
+  def list_interventions(campaign, dm_id, character_id) do
+    manage(campaign, dm_id, fn current ->
+      character = fetch!(Character, current.id, character_id)
+      recent_interventions(current.id, character.id)
     end)
   end
 
@@ -197,6 +292,68 @@ defmodule AsyncWorlds.Quests do
     |> unique_constraint(:character_id, name: :one_active_quest_per_character)
     |> Repo.insert()
     |> persist()
+  end
+
+  defp recent_interventions(campaign_id, character_id) do
+    Repo.all(
+      from a in Intervention,
+        where: a.campaign_id == ^campaign_id and a.character_id == ^character_id,
+        order_by: [desc: a.id],
+        limit: 10
+    )
+  end
+
+  defp expect!(progression, opts) do
+    case Keyword.fetch(opts, :expected_progression) do
+      {:ok, expected} when expected != progression -> Repo.rollback(:stale_progression)
+      _ -> :ok
+    end
+  end
+
+  defp reason!(opts, default) do
+    reason = Keyword.get(opts, :reason, default)
+
+    unless Definition.text?(reason) and length(String.to_charlist(String.trim(reason))) in 1..2000,
+      do: Repo.rollback(:invalid_reason)
+
+    String.trim(reason)
+  end
+
+  defp open_submission_count(campaign_id, character_id) do
+    Repo.aggregate(
+      from(s in Submission,
+        join: t in Tick,
+        on: t.id == s.tick_id,
+        where:
+          s.campaign_id == ^campaign_id and s.character_id == ^character_id and t.status == :open
+      ),
+      :count
+    )
+  end
+
+  defp audit!(campaign, operation, before, after_progression, reason, invalidated) do
+    tick = AsyncWorlds.Ticks.active_tick(campaign.id)
+
+    Repo.insert!(%Intervention{
+      campaign_id: campaign.id,
+      character_id: after_progression.character_id,
+      tick_id: tick && tick.id,
+      actor_id: campaign.dm_user_id,
+      operation: operation,
+      reason: reason,
+      before: position(before),
+      after: position(after_progression),
+      invalidated_submissions: invalidated
+    })
+  end
+
+  defp position(nil), do: nil
+
+  defp position(progression) do
+    progression
+    |> Map.take([:id, :character_id, :revision_id, :node_id, :position_version, :status])
+    |> Jason.encode!()
+    |> Jason.decode!()
   end
 
   defp mutable!(campaign) do

@@ -31,6 +31,14 @@ defmodule AsyncWorldsWeb.AdminComponents do
       >
         <.icon name="hero-user-group" class="size-4" /> Characters
       </.link>
+      <.link
+        id="nav-quests"
+        navigate={~p"/quests"}
+        aria-current={@active == "quests" && "page"}
+        class={["admin-tab", @active == "quests" && "admin-tab-active"]}
+      >
+        <.icon name="hero-map" class="size-4" /> Quests
+      </.link>
     </nav>
     """
   end
@@ -53,7 +61,22 @@ defmodule AsyncWorldsWeb.AdminComponents do
 
   def error_message(:tick_locked),
     do:
-      "Clock management is locked during resolution and review. Make result changes in the review instead."
+      "Clock, character and quest management is locked during resolution and review. Publish the active tick before intervening."
+
+  def error_message(:stale_progression),
+    do:
+      "This character's quest or position changed in another window. Inspect the refreshed assignment before trying again."
+
+  def error_message(:active_quest),
+    do:
+      "This character already has an active quest. Refresh and use Replace quest, or end the current assignment first."
+
+  def error_message(:not_active),
+    do: "This quest is no longer active. Refresh the character and assign a new quest if needed."
+
+  def error_message(:invalid_node),
+    do:
+      "Choose a node from this character's pinned quest revision. Refresh to see the current nodes."
 
   def error_message(:completed),
     do: "Reset this completed clock before editing. Reset also resets its racing partner."

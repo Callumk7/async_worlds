@@ -1,7 +1,7 @@
 # Minimal DM console (ENG-9)
 
 Sign in through Discord OAuth as the configured campaign DM. The console's
-`/dashboard`, `/clocks`, and `/ticks/:id/review` routes share the authenticated
+`/dashboard`, `/clocks`, `/characters`, `/quests`, and `/ticks/:id/review` routes share the authenticated
 LiveView session. HTTP/mounts, navigation parameters, and every event recheck the
 server session and current DM configuration. Session revocation/expiry redirects
 all console views to login. Campaign and actor IDs come from authenticated scope,
@@ -48,6 +48,17 @@ forms carry the approved draft UUID, not just a tick ID. Stale edits disable
 editing/publication until explicit reload; stale publication attempts reload and
 reset confirmation so the DM must inspect the current preview again. Domain
 checks remain authoritative even if browser-disabled controls are bypassed.
+
+## Personal quest operations
+
+**Characters** links players and manages typed facts. **Quests** assigns an
+existing revision, replaces or ends a personal quest, and moves a character within
+the pinned revision. Each actual quest intervention is audited and clears that
+character's open choice. Stale editors and resolving/review locks are enforced
+by the shared domain, not just disabled controls. See
+[quest-operations.md](quest-operations.md) for the full operational checklist.
+Content authoring, player Discord choice controls and quest tick execution are
+separate milestones/issues; these controls do not run choices immediately.
 
 ## Delivery failures
 
