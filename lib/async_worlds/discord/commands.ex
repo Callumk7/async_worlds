@@ -6,6 +6,7 @@ defmodule AsyncWorlds.Discord.Commands do
   """
 
   alias AsyncWorlds.{Characters, Clocks, Ticks}
+  alias AsyncWorlds.Discord.QuestInteractions
 
   def definitions do
     [
@@ -21,16 +22,25 @@ defmodule AsyncWorlds.Discord.Commands do
         ]
       },
       %{name: "admin", description: "Access the campaign web admin (DM only)", type: 1},
-      %{name: "character", description: "View your character and visible flags", type: 1}
+      %{name: "character", description: "View your character and visible flags", type: 1},
+      %{name: "quest", description: "View your private quest and choose an action", type: 1},
+      %{
+        name: "submission",
+        description: "View, revise or clear your latest quest choice",
+        type: 1
+      }
     ]
   end
 
-  def route(%{name: name} = data) when name in ["clocks", "admin", "character"] do
+  def route(%{name: name} = data)
+      when name in ["clocks", "admin", "character", "quest", "submission"] do
     if Map.get(data, :options) in [nil, []] do
       case name do
         "clocks" -> {:ok, :clocks, :player}
         "admin" -> {:ok, :admin, :dm}
         "character" -> {:ok, :character, :player}
+        "quest" -> {:ok, :quest, :player}
+        "submission" -> {:ok, :submission, :player}
       end
     else
       {:error, :unknown_command}
@@ -51,6 +61,12 @@ defmodule AsyncWorlds.Discord.Commands do
   end
 
   def route(_), do: {:error, :unknown_command}
+
+  def execute(command, context) when command in [:quest, :submission],
+    do: QuestInteractions.show(context)
+
+  def execute({:quest_component, _, _, _} = command, context),
+    do: QuestInteractions.execute(command, context)
 
   def execute(:clocks, %{campaign: campaign}) do
     lines =

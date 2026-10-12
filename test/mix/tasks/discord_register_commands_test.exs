@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Discord.RegisterCommandsTest do
 
     for _ <- 1..2 do
       RegisterCommands.run([])
-      assert_receive {:mix_shell, :info, ["Registered 4 commands in guild 123"]}
+      assert_receive {:mix_shell, :info, ["Registered 6 commands in guild 123"]}
     end
 
     assert Process.whereis(Nostrum.Supervisor) == nil

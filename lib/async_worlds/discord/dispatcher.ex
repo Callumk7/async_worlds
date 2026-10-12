@@ -9,11 +9,11 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   require Logger
 
   alias AsyncWorlds.Campaigns
-  alias AsyncWorlds.Discord.{Commands, Snowflake}
+  alias AsyncWorlds.Discord.{Commands, QuestInteractions, Snowflake}
 
   def handle(interaction, opts \\ Application.fetch_env!(:async_worlds, :discord))
 
-  def handle(%{type: 2} = interaction, opts) do
+  def handle(%{type: type} = interaction, opts) when type in [2, 3] do
     adapter = Keyword.fetch!(opts, :adapter)
 
     with {:ok, id} <- Snowflake.cast(Map.get(interaction, :id)),
@@ -37,7 +37,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   defp dispatch(interaction, envelope, opts) do
     result =
       safely(:command, fn ->
-        with {:ok, command, permission} <- Commands.route(Map.get(interaction, :data)),
+        with {:ok, command, permission} <- route(interaction),
              {:ok, campaign, user_id} <- authorize(interaction, permission, opts) do
           handler = Keyword.get(opts, :handler, Commands)
 
@@ -54,6 +54,12 @@ defmodule AsyncWorlds.Discord.Dispatcher do
         {:ok, content} when is_binary(content) and byte_size(content) > 0 ->
           content
 
+        {:ok, %{content: content, components: components}} when is_binary(content) ->
+          %{content: content, components: components}
+
+        {:error, :stale_component} ->
+          "This control is no longer available. Use /quest or /submission to refresh your choices."
+
         {:error, :unknown_command} ->
           "This command is not supported."
 
@@ -66,7 +72,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
 
     adapter = Keyword.fetch!(opts, :adapter)
 
-    [first | rest] = AsyncWorlds.Discord.Content.chunks(content)
+    [first | rest] = response_chunks(content)
 
     response =
       with :ok <- safely(:response, fn -> adapter.edit_response(envelope, first) end) do
@@ -83,6 +89,20 @@ defmodule AsyncWorlds.Discord.Dispatcher do
       _ -> {:error, :response_failed}
     end
   end
+
+  defp route(%{type: 3, data: data}), do: QuestInteractions.route(data)
+  defp route(interaction), do: Commands.route(Map.get(interaction, :data))
+
+  defp response_chunks(%{content: content, components: components}) do
+    chunks = AsyncWorlds.Discord.Content.chunks(content)
+    last = length(chunks) - 1
+
+    Enum.with_index(chunks, fn chunk, index ->
+      %{content: chunk, components: if(index == last, do: components, else: [])}
+    end)
+  end
+
+  defp response_chunks(content), do: AsyncWorlds.Discord.Content.chunks(content)
 
   defp authorize(interaction, permission, opts) do
     # A guild interaction must carry a guild member. Never substitute a

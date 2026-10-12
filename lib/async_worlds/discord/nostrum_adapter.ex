@@ -118,6 +118,9 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
   def deferred_response, do: %{type: 5, data: %{flags: 64}}
 
   @doc false
+  def response_data(%{content: content, components: components}),
+    do: %{content: content, components: components, allowed_mentions: %{parse: []}}
+
   def response_data(content), do: %{content: content, allowed_mentions: %{parse: []}}
 
   defp integer_id(id) when is_integer(id), do: id
