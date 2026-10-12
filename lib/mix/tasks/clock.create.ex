@@ -13,11 +13,11 @@ defmodule Mix.Tasks.Clock.Create do
     {opts, rest, invalid} =
       OptionParser.parse(args,
         strict: [
-          guild_id: :string,
-          dm_user_id: :string,
-          name: :string,
-          segments: :integer,
-          visibility: :string
+          guild_id: [:string, :keep],
+          dm_user_id: [:string, :keep],
+          name: [:string, :keep],
+          segments: [:integer, :keep],
+          visibility: [:string, :keep]
         ]
       )
 

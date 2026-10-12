@@ -13,7 +13,12 @@ defmodule Mix.Tasks.Quest.Import do
   def run(args) do
     {opts, rest, invalid} =
       OptionParser.parse(args,
-        strict: [guild_id: :string, dm_user_id: :string, file: :string, clock: [:string, :keep]]
+        strict: [
+          guild_id: [:string, :keep],
+          dm_user_id: [:string, :keep],
+          file: [:string, :keep],
+          clock: [:string, :keep]
+        ]
       )
 
     required = [:guild_id, :dm_user_id, :file]

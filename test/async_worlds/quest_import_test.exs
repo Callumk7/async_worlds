@@ -284,6 +284,38 @@ defmodule AsyncWorlds.QuestImportTest do
     assert Repo.aggregate(Quest, :count) == 2
   end
 
+  test "operator tasks reject repeated single-value flags before writes", c do
+    import_args = ~w(--guild-id 123 --dm-user-id 456 --file priv/quests/harbor.json)
+
+    for duplicate <- [~w(--guild-id 124), ~w(--dm-user-id 457), ~w(--file missing.json)] do
+      assert_raise Mix.Error, ~r/Expected --guild-id/, fn ->
+        Mix.Tasks.Quest.Import.run(import_args ++ duplicate)
+      end
+    end
+
+    clock_args = ~w(--guild-id 123 --dm-user-id 456 --name Alarm --segments 6 --visibility hidden)
+
+    for duplicate <- [
+          ~w(--guild-id 124),
+          ~w(--dm-user-id 457),
+          ~w(--name Other),
+          ~w(--segments 4),
+          ~w(--visibility public)
+        ] do
+      assert_raise Mix.Error, ~r/Expected --guild-id/, fn ->
+        Mix.Tasks.Clock.Create.run(clock_args ++ duplicate)
+      end
+    end
+
+    assert_raise Mix.Error, ~r/Duplicate or invalid clock alias/, fn ->
+      Mix.Tasks.Quest.Import.run(import_args ++ ~w(--clock alarm=1 --clock alarm=2))
+    end
+
+    assert Repo.aggregate(Quest, :count) == 0
+    assert Clocks.list_clocks(c.campaign.id) == []
+    assert Clocks.list_clocks(c.other.id) == []
+  end
+
   test "trusted clock bootstrap rejects database-incompatible names without persistence", c do
     for name <- ["Alarm" <> <<0>>, String.duplicate("a" <> <<0xCC, 0x81>>, 150)] do
       assert {:error, :invalid_clock_name} =
