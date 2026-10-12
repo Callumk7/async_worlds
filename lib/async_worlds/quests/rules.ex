@@ -66,9 +66,9 @@ defmodule AsyncWorlds.Quests.Rules do
 
   defp valid_state?(_, _), do: false
 
-  defp outcome(%{"mode" => "fixed"}, []), do: {:ok, "fixed", false}
+  def outcome(%{"mode" => "fixed"}, []), do: {:ok, "fixed", false}
 
-  defp outcome(%{"mode" => "rolled", "dice" => count}, dice) when is_list(dice) do
+  def outcome(%{"mode" => "rolled", "dice" => count}, dice) when is_list(dice) do
     if length(dice) == count and Enum.all?(dice, &(is_integer(&1) and &1 in 1..6)) do
       key =
         cond do
@@ -83,7 +83,7 @@ defmodule AsyncWorlds.Quests.Rules do
     end
   end
 
-  defp outcome(_, _), do: :error
+  def outcome(_, _), do: :error
 
   defp apply_effect(%{"type" => "set_flag", "key" => key, "flag" => flag}, state),
     do: %{state | flags: Map.put(state.flags, key, flag)}

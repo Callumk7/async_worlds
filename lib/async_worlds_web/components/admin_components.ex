@@ -103,6 +103,10 @@ defmodule AsyncWorldsWeb.AdminComponents do
   def error_message(:already_published),
     do: "This tick is already published. Do not republish to retry delivery."
 
+  def error_message(:quest_publication_required),
+    do:
+      "Quest publication is not available yet. This draft contains quest submissions or quest-dependent triggers and cannot be published until quest publication is implemented."
+
   def error_message(:invalid_draft),
     do:
       "The draft is not a valid audited resolution. Publication is blocked; investigate the resolution before continuing."

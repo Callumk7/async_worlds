@@ -335,7 +335,7 @@ defmodule AsyncWorlds.QuestsTest do
 
     {:ok, tick} = Ticks.open_tick(c.campaign.id)
     assert {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, tick.id)
-    assert {:error, :quest_executor_required} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
+    assert {:ok, _draft} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
     assert {:ok, %{status: :resolving}} = Ticks.fetch_tick(c.campaign.id, tick.id)
     assert snapshot.data["quest_inputs"]["characters"] != []
 

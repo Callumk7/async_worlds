@@ -72,8 +72,7 @@ Existing world triggers retain their behavior. `set_flag` targets exactly one
 same-campaign `character_id` with `key` and typed `flag`. `unlock_quest` targets
 exactly one same-campaign `character_id` and `quest_id` (stable quest row, not a
 mutable node). Unlock means availability, not assignment or interruption of an
-active quest. These are validated modeled actions for the milestone-2 executor;
-ENG-14 does not apply them during the world-only tick. ENG-16 now freezes these
-targets and definitions on close. The world-only resolver refuses execution with
-`quest_executor_required` when dependent triggers are configured. It cannot
-silently publish unapplied actions. The quest executor is ENG-18.
+active quest. ENG-16 freezes these targets and definitions on close. ENG-18 executes them only
+in the draft trigger phase, once per completed winner clock. They never mutate
+live published state during resolution. Quest publication/review expansion remains
+ENG-20; see [world-resolution.md](world-resolution.md).

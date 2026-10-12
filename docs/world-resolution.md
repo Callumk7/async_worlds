@@ -1,16 +1,22 @@
-# World-only resolution decisions (ENG-4)
+# Quest and world resolution decisions (ENG-4 / ENG-18)
 
 ## Ordering and latching
 
 Version-1 snapshots resolve in ascending clock ID order (the snapshot ordering
-must agree). Quest choices and resource assignments remain reserved phases before
-background rates; quest conditions remain a reserved phase after triggers. This
-resolver does not implement quest/resource effects; adding those inputs requires
-an explicit snapshot/engine contract extension.
+must agree). Version-2 snapshots also resolve frozen valid quest submissions in
+ascending character ID order, before the reserved resource phase, background
+rates and clock triggers. Effects run in authored list order, with critical bonus
+effects appended after success effects. Missing/invalidated submissions do nothing.
+Only one submitted turn runs per character: cycles never auto-follow another choice;
+ending nodes complete the draft progression. Frozen eligibility is validated against
+the original snapshot, not rechecked after another character's effects. Final
+next-node conditions use all resulting clocks and flags, after triggers, including
+for characters who did not submit. Resource mechanics remain unimplemented.
 
-Before rates, scan all incomplete, initially full clocks in ascending ID order.
+Before quests or rates, scan all incomplete, initially full clocks in ascending ID order.
 Latch their completion eligibility, and the first member of each race as winner.
-Then apply signed background rates in ascending ID order, latching each newly full
+Latch after every individual quest clock delta (including bonus effects), then
+apply signed background rates in ascending ID order, latching each newly full
 clock immediately. A latch survives later negative changes: an initially full
 clock with a negative rate still fires. A racing loser may still receive its rate,
 but cannot replace the winner. Completed clocks never move or fire. Paused clocks
@@ -24,7 +30,10 @@ an input-management operation, never an automatic resolution effect.
 
 ## Trigger semantics and termination
 
-Supported actions are notify_dm, world_news, and start_clock. News and notifications
+Supported actions are notify_dm, world_news, start_clock, and (v2 only) set_flag
+and unlock_quest. Set-flag changes only its frozen target character. Unlock-quest
+records availability for its frozen character/quest target, never assigns or
+interrupts a progression; repeated unlocks are logged no-ops. News and notifications
 are draft intents only, not delivery. Starting unpauses an incomplete target,
 preserving its fill/rate/configuration; completed targets remain unchanged.
 Starting never reapplies a background rate or resurrects a completed clock.
@@ -52,14 +61,42 @@ log as clock changes; all trigger outcomes enter it as trigger results.
 
 The resolver performs no database, network, random, clock-time or UUID operations.
 Identical snapshots yield identical payloads, suitable for `Ticks.put_draft/5`.
-Version-2 snapshots are also supported when there are no valid quest submissions
-or dependent character/quest triggers. The frozen quest contract is validated;
-unsupported quest work returns `{:error, :quest_executor_required}` and durable
-resolution snoozes for five minutes without consuming a retry attempt, leaving
-management locked. The same job retries automatically across restarts and can
-proceed once ENG-18 supplies the quest executor; no operator retry is required.
-Invalid snapshots still cancel for investigation. ENG-16 never silently drops submitted choices. See
-[quest-submissions.md](quest-submissions.md).
+Version-2 validates the frozen quest contract and executes submitted choices and
+dependent triggers. `resolve(snapshot, review, rolls)` consumes an ordered list
+of individual recorded dice; missing, extra, out-of-range or wrongly associated
+dice return `invalid_rolls` without a draft. Fixed choices consume no dice.
+1–3 d6 keep highest: 6 success, 4–5 partial, 1–3 failure; at least two sixes use
+success plus configured bonus effects. The pure engine never generates randomness.
+V2 adds resulting characters, progressions, unlocked_quests, private_results,
+next_nodes and rolls to the DM-only payload. The log includes every die, authored
+quest effect (including no-ops), character change and outcome alongside existing
+clock changes/trigger results, with contiguous sequence numbers and source labels.
+Invalid snapshots still cancel for investigation. See [quest-submissions.md](quest-submissions.md).
+
+## Durable roll boundary and scope
+
+`Ticks.record_quest_rolls/4` is a trusted worker API. It locks campaign then tick,
+validates the frozen snapshot and revision, and inserts missing individual d6 rows
+in a separate committed transaction **before** `ResolveTick` calls the pure engine.
+Each row references the snapshot and stores the entire frozen submission, zero-based
+die index and value. Stable identity is a JSON tuple of input revision, character ID,
+progression ID, quest revision ID, node ID, position version, choice ID and die index;
+JSON encoding avoids delimiter collisions in authored IDs. Database uniqueness and
+immutable rows plus lifecycle locks make concurrent/retried reservations reuse the
+same dice without even invoking the random callback. A crash after reservation but
+before draft insertion reuses the committed pool. Duplicate workers cannot overwrite
+a reviewed draft. Changed downstream effects do not generate or replace unrelated
+dice. Controlled roll replacement is possible as pure input; durable reroll/review
+operations are ENG-20, not provided here.
+
+`Ticks.fetch_draft(guild_id, verified_actor_id, tick_id)` reauthorizes the current DM
+and scopes retrieval to the campaign. Player projections continue reading live state;
+resolution sends no narration/draft deliveries and mutates no live characters,
+progressions or clocks. Existing world-only publication remains supported, but
+publication of submitted quest turns/dependent triggers fails closed with
+`quest_publication_required` until ENG-20 supplies atomic quest publication. No
+resource mechanics, roll-edit controls, player results delivery or quest publication
+are added by ENG-18.
 ENG-7's [durable worker](durable-work.md) owns job orchestration; ENG-8's
 [audited review/publication](tick-review-publication.md) owns validated edits and
 atomic publication. `resolve(snapshot, review)` accepts clock-delta and narration

@@ -66,7 +66,13 @@ defmodule AsyncWorldsWeb.DashboardLiveTest do
     assert has_element?(view, "#quest-readiness", "0/1 quest choices ready")
     assert has_element?(view, "#close-tick:not([disabled])")
     view |> element("#close-tick") |> render_click()
-    assert has_element?(view, "#resolution-pending", "retries automatically every five minutes")
+
+    assert has_element?(
+             view,
+             "#resolution-pending",
+             "Frozen quest choices and world inputs are queued"
+           )
+
     assert has_element?(view, "#quest-readiness", "1 missing")
   end
 

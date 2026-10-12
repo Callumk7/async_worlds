@@ -110,7 +110,7 @@ defmodule AsyncWorlds.Workers.ResolveTickTest do
 
   for kind <- [:submission, :trigger] do
     @kind kind
-    test "unsupported #{@kind} work snoozes the same durable job without exhausting attempts", %{
+    test "#{@kind} work resolves and restart/retries preserve the draft", %{
       campaign: id,
       tick: tick
     } do
@@ -119,54 +119,101 @@ defmodule AsyncWorlds.Workers.ResolveTickTest do
       start_supervised!({Oban, opts})
       {:ok, %{snapshot: snapshot}} = Ticks.close_tick(id, tick.id)
       args = %{campaign_id: id, tick_id: tick.id, input_revision: snapshot.revision}
-      assert {:snooze, 300} = perform_job(ResolveTick, args)
-      {:ok, [original]} = Ticks.resolution_jobs(id, tick.id)
-
-      # Exceed max_attempts to prove the capability hold cannot discard the job.
-      for snoozes <- 1..12 do
-        assert %{snoozed: 1, failure: 0, success: 0} =
-                 Oban.drain_queue(__MODULE__.Oban, queue: :resolution, with_scheduled: true)
-
-        {:ok, [waiting]} = Ticks.resolution_jobs(id, tick.id)
-        assert waiting.id == original.id
-        assert waiting.args == original.args
-        assert waiting.state == "scheduled"
-        assert waiting.attempt == 0
-        assert waiting.max_attempts == 10
-        assert waiting.meta["snoozed"] == snoozes
-        assert DateTime.compare(waiting.scheduled_at, DateTime.utc_now()) == :gt
-        assert {:ok, %{status: :resolving}} = Ticks.fetch_tick(id, tick.id)
-        assert {:error, :no_draft} = Ticks.fetch_draft(id, tick.id)
-        assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
-      end
-
+      assert :ok = perform_job(ResolveTick, args)
+      assert {:ok, %{status: :in_review}} = Ticks.fetch_tick(id, tick.id)
+      assert {:ok, draft} = Ticks.fetch_draft(id, tick.id)
+      assert draft.payload["schema_version"] == 2
+      for _ <- 1..12, do: assert(:ok == perform_job(ResolveTick, args))
+      assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
       assert :ok = stop_supervised(__MODULE__.Oban)
       start_supervised!({Oban, opts})
 
-      assert %{snoozed: 1, failure: 0} =
-               Oban.drain_queue(__MODULE__.Oban, queue: :resolution, with_scheduled: true)
-
-      assert {:ok, %{snapshot: ^snapshot}} = Ticks.close_tick(id, tick.id)
-      {:ok, [waiting]} = Ticks.resolution_jobs(id, tick.id)
-      assert waiting.id == original.id
-      assert waiting.state == "scheduled"
-
       assert {:error, :tick_locked} =
                Clocks.create_clock(id, %{name: "Locked", segments: 4}, "dm")
-
-      # Another authorized executor may finish the original frozen revision.
-      # Once it has done so, the still-scheduled job acknowledges that state
-      # rather than cancelling or overwriting the resulting draft.
-      {:ok, %{draft: draft}} =
-        Ticks.put_draft(id, tick.id, snapshot.revision, %{"test_executor" => "finished"})
 
       assert %{success: 1, snoozed: 0} =
                Oban.drain_queue(__MODULE__.Oban, queue: :resolution, with_scheduled: true)
 
       {:ok, [finished]} = Ticks.resolution_jobs(id, tick.id)
-      assert finished.id == original.id
       assert finished.state == "completed"
       assert {:ok, ^draft} = Ticks.fetch_draft(id, tick.id)
+    end
+  end
+
+  for kind <- [:submission, :trigger] do
+    @kind kind
+    test "#{@kind} flag overflow cancels distinctly and preserves frozen input and dice", %{
+      campaign: id,
+      tick: tick
+    } do
+      campaign = Repo.get!(AsyncWorlds.Campaigns.Campaign, id)
+      flags = Map.new(1..100, &{"flag_#{&1}", flag()})
+
+      {:ok, character} =
+        Characters.create_character(campaign, "456", %{
+          name: "At flag capacity",
+          discord_user_id: "991",
+          flags: flags
+        })
+
+      effect = %{"type" => "set_flag", "key" => "overflow", "flag" => flag()}
+      choice = rolled()
+
+      outcomes =
+        Map.new(choice["outcomes"], fn {key, value} ->
+          {key, Map.put(value, "effects", if(@kind == :submission, do: [effect], else: []))}
+        end)
+
+      choice = Map.merge(choice, %{"outcomes" => outcomes, "critical_effects" => []})
+
+      {:ok, revision} =
+        Quests.create_quest(
+          campaign,
+          "456",
+          %{content_id: "overflow", name: "Overflow"},
+          replace_choice(definition(), choice)
+        )
+
+      {:ok, _} = Quests.assign(campaign, "456", character.id, revision.id)
+      {:ok, state} = Submissions.player_state("123", "991")
+      {:ok, _} = Submissions.submit("123", "991", state.identity, "roll")
+
+      if @kind == :trigger do
+        {:ok, clock} = Clocks.create_clock(id, %{name: "Overflow", segments: 4, filled: 4}, "dm")
+
+        {:ok, _} =
+          Quests.configure_clock_triggers(campaign, "456", clock.id, [
+            %{type: :set_flag, character_id: character.id, key: "overflow", flag: flag()}
+          ])
+      end
+
+      {:ok, %{snapshot: snapshot}} = Ticks.close_tick(id, tick.id)
+      opts = [name: __MODULE__.Oban, repo: AsyncWorlds.Repo, testing: :manual]
+      start_supervised!({Oban, opts})
+
+      assert %{cancelled: 1, failure: 0} =
+               Oban.drain_queue(__MODULE__.Oban, queue: :resolution)
+
+      assert {:ok, [job]} = Ticks.resolution_jobs(id, tick.id)
+      assert job.state == "cancelled"
+      assert inspect(job.errors) =~ "invalid_flags"
+      assert {:ok, rolls} = Ticks.record_quest_rolls(id, tick.id, snapshot.revision)
+      assert length(rolls) == 3
+
+      assert :ok = Oban.retry_job(__MODULE__.Oban, job.id)
+
+      assert %{cancelled: 1, failure: 0} =
+               Oban.drain_queue(__MODULE__.Oban, queue: :resolution)
+
+      assert {:ok, ^rolls} = Ticks.record_quest_rolls(id, tick.id, snapshot.revision)
+      assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
+      assert {:ok, %{status: :resolving}} = Ticks.fetch_tick(id, tick.id)
+      assert {:error, :no_draft} = Ticks.fetch_draft(id, tick.id)
+
+      assert {:error, :tick_locked} =
+               Characters.clear_flag(campaign, "456", character.id, "flag_1")
+
+      assert Repo.get!(AsyncWorlds.Characters.Character, character.id).flags == flags
     end
   end
 

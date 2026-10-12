@@ -176,7 +176,7 @@ defmodule AsyncWorlds.QuestSubmissionsTest do
     {:ok, _} = Submissions.submit("123", "991", c.identity, "loop")
     {:ok, _} = Characters.set_flag(c.campaign, "456", c.a.id, "secret", flag())
     {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, c.tick.id)
-    assert {:error, :quest_executor_required} = WorldResolver.resolve(snapshot)
+    assert {:ok, _draft} = WorldResolver.resolve(snapshot)
     assert {:error, :tick_closed} = Submissions.submit("123", "991", c.identity, "finish")
     assert {:error, :tick_closed} = Submissions.clear("123", "991", c.identity)
     assert {:error, :tick_locked} = Quests.move(c.campaign, "456", c.progression.id, "end")

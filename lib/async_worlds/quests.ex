@@ -313,8 +313,9 @@ defmodule AsyncWorlds.Quests do
   defp reason!(opts, default) do
     reason = Keyword.get(opts, :reason, default)
 
-    unless Definition.text?(reason) and length(String.to_charlist(String.trim(reason))) in 1..2000,
-      do: Repo.rollback(:invalid_reason)
+    unless Definition.text?(reason) and
+             length(String.to_charlist(String.trim(reason))) in 1..2000,
+           do: Repo.rollback(:invalid_reason)
 
     String.trim(reason)
   end

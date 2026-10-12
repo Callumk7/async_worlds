@@ -45,6 +45,72 @@ defmodule AsyncWorlds.Ticks do
     end
   end
 
+  @doc "Trusted worker boundary: commit missing dice before pure resolution, serialized with lifecycle writes."
+  def record_quest_rolls(campaign_id, tick_id, revision, roller \\ fn -> :rand.uniform(6) end) do
+    transaction(campaign_id, tick_id, fn _campaign, tick ->
+      if tick.status not in [:resolving, :in_review, :published],
+        do: invalid_transition!(tick, :roll)
+
+      snapshot = snapshot!(tick)
+      if snapshot.revision != revision, do: Repo.rollback(:stale_input)
+      unless WorldResolver.valid_snapshot?(snapshot), do: Repo.rollback(:invalid_snapshot)
+      specs = AsyncWorlds.Ticks.QuestDice.specs(snapshot)
+      existing = Map.new(rolls(snapshot), &{&1["identity"], &1})
+
+      for spec <- specs do
+        if existing[spec["identity"]] do
+          existing[spec["identity"]]
+        else
+          if tick.status != :resolving, do: Repo.rollback(:invalid_rolls)
+          value = roller.()
+          unless is_integer(value) and value in 1..6, do: Repo.rollback(:invalid_rolls)
+
+          Repo.insert!(%AsyncWorlds.Ticks.Roll{
+            snapshot_id: snapshot.id,
+            identity: spec["identity"],
+            input: spec["input"],
+            die_index: spec["die_index"],
+            value: value
+          })
+
+          Map.put(spec, "value", value)
+        end
+      end
+    end)
+  end
+
+  defp rolls(snapshot) do
+    by_identity =
+      Repo.all(from r in AsyncWorlds.Ticks.Roll, where: r.snapshot_id == ^snapshot.id)
+      |> Map.new(fn r ->
+        {r.identity,
+         %{
+           "identity" => r.identity,
+           "input" => r.input,
+           "die_index" => r.die_index,
+           "value" => r.value
+         }}
+      end)
+
+    AsyncWorlds.Ticks.QuestDice.specs(snapshot)
+    |> Enum.flat_map(fn spec ->
+      case by_identity[spec["identity"]] do
+        nil -> []
+        roll -> [roll]
+      end
+    end)
+  end
+
+  defp resolve_snapshot(snapshot, review),
+    do: WorldResolver.resolve(snapshot, review, rolls(snapshot))
+
+  @doc "Freshly authorized DM retrieval. Never expose a raw draft through player commands."
+  def fetch_draft(guild_id, actor_id, tick_id) do
+    with {:ok, campaign} <- AsyncWorlds.Campaigns.authorize_dm(guild_id, actor_id) do
+      fetch_draft(campaign.id, tick_id)
+    end
+  end
+
   def fetch_draft(campaign_id, tick_id) do
     with {:ok, tick} <- fetch_tick(campaign_id, tick_id) do
       case current_draft(tick) do
@@ -223,7 +289,7 @@ defmodule AsyncWorlds.Ticks do
         review = apply_review_operation(review, operation)
 
         payload =
-          case WorldResolver.resolve(snapshot, review) do
+          case resolve_snapshot(snapshot, review) do
             {:ok, payload} -> payload
             _ -> Repo.rollback(:invalid_edit)
           end
@@ -280,6 +346,14 @@ defmodule AsyncWorlds.Ticks do
                                                                draft: draft
                                                              } ->
       verify_draft!(draft, snapshot, review_state(tick))
+      # Quest publication is ENG-20. Never publish a partial world-only result.
+      if snapshot.schema_version == 2 and
+           (snapshot.data["quest_inputs"]["submissions"] != [] or
+              Enum.any?(snapshot.data["clocks"], fn c ->
+                Enum.any?(c["triggers"], &(&1["type"] in ["set_flag", "unlock_quest"]))
+              end)),
+         do: Repo.rollback(:quest_publication_required)
+
       campaign = Repo.get!(Campaign, campaign_id)
 
       if not campaign.clock_mutations_locked or campaign.current_tick_number != tick.number - 1,
@@ -340,7 +414,7 @@ defmodule AsyncWorlds.Ticks do
   end
 
   defp verify_draft!(draft, snapshot, review) do
-    case WorldResolver.resolve(snapshot, review) do
+    case resolve_snapshot(snapshot, review) do
       {:ok, payload} when payload == draft.payload -> :ok
       _ -> Repo.rollback(:invalid_draft)
     end
