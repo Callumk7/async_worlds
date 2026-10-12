@@ -59,6 +59,76 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
   defp buttons(payload), do: Enum.flat_map(payload.components, & &1.components)
   defp button(payload, label), do: Enum.find(buttons(payload), &String.contains?(&1.label, label))
 
+  test "DM personas use real independent submissions and generation-bound controls", c do
+    alias AsyncWorlds.Discord.DebugSessions
+    {:ok, _} = Ticks.open_tick(c.campaign.id)
+    assert {:ok, _} = DebugSessions.transition("123", "456", {:player, c.character.id})
+    assert {:ok, payload} = invoke(c, %{name: "quest"}, 456)
+    assert payload.content =~ "Testing as Rook"
+    assert Enum.all?(buttons(payload), &(byte_size(&1.custom_id) <= 100))
+    assert {:ok, _} = click(c, button(payload, "loop"), 456)
+    assert {:ok, %{choice_id: "loop"}} = Submissions.player_state("123", "999")
+
+    assert {:error, :unauthorized} =
+             invoke(c, %{name: "tick", options: [%{type: 1, name: "status"}]}, 456)
+
+    assert {:error, :unauthorized} =
+             invoke(c, %{name: "debug", options: [%{type: 1, name: "status"}]}, 999)
+
+    assert {:ok, status} = invoke(c, %{name: "debug", options: [%{type: 1, name: "status"}]}, 456)
+    assert status.content =~ "Debug mode: player"
+    assert status.content =~ "/quest"
+    other = Enum.find(buttons(status), &String.contains?(&1.label, "Other"))
+    assert {:ok, _} = click(c, other, 456)
+    assert {:ok, second} = invoke(c, %{name: "quest"}, 456)
+    assert {:ok, _} = click(c, button(second, "finish"), 456)
+    assert {:ok, %{choice_id: "finish"}} = Submissions.player_state("123", "998")
+    assert {:error, :stale_component} = click(c, button(payload, "finish"), 456)
+    assert {:ok, _} = DebugSessions.transition("123", "456", {:player, c.character.id})
+    assert {:error, :stale_component} = click(c, button(payload, "finish"), 456)
+    assert {:ok, _} = invoke(c, %{name: "debug", options: [%{type: 1, name: "dm"}]}, 456)
+    assert {:ok, _} = invoke(c, %{name: "tick", options: [%{type: 1, name: "status"}]}, 456)
+  end
+
+  test "accountless characters preserve player privacy and debug picker paginates", c do
+    for i <- 1..16 do
+      {:ok, _} = Characters.create_character(c.campaign, "456", %{name: "Test #{i}"})
+    end
+
+    {:ok, characters} = Characters.list_characters(c.campaign, "456")
+    target = List.last(characters)
+
+    {:ok, _} =
+      Characters.set_flag(c.campaign, "456", target.id, "secret", %{
+        "type" => "boolean",
+        "value" => true,
+        "player_visible" => false
+      })
+
+    assert {:ok, status} = invoke(c, %{name: "debug", options: [%{type: 1, name: "status"}]}, 456)
+    assert length(status.components) <= 5
+    assert {:ok, next} = click(c, button(status, "Next"), 456)
+    assert next.content =~ "Page 2/2"
+    assert {:ok, _} = click(c, button(next, "Test 16"), 456)
+    assert {:ok, content} = invoke(c, %{name: "character"}, 456)
+    assert content =~ "Testing as Test 16"
+    refute content =~ "secret"
+    assert {:ok, empty} = invoke(c, %{name: "quest"}, 456)
+    assert empty =~ "No quest assigned"
+    assert {:ok, _} = invoke(c, %{name: "debug", options: [%{type: 1, name: "off"}]}, 456)
+    assert {:error, :not_found} = invoke(c, %{name: "character"}, 456)
+  end
+
+  test "debug escape remains available after the selected accountless character is deleted", c do
+    alias AsyncWorlds.Discord.DebugSessions
+    {:ok, character} = Characters.create_character(c.campaign, "456", %{name: "Temporary"})
+    {:ok, _} = DebugSessions.transition("123", "456", {:player, character.id})
+    Repo.delete!(character)
+    assert {:error, :not_found} = invoke(c, %{name: "character"}, 456)
+    assert {:ok, _} = invoke(c, %{name: "debug", options: [%{type: 1, name: "off"}]}, 456)
+    assert {:ok, _} = invoke(c, %{name: "admin"}, 456)
+  end
+
   test "retrieve, submit, revise and clear independently without proactive DMs", c do
     FakeAdapter.fail(:send_private, {:error, :forbidden})
     {:ok, _} = Ticks.open_tick(c.campaign.id)
@@ -246,6 +316,27 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
         {:ok, page} = click(c, next)
         collect_pages(c, page, [payload | acc])
     end
+  end
+
+  test "read-only debug pages also expire across A to B to A", c do
+    alias AsyncWorlds.Discord.DebugSessions
+    [hub, ending] = definition()["nodes"]
+
+    content =
+      put_in(definition()["nodes"], [Map.put(hub, "text", String.duplicate("🌍", 1950)), ending])
+
+    {:ok, revision} = Quests.append_revision(c.campaign, "456", c.revision.quest_id, content)
+    {:ok, _} = Quests.swap(c.campaign, "456", c.character.id, revision.id)
+    {:ok, _} = DebugSessions.transition("123", "456", {:player, c.character.id})
+    {:ok, original} = invoke(c, %{name: "quest"}, 456)
+    assert {:ok, _} = click(c, button(original, "Next"), 456)
+    {:ok, characters} = Characters.list_characters(c.campaign, "456")
+    other = Enum.find(characters, &(&1.id != c.character.id))
+    {:ok, _} = DebugSessions.transition("123", "456", {:player, other.id})
+    {:ok, _} = DebugSessions.transition("123", "456", {:player, c.character.id})
+    assert {:error, :stale_component} = click(c, button(original, "Next"), 456)
+    {:ok, _} = DebugSessions.transition("123", "456", :off)
+    assert {:error, :stale_component} = click(c, button(original, "Next"), 456)
   end
 
   for mode <- [:no_tick, :completed, :closed] do

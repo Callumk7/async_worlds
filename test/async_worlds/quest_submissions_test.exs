@@ -55,7 +55,7 @@ defmodule AsyncWorlds.QuestSubmissionsTest do
     assert {:ok, %{choice_id: nil}} = Submissions.clear("123", "991", c.identity)
     assert {:ok, _} = Submissions.clear("123", "991", c.identity)
     assert {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, c.tick.id)
-    assert snapshot.schema_version == 2
+    assert snapshot.schema_version == 3
     assert snapshot.data["quest_inputs"]["submissions"] == []
     assert {:ok, _} = WorldResolver.resolve(snapshot)
     assert Repo.get!(Progression, c.progression.id).node_id == "hub"

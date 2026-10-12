@@ -179,7 +179,7 @@ defmodule AsyncWorlds.Ticks do
           snapshot =
             Repo.insert!(%Snapshot{
               tick_id: tick.id,
-              schema_version: 2,
+              schema_version: 3,
               revision: Ecto.UUID.generate(),
               data: freeze(campaign, tick)
             })
@@ -362,7 +362,7 @@ defmodule AsyncWorlds.Ticks do
       if not campaign.clock_mutations_locked or campaign.current_tick_number != tick.number - 1,
         do: Repo.rollback(:stale_live_state)
 
-      live = freeze(campaign, tick)
+      live = freeze(campaign, tick, snapshot.schema_version)
       # v1 predates character inputs. New immutable revisions may be authored
       # after close; they cannot affect the pinned frozen turn.
       live =
@@ -410,24 +410,38 @@ defmodule AsyncWorlds.Ticks do
           Map.put(
             message,
             "key",
-            "tick:#{tick.id}:#{audience}:#{message["recipient_id"]}:#{index}"
+            delivery_key(tick, audience, message, index)
           )
 
         attrs =
-          if audience == "players" do
-            character =
-              Enum.find(
-                draft.payload["characters"],
-                &(&1["discord_user_id"] == message["recipient_id"])
+          cond do
+            audience == "players" and draft.payload["schema_version"] == 3 ->
+              character =
+                Enum.find(draft.payload["characters"], &(&1["id"] == message["character_id"]))
+
+              route = %{"audience" => message["delivery_audience"]}
+
+              Map.put(
+                attrs,
+                "guard",
+                AsyncWorlds.Ticks.PlayerDelivery.guard(character, campaign, route)
               )
 
-            Map.put(attrs, "guard", %{
-              "type" => "published_player",
-              "character_id" => character["id"],
-              "guild" => campaign.discord_guild_id
-            })
-          else
-            attrs
+            audience == "players" ->
+              character =
+                Enum.find(
+                  draft.payload["characters"],
+                  &(&1["discord_user_id"] == message["recipient_id"])
+                )
+
+              Map.put(attrs, "guard", %{
+                "type" => "published_player",
+                "character_id" => character["id"],
+                "guild" => campaign.discord_guild_id
+              })
+
+            true ->
+              attrs
           end
 
         case Deliveries.enqueue(campaign_id, tick.id, attrs) do
@@ -640,6 +654,8 @@ defmodule AsyncWorlds.Ticks do
   defp json_payload(_), do: {:error, :invalid_payload}
 
   defp comparable(data) do
+    data = Map.delete(data, "player_delivery")
+
     if data["quest_inputs"] do
       data
       |> Map.put_new("quest_unlocks", [])
@@ -649,60 +665,89 @@ defmodule AsyncWorlds.Ticks do
     end
   end
 
-  defp freeze(campaign, tick) do
+  defp delivery_key(
+         tick,
+         audience,
+         %{"character_id" => character, "delivery_audience" => route} = message,
+         _index
+       ),
+       do:
+         "tick:#{tick.id}:#{audience}:character:#{character}:#{route}:#{message["recipient_id"]}:#{message["chunk_index"]}"
+
+  defp delivery_key(tick, audience, message, index),
+    do: "tick:#{tick.id}:#{audience}:#{message["recipient_id"]}:#{index}"
+
+  defp freeze(campaign, tick, version \\ 3) do
     clocks = Clocks.list_clocks(campaign.id)
 
-    %{
-      "campaign" =>
-        Map.take(campaign, [
-          :id,
-          :discord_guild_id,
-          :dm_user_id,
-          :public_channel_id,
-          :current_tick_number
-        ]),
-      "tick_number" => tick.number,
-      "quest_inputs" => AsyncWorlds.Quests.Submissions.freeze(campaign.id, tick.id),
-      "quest_unlocks" =>
-        Repo.all(
-          from u in AsyncWorlds.Quests.Unlock,
-            where: u.campaign_id == ^campaign.id,
-            order_by: [u.character_id, u.quest_id],
-            select: %{character_id: u.character_id, quest_id: u.quest_id}
-        ),
-      "ordering" => %{
-        "clocks" => Enum.map(clocks, & &1.id),
-        "race_tie_break" => "ascending_clock_id",
-        "phases" => [
-          "quest_choices",
-          "resource_assignments",
-          "background_rates",
-          "clock_triggers",
-          "quest_conditions"
-        ]
-      },
-      "clocks" =>
-        Enum.map(clocks, fn clock ->
-          clock
-          |> Map.take([
+    data =
+      %{
+        "campaign" =>
+          Map.take(campaign, [
             :id,
-            :campaign_id,
-            :name,
-            :segments,
-            :filled,
-            :visibility,
-            :background_rate,
-            :paused,
-            :completed,
-            :racing_group
-          ])
-          |> Map.put(
-            :triggers,
-            Enum.map(clock.triggers, &AsyncWorlds.Clocks.Trigger.snapshot/1)
-          )
-        end)
-    }
-    |> Jason.encode!()
-    |> Jason.decode!()
+            :discord_guild_id,
+            :dm_user_id,
+            :public_channel_id,
+            :current_tick_number
+          ]),
+        "tick_number" => tick.number,
+        "quest_inputs" => AsyncWorlds.Quests.Submissions.freeze(campaign.id, tick.id),
+        "quest_unlocks" =>
+          Repo.all(
+            from u in AsyncWorlds.Quests.Unlock,
+              where: u.campaign_id == ^campaign.id,
+              order_by: [u.character_id, u.quest_id],
+              select: %{character_id: u.character_id, quest_id: u.quest_id}
+          ),
+        "ordering" => %{
+          "clocks" => Enum.map(clocks, & &1.id),
+          "race_tie_break" => "ascending_clock_id",
+          "phases" => [
+            "quest_choices",
+            "resource_assignments",
+            "background_rates",
+            "clock_triggers",
+            "quest_conditions"
+          ]
+        },
+        "clocks" =>
+          Enum.map(clocks, fn clock ->
+            clock
+            |> Map.take([
+              :id,
+              :campaign_id,
+              :name,
+              :segments,
+              :filled,
+              :visibility,
+              :background_rate,
+              :paused,
+              :completed,
+              :racing_group
+            ])
+            |> Map.put(
+              :triggers,
+              Enum.map(clock.triggers, &AsyncWorlds.Clocks.Trigger.snapshot/1)
+            )
+          end)
+      }
+      |> Jason.encode!()
+      |> Jason.decode!()
+
+    if version == 3 do
+      session = AsyncWorlds.Discord.DebugSessions.current(campaign)
+      copies = not is_nil(session) and session.copy_messages
+
+      routes =
+        AsyncWorlds.Ticks.PlayerDelivery.freeze(
+          data["quest_inputs"]["characters"],
+          data["campaign"],
+          copies
+        )
+
+      Map.put(data, "player_delivery", routes)
+    else
+      data
+    end
   end
 end

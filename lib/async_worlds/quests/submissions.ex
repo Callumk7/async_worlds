@@ -27,6 +27,7 @@ defmodule AsyncWorlds.Quests.Submissions do
 
       existing = submission(tick.id, character.id) || %Submission{}
       existing |> change(attrs) |> Repo.insert_or_update!()
+      AsyncWorlds.PlayerAccess.audit(verified_user_id, campaign.id, :submit)
       %{identity: identity, choice_id: choice_id}
     end)
   end
@@ -42,6 +43,7 @@ defmodule AsyncWorlds.Quests.Submissions do
         Repo.delete!(existing)
       end
 
+      AsyncWorlds.PlayerAccess.audit(verified_user_id, campaign.id, :clear)
       %{identity: identity, choice_id: nil}
     end)
   end
@@ -57,6 +59,16 @@ defmodule AsyncWorlds.Quests.Submissions do
   @doc false
   # Trusted outbox helper: caller holds the campaign lock. No nested rollback on
   # unassigned/removed owners; those are simply inapplicable notifications.
+  def notification_state(campaign, %Character{campaign_id: campaign_id} = character)
+      when campaign_id == campaign.id do
+    with %Tick{} = tick <- Ticks.active_tick(campaign.id),
+         %Progression{} = progression <- active(campaign.id, character.id) do
+      {:ok, project_state(campaign, character, tick, progression)}
+    else
+      _ -> {:error, :inapplicable}
+    end
+  end
+
   def notification_state(campaign, user_id) do
     with %Character{} = character <-
            Repo.get_by(Character, campaign_id: campaign.id, discord_user_id: user_id),
@@ -271,19 +283,7 @@ defmodule AsyncWorlds.Quests.Submissions do
     do: Repo.get_by(Submission, tick_id: tick_id, character_id: character_id)
 
   defp player(guild_id, verified_user_id, fun) do
-    with {:ok, user_id} <- normalize(verified_user_id),
-         {:ok, expected} <- Campaigns.fetch_campaign_by_guild(guild_id) do
-      Repo.transaction(fn ->
-        campaign = lock!(expected.id)
-        if campaign.discord_guild_id != expected.discord_guild_id, do: Repo.rollback(:not_found)
-
-        character =
-          Repo.get_by(Character, campaign_id: campaign.id, discord_user_id: user_id) ||
-            Repo.rollback(:not_found)
-
-        fun.(campaign, character)
-      end)
-    end
+    AsyncWorlds.PlayerAccess.run(guild_id, verified_user_id, fun)
   end
 
   defp dm(%Campaign{id: id}, dm_id, tick_id, fun) do

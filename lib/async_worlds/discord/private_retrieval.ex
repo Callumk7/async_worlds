@@ -1,18 +1,15 @@
 defmodule AsyncWorlds.Discord.PrivateRetrieval do
-  @moduledoc "Fresh owner-authorized command fallback independent of outbound delivery state."
+  @moduledoc "Fresh subject-authorized history independent of outbound delivery state."
   import Ecto.Query
-  alias AsyncWorlds.{Campaigns, Repo}
-  alias AsyncWorlds.Campaigns.Campaign
-  alias AsyncWorlds.Characters.Character
+  alias AsyncWorlds.{PlayerAccess, Repo}
   alias AsyncWorlds.Ticks.{Publication, Snapshot, Tick}
   alias AsyncWorlds.Quests.Rules
-  alias AsyncWorlds.Discord.Snowflake
 
-  def result(guild, user) do
-    player(guild, user, fn campaign, character ->
-      owner = [%{id: character.id, discord_user_id: character.discord_user_id}]
-      recipient = [%{recipient_id: character.discord_user_id}]
+  def result(guild, access) do
+    PlayerAccess.run(guild, access, fn campaign, character ->
+      owner = historical_owner(character, access)
       personal = [%{character_id: character.id}]
+      id = %{id: character.id}
 
       publication =
         Repo.one(
@@ -23,19 +20,32 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
               t.campaign_id == ^campaign.id and t.status == :published and
                 fragment("?->'characters' @> ?::jsonb", p.payload, ^owner) and
                 fragment("?->'private_results' @> ?::jsonb", p.payload, ^personal) and
-                fragment("?->'players' @> ?::jsonb", p.outputs, ^recipient),
+                (fragment("?->'players' @> ?::jsonb", p.outputs, ^personal) or
+                   fragment(
+                     "EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(?->'characters', '[]'::jsonb)) c JOIN jsonb_array_elements(COALESCE(?->'players', '[]'::jsonb)) m ON m->>'recipient_id' = c->>'discord_user_id' WHERE c @> ?::jsonb)",
+                     p.payload,
+                     p.outputs,
+                     ^id
+                   )),
             order_by: [desc: t.number],
             limit: 1
         )
 
       messages =
-        if publication,
-          do:
-            Enum.filter(
-              publication.outputs["players"] || [],
-              &(&1["recipient_id"] == character.discord_user_id)
-            ),
-          else: []
+        if publication do
+          frozen = Enum.find(publication.payload["characters"], &(&1["id"] == character.id))
+
+          Enum.filter(publication.outputs["players"] || [], fn message ->
+            if publication.payload["schema_version"] == 3 do
+              message["character_id"] == character.id and
+                message["delivery_audience"] in ["owner", "dm_controlled"]
+            else
+              message["recipient_id"] == frozen["discord_user_id"]
+            end
+          end)
+        else
+          []
+        end
 
       if messages == [],
         do: "No published personal result yet.",
@@ -43,9 +53,9 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
     end)
   end
 
-  def submission(guild, user) do
-    player(guild, user, fn campaign, character ->
-      owner = [%{id: character.id, discord_user_id: character.discord_user_id}]
+  def submission(guild, access) do
+    PlayerAccess.run(guild, access, fn campaign, character ->
+      owner = historical_owner(character, access)
       participant = [%{character_id: character.id}]
 
       snapshot =
@@ -64,15 +74,9 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
       if snapshot do
         inputs = snapshot.data["quest_inputs"]
         input = Enum.find(inputs["submissions"], &(&1["character_id"] == character.id))
-
-        label =
-          if input do
-            revision = Enum.find(inputs["revisions"], &(&1["id"] == input["revision_id"]))
-            node = Rules.node(revision["definition"], input["node_id"])
-            Enum.find(node["choices"], &(&1["id"] == input["choice_id"]))["label"]
-          else
-            "None"
-          end
+        revision = Enum.find(inputs["revisions"], &(&1["id"] == input["revision_id"]))
+        node = Rules.node(revision["definition"], input["node_id"])
+        label = Enum.find(node["choices"], &(&1["id"] == input["choice_id"]))["label"]
 
         "Tick #{snapshot.data["tick_number"]} — Latest choice: #{label} (closed). Use /quest for your current quest and /result for your approved result."
       else
@@ -81,22 +85,10 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
     end)
   end
 
-  defp player(guild, verified_user, fun) do
-    with {:ok, user} <- Snowflake.cast(verified_user),
-         {:ok, expected} <- Campaigns.fetch_campaign_by_guild(guild) do
-      Repo.transaction(fn ->
-        campaign = Repo.one!(from c in Campaign, where: c.id == ^expected.id, lock: "FOR UPDATE")
-        if campaign.discord_guild_id != expected.discord_guild_id, do: Repo.rollback(:not_found)
+  # Normal members may not inherit previous owners' history. The actual DM,
+  # through a freshly checked persona, can inspect the selected character's history.
+  defp historical_owner(character, %{debug: true}), do: [%{id: character.id}]
 
-        character =
-          Repo.get_by(Character, campaign_id: campaign.id, discord_user_id: user) ||
-            Repo.rollback(:not_found)
-
-        fun.(campaign, character)
-      end)
-    else
-      :error -> {:error, :invalid_id}
-      error -> error
-    end
-  end
+  defp historical_owner(character, _),
+    do: [%{id: character.id, discord_user_id: character.discord_user_id}]
 end

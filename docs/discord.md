@@ -79,10 +79,14 @@ The registered command set is:
 - `/tick close` — configured DM only; freezes the world and queues resolution
   into a **private draft**, without publication. Repeated closes reuse the same
   snapshot/job. Review and approve in the web console.
+- `/tick remind` — configured DM in DM role only; queues guarded private reminders for characters missing choices.
+- `/result` — privately retrieves the latest applicable approved personal result for the owner or selected DM persona, even when outbound DMs fail.
 - `/tick status` — configured DM only; reports open/resolving/in-review/published
   world readiness and informational quest submission counts; never automatically closes.
-- `/character` — private owner-only character name and explicitly visible typed
-  flags. Identity comes from the interaction member, never a command option.
+- `/debug` — current DM only; private testing persona, character picker and command catalogue.
+  See single-account testing below.
+- `/character` — private character name and explicitly visible typed
+  flags. Normally identity comes from the interaction member; DM testing uses a freshly authorized character subject.
   Bootstrap characters at `/characters`; see [shared APIs](characters.md).
 - `/quest` — private current node, eligible choices and generic disabled-choice hints.
   Buttons submit/revise your own choice; Clear removes it. Completed and unassigned
@@ -97,13 +101,62 @@ Only opening and explicit approved web publication enqueue public messages.
 Closing, status, admin, character/clock queries, and draft edits never announce draft
 content. Publication uses the existing audited domain API and privacy-filtered
 renderer; the review preview is DM-only, while approved personal results/next
-choices are routed privately to each frozen player's Discord user ID. See
+choices use frozen per-character private delivery routes. See
 [quest-review.md](quest-review.md). Delivery failures never
 reapply world state. Inspect/retry individual outbox records in the console;
 ambiguous sends require explicit confirmation. See [delivery semantics](durable-work.md)
 and [review/publication](tick-review-publication.md).
 Quest buttons use the same application/guild/member authorization as commands.
 Unknown components get a private unsupported reply; autocomplete and modals are ignored.
+
+## Single-account player testing (including live campaigns)
+
+Create characters at `/characters`. Discord ownership is optional: a blank account creates a
+DM-controlled character whose labelled personal results go to the configured DM. Linked
+characters retain their real owner and one-character-per-account uniqueness.
+
+- `/debug status`: mode, selected character, linked-message-copy setting and role-aware
+  command catalogue. Use its paginated buttons to select a character.
+- `/debug player character:<internal ID>`: act as any character in this campaign. The ID
+  is shown in `/characters`; it is not a Discord account ID.
+- `/debug dm`: return to DM role. `/debug off`: clear the persona and turn off message copies.
+- `/debug messages enabled:true`: explicitly copy linked players' personal messages to the
+  DM as well as their real owners. Default off; `enabled:false` disables copies.
+
+Player mode uses ordinary player privacy, eligibility and lifecycle rules. `/character`,
+`/quest`, `/submission`, `/result` and `/clocks` work as player interactions; `/tick` and `/admin` deny
+until you return to DM mode. `/debug` always remains available to the actual current DM.
+Testing responses identify the character and warn that **changes are real**. There is no
+sandbox, undo or resolution bypass. Accountless characters participate in readiness and
+resolution exactly like linked characters. The web console stays DM-authorized independently
+of the Discord persona. These controls are persisted across bot restarts.
+
+The actual gateway member remains the actor; only the gameplay character changes.
+Persona switches increment a generation: old quest controls fail even after A → B → A.
+Other members cannot select characters or invoke `/debug`. Campaign reconfiguration invalidates
+old debug state. The character picker always reauthorizes its target; picker buttons are
+selectors, not gameplay controls or credentials.
+
+Personal delivery destinations and character labels are frozen at tick close in v3 snapshots.
+Accountless results always go to the frozen DM, regardless of selected persona or debug mode.
+Linked owners are never redirected; opt-in copies are additive, deduplicated when owner equals
+DM. Tick-open prompts and reminders also support these character routes, captured when each
+intent is created. Send-time guards suppress stale ownership/DM identities without consulting
+the selected persona. `/result` and historical `/submission` retrieve only the selected character;
+normal linked players cannot inherit previous owners' history. Copy-setting changes apply to future closes only. Review shows the exact destinations and
+messages that publication will enqueue. Existing v1/v2 snapshots and pending outbox records
+retain their original destinations. Blocked bot DMs still use existing outbox failure/retry
+handling; slash commands/buttons remain usable.
+
+Single-account smoke check: create two accountless characters, assign distinct quests/flags,
+open a tick, select each through `/debug status`, and submit different choices. Check hidden
+flags/choices remain hidden; `/tick` is denied in player mode. Click an old quest button after
+switching away and back: expect a refresh instruction. Return with `/debug dm`, close, review
+and publish: both labelled personal results should reach your account. Verify copies are off
+by default, and `/debug off` restores ordinary owner-based interaction behavior.
+
+After upgrading, run `mix ecto.migrate`, restart the running bot/server, and run
+`mix discord.register_commands` to register the new command set.
 
 ## Boundary, privacy and failure handling
 

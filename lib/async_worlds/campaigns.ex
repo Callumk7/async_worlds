@@ -14,13 +14,44 @@ defmodule AsyncWorlds.Campaigns do
   time and tick number, including when setup requests race.
   """
   def setup_campaign(attrs) do
-    %Campaign{}
-    |> Campaign.setup_changeset(attrs)
-    |> Repo.insert(
-      conflict_target: [:discord_guild_id],
-      on_conflict: {:replace, [:dm_user_id, :public_channel_id, :updated_at]},
-      returning: true
-    )
+    Repo.transaction(fn ->
+      campaign =
+        case %Campaign{}
+             |> Campaign.setup_changeset(attrs)
+             |> Repo.insert(
+               conflict_target: [:discord_guild_id],
+               on_conflict: {:replace, [:dm_user_id, :public_channel_id, :updated_at]},
+               returning: true
+             ) do
+          {:ok, campaign} -> campaign
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+
+      # The upsert holds the campaign row lock. Permanently revoke old personas
+      # on reconfiguration, even if configuration later changes back.
+      Repo.update_all(
+        from(s in AsyncWorlds.Discord.DebugSession,
+          where:
+            s.campaign_id == ^campaign.id and
+              (s.dm_user_id != ^campaign.dm_user_id or
+                 s.guild_id != ^campaign.discord_guild_id or
+                 s.public_channel_id != ^campaign.public_channel_id)
+        ),
+        set: [
+          dm_user_id: campaign.dm_user_id,
+          guild_id: campaign.discord_guild_id,
+          public_channel_id: campaign.public_channel_id,
+          enabled: false,
+          role: :dm,
+          character_id: nil,
+          copy_messages: false,
+          updated_at: DateTime.utc_now(:second)
+        ],
+        inc: [generation: 1]
+      )
+
+      campaign
+    end)
   end
 
   @doc "Returns a campaign by guild, distinguishing invalid IDs from missing campaigns."

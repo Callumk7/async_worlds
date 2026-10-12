@@ -24,7 +24,13 @@ authoring or full history UI is included.
 Server validation requires current draft UUID, current campaign DM, nonblank
 reason and exact frozen submission identity (or exact die identity). Preview and
 publication verify canonical audit replay, not arbitrary supplied draft JSON.
-Publication checks frozen/live routing, character ownership/flags, active
+New closes use v3 snapshots with explicit frozen personal delivery routes: linked owners,
+labelled DM-controlled characters, and optional additive DM copies. Preview and outbox
+use the same frozen routes; persona/copy-setting changes after close do not reroute
+messages or invalidate a draft. Gameplay, ownership and campaign routing checks remain
+in force. Existing v1/v2 snapshots retain their prior validation/output semantics.
+
+Publication checks frozen/live campaign routing, character ownership/flags, active
 progression IDs/revisions/nodes/position versions and clocks before applying state.
 Approved payload/output history and original rolls are immutable. Publication,
 progressions, flags, quest availability, world clocks, deliveries/jobs and campaign

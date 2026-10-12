@@ -6,9 +6,11 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
   def show(context, page \\ 0, expected_view \\ nil) do
     guild = context.campaign.discord_guild_id
 
-    case Submissions.player_state(guild, context.user_id) do
+    case Submissions.player_state(guild, access(context)) do
       {:ok, %{open: true} = state} ->
-        if expected_view, do: {:error, :stale_component}, else: {:ok, present(state, page)}
+        if expected_view,
+          do: {:error, :stale_component},
+          else: {:ok, present(bind(state, context), page)}
 
       {:ok, state} ->
         selected = Enum.find(state.quest.choices, &(&1.id == state.choice_id))
@@ -23,7 +25,7 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
         )
 
       {:error, reason} when reason in [:no_tick, :no_quest] ->
-        case Quests.player_quest(guild, context.user_id) do
+        case Quests.player_quest(guild, access(context)) do
           {:ok, quest} ->
             suffix =
               if quest.completed,
@@ -51,6 +53,9 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
       ["q1", _, _, _, _, _, action, arg] when action in ["s", "c", "p"] ->
         {:ok, {:quest_component, id, action, arg}, :player}
 
+      ["q2", _, action, arg] when action in ["s", "c", "p"] ->
+        {:ok, {:quest_component, id, action, arg}, :player}
+
       ["qv", view, "p", page] ->
         {:ok, {:quest_page, view, page}, :player}
 
@@ -73,9 +78,10 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
   def execute({:quest_component, id, action, arg}, context) do
     guild = context.campaign.discord_guild_id
 
-    with {:ok, state} <- Submissions.player_state(guild, context.user_id),
-         true <- state.open and String.starts_with?(id, prefix(state.identity) <> ":"),
-         :ok <- operate(action, arg, state, guild, context.user_id) do
+    with {:ok, projected} <- Submissions.player_state(guild, access(context)),
+         state = bind(projected, context),
+         true <- state.open and String.starts_with?(id, control_prefix(state) <> ":"),
+         :ok <- operate(action, arg, state, guild, access(context)) do
       show(context, if(action == "p", do: String.to_integer(arg), else: 0))
     else
       _ -> {:error, :stale_component}
@@ -117,7 +123,7 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
   # Read-only pages bind to the verified owner and freshly projected view, never
   # expose a submit/clear control, and create only one private reply per click.
   defp readonly(context, state, heading, page, expected) do
-    view = digest(:erlang.term_to_binary({context.campaign.id, context.user_id, state, heading}))
+    view = digest(:erlang.term_to_binary({context.campaign.id, access(context), state, heading}))
     pages = pages(state)
 
     if (not is_nil(expected) and expected != view) or page >= length(pages) do
@@ -205,7 +211,7 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
     do: %{
       type: 2,
       style: 2,
-      custom_id: prefix(state.identity) <> ":#{action}:#{arg}",
+      custom_id: control_prefix(state) <> ":#{action}:#{arg}",
       label: label,
       disabled: disabled
     }
@@ -231,6 +237,24 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
 
   defp digest(id),
     do: :crypto.hash(:sha256, id) |> binary_part(0, 12) |> Base.url_encode64(padding: false)
+
+  defp bind(state, context) do
+    case access(context) do
+      %{debug: true} = access ->
+        Map.put(
+          state,
+          :control_prefix,
+          "q2:" <> digest(:erlang.term_to_binary({state.identity, access}))
+        )
+
+      _ ->
+        state
+    end
+  end
+
+  defp control_prefix(state), do: Map.get(state, :control_prefix, prefix(state.identity))
+
+  defp access(context), do: Map.get(context, :access, context.user_id)
 
   defp truncate(text, size), do: text |> String.codepoints() |> Enum.take(size) |> Enum.join()
 end

@@ -2,8 +2,12 @@
 
 ## Boundary decisions
 
-Shared domain APIs accept guild ID and **verified** Discord user identity. Never
-accept a player-selected character. Components carry an exact identity map:
+Shared domain APIs accept guild ID and **verified** Discord user identity, or a
+`PlayerAccess` debug subject context freshly authorized against the actual current
+DM and persisted persona generation. Never accept an arbitrary player-selected
+character. Normal verified-user callers remain owner-only. Debug submissions are
+real, use identical eligibility/lifecycle checks, and are audited without private
+payloads. Switching personas and submit/clear serialize on the same campaign lock. Components carry an exact identity map:
 `tick_id`, `progression_id`, `revision_id`, `node_id`, `position_version` (atom
 keys). IDs are positive integers, not arbitrary strings. `position_version`
 changes on every actual DM move, preventing an old component from becoming valid

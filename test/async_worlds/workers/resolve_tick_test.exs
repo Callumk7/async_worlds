@@ -122,7 +122,7 @@ defmodule AsyncWorlds.Workers.ResolveTickTest do
       assert :ok = perform_job(ResolveTick, args)
       assert {:ok, %{status: :in_review}} = Ticks.fetch_tick(id, tick.id)
       assert {:ok, draft} = Ticks.fetch_draft(id, tick.id)
-      assert draft.payload["schema_version"] == 2
+      assert draft.payload["schema_version"] == 3
       for _ <- 1..12, do: assert(:ok == perform_job(ResolveTick, args))
       assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
       assert :ok = stop_supervised(__MODULE__.Oban)

@@ -57,8 +57,6 @@ defmodule AsyncWorlds.CharactersTest do
     {:ok, character} = create(c.campaign)
 
     for id <- [
-          nil,
-          "",
           "0",
           0,
           -1,
@@ -89,6 +87,27 @@ defmodule AsyncWorlds.CharactersTest do
     assert Repo.get!(Character, character.id) == character
     assert {:error, :invalid_id} = Characters.player_character("0123", "999")
     assert {:ok, _} = create(c.campaign, "18446744073709551615")
+  end
+
+  test "multiple accountless characters are DM-controlled and can be linked or unlinked", c do
+    assert {:ok, first} = create(c.campaign, nil)
+    assert {:ok, second} = create(c.campaign, "")
+    assert is_nil(first.discord_user_id) and is_nil(second.discord_user_id)
+    assert first.id != second.id
+    assert {:error, :invalid_id} = Characters.player_character("123", nil)
+
+    assert {:ok, linked} =
+             Characters.update_character(c.campaign, "456", first.id, %{discord_user_id: "999"})
+
+    assert linked.discord_user_id == "999"
+
+    assert {:error, %Ecto.Changeset{}} =
+             Characters.update_character(c.campaign, "456", second.id, %{discord_user_id: "999"})
+
+    assert {:ok, unlinked} =
+             Characters.update_character(c.campaign, "456", first.id, %{discord_user_id: ""})
+
+    assert is_nil(unlinked.discord_user_id)
   end
 
   test "an intentional DM relink immediately changes player lookup, not campaign ownership", c do

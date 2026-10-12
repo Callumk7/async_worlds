@@ -1,6 +1,6 @@
 defmodule AsyncWorlds.Ticks.WorldResolver do
   @moduledoc """
-  Pure, deterministic quest and world resolution of frozen v1/v2 snapshots and recorded dice.
+  Pure, deterministic quest and world resolution of frozen v1/v2/v3 snapshots and recorded dice.
 
   Returns a DM-only JSON-compatible draft, never published state or deliveries.
   See docs/world-resolution.md for ordering, latching and extension boundaries.
@@ -25,13 +25,13 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
   end
 
   def resolve(
-        %Snapshot{schema_version: 2, revision: revision, data: data} = snapshot,
+        %Snapshot{schema_version: version, revision: revision, data: data} = snapshot,
         review,
         rolls
       )
-      when is_map(data) and is_binary(revision) and byte_size(revision) > 0 do
+      when version in [2, 3] and is_map(data) and is_binary(revision) and byte_size(revision) > 0 do
     cond do
-      not valid_v2?(data) or not valid_review?(review, data["clocks"]) or
+      not valid_quest_snapshot?(data, version) or not valid_review?(review, data["clocks"]) or
           not AsyncWorlds.Ticks.QuestReview.valid?(snapshot, review) ->
         {:error, :invalid_snapshot}
 
@@ -40,6 +40,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
       true ->
         rolls = AsyncWorlds.Ticks.QuestReview.dice(rolls, review)
+        data = if version == 2, do: Map.delete(data, "player_delivery"), else: data
         payload = run(data, revision, review, rolls)
         payload = if map_size(review) == 0, do: payload, else: Map.put(payload, "review", review)
 
@@ -53,15 +54,20 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
   def valid_snapshot?(snapshot) do
     case snapshot do
-      %Snapshot{schema_version: 1, data: data} -> valid?(data)
-      %Snapshot{schema_version: 2, data: data} -> valid_v2?(data)
-      _ -> false
+      %Snapshot{schema_version: 1, data: data} ->
+        valid?(data)
+
+      %Snapshot{schema_version: version, data: data} when version in [2, 3] ->
+        valid_quest_snapshot?(data, version)
+
+      _ ->
+        false
     end
   rescue
     _ -> false
   end
 
-  defp valid_v2?(data) do
+  defp valid_quest_snapshot?(data, version) do
     world =
       Map.update!(data, "clocks", fn clocks ->
         Enum.map(clocks, fn clock ->
@@ -71,8 +77,15 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
         end)
       end)
 
-    valid?(world) and AsyncWorlds.Quests.FrozenInputs.valid?(data["quest_inputs"], data["clocks"]) and
-      valid_unlocks?(data)
+    valid?(world) and
+      AsyncWorlds.Quests.FrozenInputs.valid?(data["quest_inputs"], data["clocks"], version) and
+      valid_unlocks?(data) and
+      (version == 2 or
+         AsyncWorlds.Ticks.PlayerDelivery.valid?(
+           data["player_delivery"],
+           data["quest_inputs"]["characters"],
+           data["campaign"]
+         ))
   rescue
     _ -> false
   end
@@ -209,8 +222,13 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     }
 
     if data["quest_inputs"] do
+      payload =
+        if data["player_delivery"],
+          do: Map.put(payload, "player_delivery", data["player_delivery"]),
+          else: payload
+
       Map.merge(payload, %{
-        "schema_version" => 2,
+        "schema_version" => if(data["player_delivery"], do: 3, else: 2),
         "rolls" => rolls,
         "characters" => state.characters |> Map.values() |> Enum.sort_by(& &1["id"]),
         "progressions" => state.progressions |> Map.values() |> Enum.sort_by(& &1["id"]),

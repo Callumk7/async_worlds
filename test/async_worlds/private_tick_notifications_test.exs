@@ -172,9 +172,15 @@ defmodule AsyncWorlds.PrivateTickNotificationsTest do
     {:ok, _} = Ticks.publish_tick(c.campaign.id, tick.id, draft.id)
 
     for user <- ["991", "992"] do
+      character =
+        Repo.get_by!(AsyncWorlds.Characters.Character,
+          campaign_id: c.campaign.id,
+          discord_user_id: user
+        )
+
       assert Enum.any?(
                Deliveries.list_deliveries(c.campaign.id),
-               &(&1.key == "tick:#{tick.id}:players:#{user}:0")
+               &(&1.key == "tick:#{tick.id}:players:character:#{character.id}:owner:#{user}:0")
              )
     end
 
@@ -206,7 +212,7 @@ defmodule AsyncWorlds.PrivateTickNotificationsTest do
     result =
       Enum.find(
         Deliveries.list_deliveries(c.campaign.id),
-        &(&1.key == "tick:#{tick.id}:players:991:0")
+        &(&1.recipient_id == "991" and &1.guard["type"] == "character_delivery")
       )
 
     character = Repo.get_by!(AsyncWorlds.Characters.Character, discord_user_id: "991")

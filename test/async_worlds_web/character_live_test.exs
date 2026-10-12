@@ -81,6 +81,26 @@ defmodule AsyncWorldsWeb.CharacterLiveTest do
     assert has_element?(view, "#flag-form")
   end
 
+  test "accountless characters can be created and their destination is explicit", c do
+    {:ok, view, _} = live(c.conn, ~p"/characters")
+
+    for name <- ["A", "B"] do
+      view |> element("#new-character") |> render_click()
+
+      view
+      |> form("#character-form", character: %{name: name, discord_user_id: ""})
+      |> render_submit()
+    end
+
+    {:ok, characters} = Characters.list_characters(c.campaign, "456")
+    assert length(characters) == 2
+
+    for character <- characters do
+      assert is_nil(character.discord_user_id)
+      assert has_element?(view, "#character-destination-#{character.id}", "DM-controlled")
+    end
+  end
+
   test "NUL profile and JSON flag input is rejected without crashing the editor", c do
     {:ok, character} =
       Characters.create_character(c.campaign, "456", %{name: "Rook", discord_user_id: "999"})

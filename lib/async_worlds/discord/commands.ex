@@ -6,10 +6,11 @@ defmodule AsyncWorlds.Discord.Commands do
   """
 
   alias AsyncWorlds.{Characters, Clocks, Ticks}
-  alias AsyncWorlds.Discord.QuestInteractions
+  alias AsyncWorlds.Discord.{DebugInteractions, QuestInteractions}
 
   def definitions do
     [
+      DebugInteractions.definition(),
       %{name: "clocks", description: "View the campaign's visible clocks", type: 1},
       %{
         name: "tick",
@@ -37,6 +38,8 @@ defmodule AsyncWorlds.Discord.Commands do
       }
     ]
   end
+
+  def route(%{name: "debug"} = data), do: DebugInteractions.route(data)
 
   def route(%{name: name} = data)
       when name in ["clocks", "admin", "character", "quest", "submission", "result"] do
@@ -70,18 +73,23 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(_), do: {:error, :unknown_command}
 
+  def execute({:debug, _} = command, context), do: DebugInteractions.execute(command, context)
+
   def execute(:quest, context), do: QuestInteractions.show(context)
 
-  def execute(:result, %{campaign: campaign, user_id: user}),
-    do: AsyncWorlds.Discord.PrivateRetrieval.result(campaign.discord_guild_id, user)
+  def execute(:result, %{campaign: campaign} = context),
+    do: AsyncWorlds.Discord.PrivateRetrieval.result(campaign.discord_guild_id, access(context))
 
-  def execute(:submission, %{campaign: campaign, user_id: user} = context) do
-    case AsyncWorlds.Quests.Submissions.player_state(campaign.discord_guild_id, user) do
+  def execute(:submission, %{campaign: campaign} = context) do
+    case AsyncWorlds.Quests.Submissions.player_state(campaign.discord_guild_id, access(context)) do
       {:ok, _} ->
         QuestInteractions.show(context)
 
       {:error, reason} when reason in [:no_tick, :no_quest] ->
-        case AsyncWorlds.Discord.PrivateRetrieval.submission(campaign.discord_guild_id, user) do
+        case AsyncWorlds.Discord.PrivateRetrieval.submission(
+               campaign.discord_guild_id,
+               access(context)
+             ) do
           {:ok, :no_submission} -> QuestInteractions.show(context)
           result -> result
         end
@@ -111,9 +119,12 @@ defmodule AsyncWorlds.Discord.Commands do
     {:ok, if(lines == [], do: "No visible clocks yet.", else: Enum.join(lines, "\n"))}
   end
 
-  def execute(:character, %{campaign: campaign, user_id: verified_user_id}) do
+  def execute(:character, %{campaign: campaign} = context) do
     with {:ok, payload} <-
-           Characters.player_character(campaign.discord_guild_id, verified_user_id) do
+           Characters.player_character(
+             campaign.discord_guild_id,
+             Map.get(context, :access, context.user_id)
+           ) do
       facts =
         payload.flags
         |> Enum.sort()
@@ -192,6 +203,8 @@ defmodule AsyncWorlds.Discord.Commands do
 
   defp status(:in_review), do: "in review — private draft ready for DM review/publication."
   defp status(:published), do: "published — ready to open the next world tick."
+
+  defp access(context), do: Map.get(context, :access, context.user_id)
 
   defp admin_url, do: AsyncWorldsWeb.Endpoint.url() <> "/dashboard"
 end

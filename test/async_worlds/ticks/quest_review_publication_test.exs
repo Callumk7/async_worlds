@@ -275,7 +275,7 @@ defmodule AsyncWorlds.Ticks.QuestReviewPublicationTest do
 
     {:ok, _} =
       Deliveries.enqueue(c.campaign.id, c.tick.id, %{
-        key: "tick:#{c.tick.id}:players:991:0",
+        key: "tick:#{c.tick.id}:players:character:#{elem(hd(c.pairs), 0).id}:owner:991:0",
         kind: :private,
         recipient_id: "991",
         content: "Conflict"
@@ -431,7 +431,7 @@ defmodule AsyncWorlds.Ticks.QuestReviewPublicationTest do
     assert Enum.map(success["private_results"], & &1["input"]) ==
              snapshot.data["quest_inputs"]["submissions"]
 
-    assert success["schema_version"] == 2
+    assert success["schema_version"] == 3
 
     assert {:error, :invalid_rolls} =
              WorldResolver.resolve(snapshot, %{"outcomes" => %{key => "success"}}, tl(c.rolls))
