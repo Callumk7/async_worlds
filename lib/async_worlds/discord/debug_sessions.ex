@@ -69,7 +69,13 @@ defmodule AsyncWorlds.Discord.DebugSessions do
                 Repo.rollback(:unknown_command)
             end
 
-          attrs = Map.put(attrs, :generation, session.generation + 1)
+          subject_fields = [:enabled, :role, :character_id]
+
+          changed? =
+            Map.take(session, subject_fields) !=
+              Map.take(Map.merge(Map.from_struct(session), attrs), subject_fields)
+
+          attrs = Map.put(attrs, :generation, session.generation + if(changed?, do: 1, else: 0))
           # A changed campaign invalidates all settings, including a previous DM's copies.
           record = old || %DebugSession{}
 

@@ -132,7 +132,7 @@ resolution exactly like linked characters. The web console stays DM-authorized i
 of the Discord persona. These controls are persisted across bot restarts.
 
 The actual gateway member remains the actor; only the gameplay character changes.
-Persona switches increment a generation: old quest controls fail even after A → B → A.
+Changes to the selected character, role or enabled mode increment a generation: old quest controls fail even after A → B → A. Toggling linked-message copies does not expire gameplay controls.
 Other members cannot select characters or invoke `/debug`. Campaign reconfiguration invalidates
 old debug state. The character picker always reauthorizes its target; picker buttons are
 selectors, not gameplay controls or credentials.

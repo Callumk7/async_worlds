@@ -65,6 +65,10 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
     assert {:ok, _} = DebugSessions.transition("123", "456", {:player, c.character.id})
     assert {:ok, payload} = invoke(c, %{name: "quest"}, 456)
     assert payload.content =~ "Testing as Rook"
+    {:ok, before_copies} = AsyncWorlds.PlayerAccess.context(c.campaign, "456")
+    {:ok, _} = DebugSessions.transition("123", "456", {:messages, true})
+    {:ok, after_copies} = AsyncWorlds.PlayerAccess.context(c.campaign, "456")
+    assert before_copies.access == after_copies.access
     assert Enum.all?(buttons(payload), &(byte_size(&1.custom_id) <= 100))
     assert {:ok, _} = click(c, button(payload, "loop"), 456)
     assert {:ok, %{choice_id: "loop"}} = Submissions.player_state("123", "999")
@@ -329,6 +333,9 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
     {:ok, _} = Quests.swap(c.campaign, "456", c.character.id, revision.id)
     {:ok, _} = DebugSessions.transition("123", "456", {:player, c.character.id})
     {:ok, original} = invoke(c, %{name: "quest"}, 456)
+    {:ok, _} = DebugSessions.transition("123", "456", {:messages, true})
+    assert {:ok, _} = click(c, button(original, "Next"), 456)
+    {:ok, _} = DebugSessions.transition("123", "456", {:messages, false})
     assert {:ok, _} = click(c, button(original, "Next"), 456)
     {:ok, characters} = Characters.list_characters(c.campaign, "456")
     other = Enum.find(characters, &(&1.id != c.character.id))

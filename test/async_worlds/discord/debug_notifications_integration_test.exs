@@ -57,7 +57,11 @@ defmodule AsyncWorlds.Discord.DebugNotificationsIntegrationTest do
         member: %{user_id: user},
         token: "private-token",
         data: %{name: name}
-      }, adapter: FakeAdapter, guild_id: "123", application_id: "111")
+      },
+      adapter: FakeAdapter,
+      guild_id: "123",
+      application_id: "111"
+    )
   end
 
   defp deliver(d),
@@ -112,6 +116,89 @@ defmodule AsyncWorlds.Discord.DebugNotificationsIntegrationTest do
 
     assert :ok = deliver(b_reminder)
     assert Repo.get!(AsyncWorlds.Deliveries.Delivery, b_reminder.id).status == :sent
+  end
+
+  test "moving an owner ID to another character does not abort or reuse reminders", c do
+    {:ok, _} = Ticks.open_tick(c.campaign.id)
+    assert {:ok, 4} = PrivateNotifications.remind("123", "456", "101")
+
+    old =
+      Enum.find(
+        Deliveries.list_deliveries(c.campaign.id),
+        &(&1.recipient_id == "999" and String.contains?(&1.key, ":reminder:"))
+      )
+
+    {:ok, _} =
+      Characters.update_character(c.campaign, "456", c.linked.id, %{discord_user_id: nil})
+
+    {:ok, _} = Characters.update_character(c.campaign, "456", c.a.id, %{discord_user_id: "999"})
+    assert {:ok, 4} = PrivateNotifications.remind("123", "456", "102")
+
+    reminders =
+      Enum.filter(
+        Deliveries.list_deliveries(c.campaign.id),
+        &String.contains?(&1.key, ":reminder:")
+      )
+
+    assert {:ok, 4} = PrivateNotifications.remind("123", "456", "103")
+
+    assert reminders ==
+             Enum.filter(
+               Deliveries.list_deliveries(c.campaign.id),
+               &String.contains?(&1.key, ":reminder:")
+             )
+
+    assert length(reminders) == 6
+
+    replacement =
+      Enum.find(reminders, &(&1.recipient_id == "999" and &1.guard["character_id"] == c.a.id))
+
+    assert replacement.id != old.id
+    assert String.contains?(replacement.key, ":character:#{c.a.id}:owner:")
+    assert :ok = deliver(old)
+    assert Repo.get!(AsyncWorlds.Deliveries.Delivery, old.id).last_error == "stale_notification"
+    assert :ok = deliver(replacement)
+    assert Repo.get!(AsyncWorlds.Deliveries.Delivery, replacement.id).status == :sent
+  end
+
+  for status <- [:sent, :failed, :ambiguous] do
+    @status status
+    test "same-character ENG-21 #{@status} legacy reminders retain their original state", c do
+      {:ok, tick} = Ticks.open_tick(c.campaign.id)
+      {:ok, state} = Submissions.player_state("123", "999")
+      json = fn value -> value |> Jason.encode!() |> Jason.decode!() end
+
+      lines =
+        ["Tick #{tick.number} is open. Use /quest or /submission to choose or revise."] ++
+          AsyncWorlds.Discord.PlayerContent.quest_lines(state.quest)
+
+      [message] = AsyncWorlds.Discord.PlayerContent.messages(lines, "999")
+
+      guard = %{
+        "guild" => "123",
+        "actor" => "456",
+        "missing_only" => true,
+        "identity" => json.(state.identity),
+        "quest" => json.(state.quest)
+      }
+
+      attrs =
+        Map.merge(message, %{"key" => "tick:#{tick.id}:reminder:999:0:opened", "guard" => guard})
+
+      {:ok, legacy} = Deliveries.enqueue(c.campaign.id, tick.id, attrs)
+      legacy = legacy |> Ecto.Changeset.change(status: @status, attempts: 1) |> Repo.update!()
+      assert {:ok, 4} = PrivateNotifications.remind("123", "456", "104")
+      assert {:ok, 4} = PrivateNotifications.remind("123", "456", "105")
+      assert Repo.get!(AsyncWorlds.Deliveries.Delivery, legacy.id) == legacy
+
+      reminders =
+        Enum.filter(
+          Deliveries.list_deliveries(c.campaign.id),
+          &String.contains?(&1.key, ":reminder:")
+        )
+
+      assert Enum.count(reminders, &(&1.recipient_id == "999")) == 1
+    end
   end
 
   test "published deliveries and history isolate characters sharing the DM recipient", c do

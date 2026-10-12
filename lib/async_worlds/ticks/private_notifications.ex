@@ -139,13 +139,9 @@ defmodule AsyncWorlds.Ticks.PrivateNotifications do
         labelled = if(route["label"], do: [route["label"] | lines], else: lines),
         {message, index} <-
           Enum.with_index(PlayerContent.messages(labelled, route["recipient_id"])) do
-      # Preserve existing linked-owner prompt/reminder keys. DM routes need
-      # subject/audience keys because several characters share one recipient.
-      key =
-        if route["audience"] == "owner",
-          do: "tick:#{tick.id}:#{purpose}:#{route["recipient_id"]}:#{index}:opened",
-          else:
-            "tick:#{tick.id}:#{purpose}:character:#{character.id}:#{route["audience"]}:#{route["recipient_id"]}:#{index}:opened"
+      # An owner ID may have moved to another character during this tick.
+      # Preserve identifiable old intents; never reuse another subject's key.
+      {key, existing} = intent_key(campaign, tick, character, route, purpose, index)
 
       routing =
         PlayerDelivery.guard(
@@ -169,10 +165,54 @@ defmodule AsyncWorlds.Ticks.PrivateNotifications do
           })
         )
 
+      attrs = compatible_legacy_guard(attrs, existing)
+
       case Deliveries.enqueue(campaign.id, tick.id, attrs) do
         {:ok, _} -> :ok
         {:error, reason} -> Repo.rollback(reason)
       end
     end
   end
+
+  defp intent_key(campaign, tick, character, route, purpose, index) do
+    scoped =
+      "tick:#{tick.id}:#{purpose}:character:#{character.id}:#{route["audience"]}:#{route["recipient_id"]}:#{index}:opened"
+
+    if route["audience"] == "owner" do
+      legacy = "tick:#{tick.id}:#{purpose}:#{route["recipient_id"]}:#{index}:opened"
+
+      existing =
+        Repo.get_by(AsyncWorlds.Deliveries.Delivery, campaign_id: campaign.id, key: legacy)
+
+      if is_nil(existing) or same_subject?(existing.guard, campaign.id, character.id),
+        do: {legacy, existing},
+        else: {scoped, nil}
+    else
+      {scoped, nil}
+    end
+  end
+
+  defp same_subject?(%{"character_id" => id}, _, character_id), do: id == character_id
+
+  defp same_subject?(%{"identity" => %{"progression_id" => id}}, campaign_id, character_id) do
+    Repo.exists?(
+      from p in AsyncWorlds.Quests.Progression,
+        where: p.id == ^id and p.campaign_id == ^campaign_id and p.character_id == ^character_id
+    )
+  end
+
+  defp same_subject?(_, _, _), do: false
+
+  # ENG-21 intents lack the newer routing fields. Reuse only an exactly matching
+  # legacy guard; enqueue still checks content and all other immutable fields.
+  # This preserves sent/failed/ambiguous state without implicit retries.
+  defp compatible_legacy_guard(attrs, %{guard: guard}) do
+    fields = ~w(actor guild identity missing_only quest)
+
+    if Enum.sort(Map.keys(guard)) == fields and Map.take(attrs["guard"], fields) == guard,
+      do: Map.put(attrs, "guard", guard),
+      else: attrs
+  end
+
+  defp compatible_legacy_guard(attrs, _), do: attrs
 end

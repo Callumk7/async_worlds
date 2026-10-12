@@ -94,5 +94,10 @@ Further discovery: quests and submissions already use internal character IDs for
 - `mix precommit` passed after integration: 341 tests, zero failures. Added actual fake-transport delivery, reminder, persona-history, relink and DM-revocation coverage.
 - Applied the ENG-21 private delivery guard migration locally and registered the combined eight-command guild set. Real Discord interaction/message smoke checks remain pending.
 
+## PR #27 review follow-up
+- Confirmed and fixed owner-reminder key collisions when a Discord ID moves to another character. Existing keys are reused only for their identifiable original subject; collisions use character-scoped keys. Matching legacy ENG-21 guards retain sent/failed/ambiguous state without implicit retries.
+- Session generation now changes only when enabled mode, role or subject changes; message-copy toggles leave open and read-only quest controls usable.
+- Added reassignment/idempotency and legacy reminder-state regressions; extended open/read-only control coverage. `mix precommit` passed: 345 tests, zero failures. Actual Discord smoke checks remain pending.
+
 ## Boundaries
 This is real campaign control, not a sandbox or undo feature. Accountless characters participate in ordinary readiness/resolution. Do not bypass eligibility, lifecycle locks or approval. No multi-character ownership for ordinary Discord users, dice-control changes, new OAuth roles, automatic public announcements, automatic message redirection or separate transport simulator is included.
