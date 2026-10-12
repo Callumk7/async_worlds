@@ -1,4 +1,4 @@
-# Discord bot and world-tick commands (ENG-3 / ENG-10)
+# Discord bot, world-tick and private player commands (ENG-3 / ENG-10 / ENG-19)
 
 Nostrum **0.10.4**, a stable Hex release, runs as an included OTP application
 inside the optional `AsyncWorlds.Discord.Supervisor`. The bot, bounded task
@@ -80,10 +80,16 @@ The registered command set is:
   into a **private draft**, without publication. Repeated closes reuse the same
   snapshot/job. Review and approve in the web console.
 - `/tick status` — configured DM only; reports open/resolving/in-review/published
-  world readiness. No character submission counts in this milestone.
+  world readiness and informational quest submission counts; never automatically closes.
 - `/character` — private owner-only character name and explicitly visible typed
   flags. Identity comes from the interaction member, never a command option.
   Bootstrap characters at `/characters`; see [shared APIs](characters.md).
+- `/quest` — private current node, eligible choices and generic disabled-choice hints.
+  Buttons submit/revise your own choice; Clear removes it. Completed and unassigned
+  quests have explicit empty/ending states. No resource assignment UI.
+- `/submission` — private current tick choice with the same revise/clear controls.
+  Both commands remain usable when proactive bot DMs are blocked; run them in the
+  configured guild, not in a direct message.
 - `/admin` — configured DM only; privately links to `/dashboard`. This is a
   normal URL, **not** a bearer login token; web Discord OAuth verifies the DM.
 
@@ -94,8 +100,8 @@ renderer; private publication output remains DM-only. Delivery failures never
 reapply world state. Inspect/retry individual outbox records in the console;
 ambiguous sends require explicit confirmation. See [delivery semantics](durable-work.md)
 and [review/publication](tick-review-publication.md).
-Unsupported component, autocomplete and modal interactions are ignored; they
-must get explicit routing/authorization when those features are implemented.
+Quest buttons use the same application/guild/member authorization as commands.
+Unknown components get a private unsupported reply; autocomplete and modals are ignored.
 
 ## Boundary, privacy and failure handling
 
@@ -105,7 +111,7 @@ behind `AsyncWorlds.Discord.Adapter`. Guild interactions use the gateway's
 The dispatcher checks the application and configured guild, loads current
 campaign configuration, and uses `Campaigns.authorize_dm/2` for DM commands.
 
-All slash commands defer with response type 5 and ephemeral flag 64 **before**
+All slash commands and quest components defer with response type 5 and ephemeral flag 64 **before**
 database work. Denials, unknown commands and failures edit that private original
 response. Edits and ephemeral followups suppress automatic mentions. Responses
 split at 1,900 Unicode codepoints, keeping every message within Discord's 2,000
@@ -117,6 +123,23 @@ API error bodies are never inspected. Nostrum rate-limiter logs are redacted
 because their route/bucket URLs can contain webhook tokens. Avoid enabling
 packet tracing or dumping library/process state in production: those diagnostic
 dumps can include credentials and private player content.
+
+Quest pages use at most 15 choice buttons (three rows) plus a navigation/clear
+row. Long node text and full choice labels paginate in 1,400-codepoint chunks;
+button labels truncate to 80 codepoints and include choice numbers. All text is
+preserved across pages. No-tick, completed and closed views also paginate one
+private message per click, with navigation only (no submit/clear controls).
+Read-only navigation binds to the verified owner and fresh projected state;
+changed views require a refresh. Webhook followup creates omit the `components`
+key when there are no controls; response edits may use `[]` to clear controls.
+Submission components encode tick, quest instance, pinned revision,
+position version and 96-bit node/choice ID digests in under 100 characters.
+These are locators, not authorization tokens: the handler compares them to the
+verified owner's freshly projected state, then shared submission operations
+recheck lifecycle and eligibility transactionally. Stale controls after close,
+progression, reassignment or eligibility changes fail privately with instructions
+to refresh via `/quest` or `/submission`. No conditions, hidden flags, hidden
+choices, outcome definitions or draft results are included in responses.
 
 Discord is not the idempotency authority. Duplicate delivery normally fails its
 second acknowledgment, but another interaction ID, bot restart or transport
@@ -155,7 +178,11 @@ After supplying real credentials, verify manually:
    fills. Publish once and confirm approved output arrives publicly and DM output
    privately. Repeated publication must not send again.
 7. Invoke from another guild (if installed there); expect a private denial.
-8. Restart the application and invoke again; campaign state and pending outbox
+8. With two assigned players, use `/quest` and `/submission` to submit, revise
+   and clear independently. Close the tick or reassign a quest, then click an old
+   button: expect a private refresh instruction. Block bot DMs and verify slash
+   commands still work. Verify long quests paginate without missing labels.
+9. Restart the application and invoke again; campaign state and pending outbox
    records must persist. Test blocked DMs and inspect the failed delivery record.
 
 No real Discord credentials are required or provisioned by the automated suite.

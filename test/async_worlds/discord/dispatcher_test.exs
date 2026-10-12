@@ -213,7 +213,6 @@ defmodule AsyncWorlds.Discord.DispatcherTest do
           %{interaction | application_id: 222},
           %{interaction | id: nil},
           %{interaction | token: nil},
-          %{interaction | type: 3},
           %{interaction | type: 4},
           %{interaction | type: 5}
         ] do

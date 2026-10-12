@@ -16,8 +16,9 @@ defmodule AsyncWorlds.Discord.Adapter do
   @callback send_private(String.t(), map()) :: send_result()
 
   @callback defer(map()) :: :ok | {:error, term()}
-  @callback edit_response(map(), String.t()) :: :ok | {:error, term()}
-  @callback followup_response(map(), String.t()) :: :ok | {:error, term()}
+  @type response :: String.t() | %{content: String.t(), components: [map()]}
+  @callback edit_response(map(), response()) :: :ok | {:error, term()}
+  @callback followup_response(map(), response()) :: :ok | {:error, term()}
   @callback register_commands(String.t(), String.t(), [map()]) ::
               {:ok, [map()]} | {:error, term()}
 end
