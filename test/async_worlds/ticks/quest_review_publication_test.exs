@@ -129,6 +129,56 @@ defmodule AsyncWorlds.Ticks.QuestReviewPublicationTest do
     assert {:ok, _} = Ticks.preview_draft(c.campaign.id, c.tick.id, again.id)
   end
 
+  for kind <- [:extra_key, :missing_old_value] do
+    @malformed_reroll kind
+    test "persisted #{@malformed_reroll} reroll history cannot reach preview or publication", c do
+      die = hd(c.rolls)
+      review = %{"dice" => %{die["identity"] => 6}}
+      assert {:ok, payload} = WorldResolver.resolve(c.snapshot, review, c.rolls)
+
+      assert {:ok, %{draft: next}} =
+               Ticks.put_draft(
+                 c.campaign.id,
+                 c.tick.id,
+                 c.snapshot.revision,
+                 payload,
+                 c.draft.id
+               )
+
+      operation = %{
+        "type" => "reroll",
+        "identity" => die["identity"],
+        "old_value" => 999,
+        "new_value" => 6
+      }
+
+      operation =
+        case @malformed_reroll do
+          :extra_key -> Map.put(operation, "extra", true)
+          :missing_old_value -> Map.delete(operation, "old_value")
+        end
+
+      Repo.insert!(%AsyncWorlds.Ticks.ReviewEdit{
+        tick_id: c.tick.id,
+        previous_draft_id: c.draft.id,
+        draft_id: next.id,
+        actor_id: "456",
+        reason: "Low-level malformed history fixture",
+        operation: operation
+      })
+
+      assert {:error, :invalid_draft} = Ticks.preview_draft(c.campaign.id, c.tick.id, next.id)
+      assert {:error, :invalid_draft} = Ticks.publish_tick(c.campaign.id, c.tick.id, next.id)
+      assert Repo.aggregate(Publication, :count) == 0
+      assert {:ok, %{status: :in_review}} = Ticks.fetch_tick(c.campaign.id, c.tick.id)
+
+      for {character, progression} <- c.pairs do
+        assert Repo.get!(AsyncWorlds.Characters.Character, character.id) == character
+        assert Repo.get!(Progression, progression.id) == progression
+      end
+    end
+  end
+
   test "outcome override cannot fabricate critical, removed effects keep all dice, clear restores",
        c do
     assert {:ok, %{draft: success}} = edit(c, c.draft, op(c, "outcome", "success"))

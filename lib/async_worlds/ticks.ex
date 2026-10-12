@@ -450,6 +450,9 @@ defmodule AsyncWorlds.Ticks do
 
             if is_nil(die) or die["value"] != old, do: Repo.rollback(:invalid_draft)
 
+          %{"type" => "reroll"} ->
+            Repo.rollback(:invalid_draft)
+
           %{"type" => type} when type in ["outcome", "player_narration"] ->
             case AsyncWorlds.Ticks.QuestReview.validate(snapshot, Map.delete(op, "key")) do
               {:ok, ^op} -> :ok
