@@ -40,11 +40,6 @@ defmodule AsyncWorlds.Ticks.Output do
         results = Enum.filter(payload["private_results"], &(&1["character_id"] == id))
         projection = next["projection"]
 
-        choices =
-          Enum.map(projection["choices"], fn choice ->
-            choice["label"] <> if(choice["enabled"], do: "", else: " — Not available right now.")
-          end)
-
         result_lines =
           Enum.flat_map(results, fn result ->
             dice = Enum.filter(payload["rolls"], &(&1["input"] == result["input"]))
@@ -60,7 +55,7 @@ defmodule AsyncWorlds.Ticks.Output do
           end)
 
         messages(
-          [title] ++ result_lines ++ [projection["text"]] ++ choices,
+          [title] ++ result_lines ++ AsyncWorlds.Discord.PlayerContent.quest_lines(projection),
           "private",
           character["discord_user_id"]
         )

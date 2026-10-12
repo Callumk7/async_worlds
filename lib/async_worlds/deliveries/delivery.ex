@@ -10,6 +10,7 @@ defmodule AsyncWorlds.Deliveries.Delivery do
     field :kind, Ecto.Enum, values: [:public, :private]
     field :recipient_id, :string
     field :content, :string
+    field :guard, :map, default: %{}
 
     field :status, Ecto.Enum,
       values: [:pending, :sending, :sent, :failed, :ambiguous],
@@ -28,7 +29,7 @@ defmodule AsyncWorlds.Deliveries.Delivery do
 
   def changeset(delivery, attrs) do
     delivery
-    |> cast(attrs, [:key, :kind, :recipient_id, :content])
+    |> cast(attrs, [:key, :kind, :recipient_id, :content, :guard])
     |> validate_required([:key, :kind, :recipient_id, :content])
     |> validate_length(:key, max: 200)
     |> validate_length(:content, max: 2000, count: :codepoints)

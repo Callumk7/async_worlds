@@ -18,12 +18,18 @@ defmodule AsyncWorlds.Discord.Commands do
         options: [
           %{name: "open", description: "Open a new tick", type: 1},
           %{name: "close", description: "Close submissions and resolve the tick", type: 1},
-          %{name: "status", description: "View the current tick status", type: 1}
+          %{name: "status", description: "View the current tick status", type: 1},
+          %{
+            name: "remind",
+            description: "Privately remind players with missing submissions",
+            type: 1
+          }
         ]
       },
       %{name: "admin", description: "Access the campaign web admin (DM only)", type: 1},
       %{name: "character", description: "View your character and visible flags", type: 1},
       %{name: "quest", description: "View your private quest and choose an action", type: 1},
+      %{name: "result", description: "Retrieve your latest approved personal result", type: 1},
       %{
         name: "submission",
         description: "View, revise or clear your latest quest choice",
@@ -33,7 +39,7 @@ defmodule AsyncWorlds.Discord.Commands do
   end
 
   def route(%{name: name} = data)
-      when name in ["clocks", "admin", "character", "quest", "submission"] do
+      when name in ["clocks", "admin", "character", "quest", "submission", "result"] do
     if Map.get(data, :options) in [nil, []] do
       case name do
         "clocks" -> {:ok, :clocks, :player}
@@ -41,6 +47,7 @@ defmodule AsyncWorlds.Discord.Commands do
         "character" -> {:ok, :character, :player}
         "quest" -> {:ok, :quest, :player}
         "submission" -> {:ok, :submission, :player}
+        "result" -> {:ok, :result, :player}
       end
     else
       {:error, :unknown_command}
@@ -53,6 +60,7 @@ defmodule AsyncWorlds.Discord.Commands do
         "open" -> {:ok, :tick_open, :dm}
         "close" -> {:ok, :tick_close, :dm}
         "status" -> {:ok, :tick_status, :dm}
+        "remind" -> {:ok, :tick_remind, :dm}
         _ -> {:error, :unknown_command}
       end
     else
@@ -62,8 +70,26 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(_), do: {:error, :unknown_command}
 
-  def execute(command, context) when command in [:quest, :submission],
-    do: QuestInteractions.show(context)
+  def execute(:quest, context), do: QuestInteractions.show(context)
+
+  def execute(:result, %{campaign: campaign, user_id: user}),
+    do: AsyncWorlds.Discord.PrivateRetrieval.result(campaign.discord_guild_id, user)
+
+  def execute(:submission, %{campaign: campaign, user_id: user} = context) do
+    case AsyncWorlds.Quests.Submissions.player_state(campaign.discord_guild_id, user) do
+      {:ok, _} ->
+        QuestInteractions.show(context)
+
+      {:error, reason} when reason in [:no_tick, :no_quest] ->
+        case AsyncWorlds.Discord.PrivateRetrieval.submission(campaign.discord_guild_id, user) do
+          {:ok, :no_submission} -> QuestInteractions.show(context)
+          result -> result
+        end
+
+      error ->
+        error
+    end
+  end
 
   def execute({:quest_page, _, _} = command, context),
     do: QuestInteractions.execute(command, context)
@@ -124,6 +150,14 @@ defmodule AsyncWorlds.Discord.Commands do
           {:ok,
            "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest choices resolve privately from frozen inputs; management stays locked until publication. Review in #{admin_url()}"}
         end
+    end
+  end
+
+  def execute(:tick_remind, %{campaign: campaign, user_id: user, interaction_id: request}) do
+    with {:ok, count} <-
+           AsyncWorlds.Ticks.PrivateNotifications.remind(campaign.discord_guild_id, user, request) do
+      {:ok,
+       "Private reminder intents recorded for #{count} missing submissions. Repeated requests do not resend. Inspect failures and use targeted retries in the DM console; ambiguous sends require confirmation."}
     end
   end
 

@@ -50,25 +50,41 @@ defmodule AsyncWorlds.Quests.Submissions do
     player(guild_id, verified_user_id, fn campaign, character ->
       tick = Ticks.active_tick(campaign.id) || Repo.rollback(:no_tick)
       progression = active(campaign.id, character.id) || Repo.rollback(:no_quest)
-      revision = Repo.get!(Revision, progression.revision_id)
-      existing = submission(tick.id, character.id)
-
-      valid =
-        existing && valid_submission?(existing, campaign.id, character, progression, revision)
-
-      %{
-        identity: identity(tick.id, progression),
-        open: tick.status == :open,
-        choice_id: if(valid, do: existing.choice_id),
-        quest:
-          Rules.project(revision.definition, %{
-            node_id: progression.node_id,
-            status: progression.status,
-            flags: character.flags,
-            clocks: clocks(campaign.id)
-          })
-      }
+      project_state(campaign, character, tick, progression)
     end)
+  end
+
+  @doc false
+  # Trusted outbox helper: caller holds the campaign lock. No nested rollback on
+  # unassigned/removed owners; those are simply inapplicable notifications.
+  def notification_state(campaign, user_id) do
+    with %Character{} = character <-
+           Repo.get_by(Character, campaign_id: campaign.id, discord_user_id: user_id),
+         %Tick{} = tick <- Ticks.active_tick(campaign.id),
+         %Progression{} = progression <- active(campaign.id, character.id) do
+      {:ok, project_state(campaign, character, tick, progression)}
+    else
+      _ -> {:error, :inapplicable}
+    end
+  end
+
+  defp project_state(campaign, character, tick, progression) do
+    revision = Repo.get!(Revision, progression.revision_id)
+    existing = submission(tick.id, character.id)
+    valid = existing && valid_submission?(existing, campaign.id, character, progression, revision)
+
+    %{
+      identity: identity(tick.id, progression),
+      open: tick.status == :open,
+      choice_id: if(valid, do: existing.choice_id),
+      quest:
+        Rules.project(revision.definition, %{
+          node_id: progression.node_id,
+          status: progression.status,
+          flags: character.flags,
+          clocks: clocks(campaign.id)
+        })
+    }
   end
 
   def readiness(campaign, dm_id, tick_id) do

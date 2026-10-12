@@ -57,7 +57,7 @@ defmodule AsyncWorlds.Deliveries do
           delivery
 
         existing ->
-          fields = [:tick_id, :key, :kind, :recipient_id, :content]
+          fields = [:tick_id, :key, :kind, :recipient_id, :content, :guard]
 
           if Map.take(existing, fields) != Map.take(proposed, fields),
             do: Repo.rollback(:delivery_conflict)
@@ -104,6 +104,8 @@ defmodule AsyncWorlds.Deliveries do
   @doc false
   def claim(id, generation) do
     Repo.transaction(fn ->
+      intent = Repo.get(Delivery, id) || Repo.rollback(:not_found)
+      campaign = lock_campaign!(intent.campaign_id)
       delivery = lock_delivery!(id)
 
       cond do
@@ -121,6 +123,18 @@ defmodule AsyncWorlds.Deliveries do
             status: :ambiguous,
             error_class: :ambiguous,
             last_error: "interrupted_send"
+          )
+
+          :skip
+
+        (delivery.guard == %{} and delivery.kind == :private and
+           String.starts_with?(delivery.key, "tick:#{delivery.tick_id}:players:")) or
+            (delivery.guard != %{} and
+               not AsyncWorlds.Ticks.PrivateNotifications.applicable?(delivery, campaign)) ->
+          update!(delivery,
+            status: :failed,
+            error_class: :permanent,
+            last_error: "stale_notification"
           )
 
           :skip

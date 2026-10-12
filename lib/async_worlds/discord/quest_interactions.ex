@@ -189,7 +189,7 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
     |> Enum.flat_map(fn {choices, index} ->
       labels =
         Enum.map_join(choices, "\n", fn {c, i} ->
-          "#{i}. #{c.label}" <> if(c.enabled, do: "", else: " — Not available right now.")
+          "#{i}. " <> AsyncWorlds.Discord.PlayerContent.choice_line(c)
         end)
 
       text = if index == 0, do: state.quest.text <> "\n" <> labels, else: labels
