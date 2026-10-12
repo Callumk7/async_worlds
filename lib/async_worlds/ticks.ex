@@ -271,13 +271,22 @@ defmodule AsyncWorlds.Ticks do
   end
 
   @doc "Audited DM edit: replace a clock's tick delta or world-news narration; nil clears an override."
-  def edit_draft(campaign_id, tick_id, expected_draft_id, operation, actor_id, reason) do
+  def edit_draft(
+        campaign_id,
+        tick_id,
+        expected_draft_id,
+        operation,
+        actor_id,
+        reason,
+        roller \\ fn -> :rand.uniform(6) end
+      ) do
     with {:ok, operation} <- json_payload(operation) do
       transaction(campaign_id, tick_id, fn campaign, tick ->
         if actor_id != campaign.dm_user_id, do: Repo.rollback(:unauthorized)
 
-        unless is_binary(reason) and String.trim(reason) != "" and String.length(reason) <= 2000,
-          do: Repo.rollback(:invalid_reason)
+        unless is_binary(reason) and String.valid?(reason) and not String.contains?(reason, <<0>>) and
+                 String.trim(reason) != "" and String.length(reason) <= 2000,
+               do: Repo.rollback(:invalid_reason)
 
         if tick.status != :in_review, do: invalid_transition!(tick, :edit_draft)
         draft = current_draft(tick)
@@ -286,6 +295,7 @@ defmodule AsyncWorlds.Ticks do
         review = review_state(tick)
         verify_draft!(draft, snapshot, review)
         validate_review_target!(operation, snapshot)
+        operation = prepare_quest_operation!(operation, snapshot, review, roller)
         review = apply_review_operation(review, operation)
 
         payload =
@@ -346,14 +356,6 @@ defmodule AsyncWorlds.Ticks do
                                                                draft: draft
                                                              } ->
       verify_draft!(draft, snapshot, review_state(tick))
-      # Quest publication is ENG-20. Never publish a partial world-only result.
-      if snapshot.schema_version == 2 and
-           (snapshot.data["quest_inputs"]["submissions"] != [] or
-              Enum.any?(snapshot.data["clocks"], fn c ->
-                Enum.any?(c["triggers"], &(&1["type"] in ["set_flag", "unlock_quest"]))
-              end)),
-         do: Repo.rollback(:quest_publication_required)
-
       campaign = Repo.get!(Campaign, campaign_id)
 
       if not campaign.clock_mutations_locked or campaign.current_tick_number != tick.number - 1,
@@ -362,7 +364,11 @@ defmodule AsyncWorlds.Ticks do
       live = freeze(campaign, tick)
       # v1 predates character inputs. New immutable revisions may be authored
       # after close; they cannot affect the pinned frozen turn.
-      live = if snapshot.schema_version == 1, do: Map.delete(live, "quest_inputs"), else: live
+      live =
+        if snapshot.schema_version == 1,
+          do: Map.drop(live, ["quest_inputs", "quest_unlocks"]),
+          else: live
+
       if comparable(live) != comparable(snapshot.data), do: Repo.rollback(:stale_live_state)
 
       Enum.each(draft.payload["effects"], fn effect ->
@@ -386,6 +392,7 @@ defmodule AsyncWorlds.Ticks do
         })
       end)
 
+      apply_quest_state!(campaign_id, draft.payload)
       outputs = Output.render(draft.payload, snapshot.data["campaign"])
 
       Repo.insert!(%Publication{
@@ -414,6 +421,8 @@ defmodule AsyncWorlds.Ticks do
   end
 
   defp verify_draft!(draft, snapshot, review) do
+    if draft.input_revision != snapshot.revision, do: Repo.rollback(:stale_input)
+
     case resolve_snapshot(snapshot, review) do
       {:ok, payload} when payload == draft.payload -> :ok
       _ -> Repo.rollback(:invalid_draft)
@@ -421,8 +430,49 @@ defmodule AsyncWorlds.Ticks do
   end
 
   defp review_state(tick) do
-    Repo.all(from e in ReviewEdit, where: e.tick_id == ^tick.id, order_by: e.id)
-    |> Enum.reduce(%{}, fn edit, review -> apply_review_operation(review, edit.operation) end)
+    snapshot = snapshot!(tick)
+    edits = Repo.all(from e in ReviewEdit, where: e.tick_id == ^tick.id, order_by: e.id)
+    initial = Repo.get_by!(Draft, tick_id: tick.id, revision: 1)
+    verify_draft!(initial, snapshot, %{})
+
+    {review, last_id} =
+      Enum.reduce(edits, {%{}, initial.id}, fn edit, {review, previous} ->
+        if edit.previous_draft_id != previous, do: Repo.rollback(:invalid_draft)
+        op = edit.operation
+
+        case op do
+          %{"type" => "reroll", "identity" => id, "old_value" => old, "new_value" => value}
+          when map_size(op) == 4 and is_integer(value) and value in 1..6 ->
+            die =
+              rolls(snapshot)
+              |> AsyncWorlds.Ticks.QuestReview.dice(review)
+              |> Enum.find(&(&1["identity"] == id))
+
+            if is_nil(die) or die["value"] != old, do: Repo.rollback(:invalid_draft)
+
+          %{"type" => type} when type in ["outcome", "player_narration"] ->
+            case AsyncWorlds.Ticks.QuestReview.validate(snapshot, Map.delete(op, "key")) do
+              {:ok, ^op} -> :ok
+              _ -> Repo.rollback(:invalid_draft)
+            end
+
+          _ ->
+            validate_review_target!(op, snapshot)
+        end
+
+        review = apply_review_operation(review, op)
+        previous_draft = Repo.get!(Draft, previous)
+        next_draft = Repo.get!(Draft, edit.draft_id)
+
+        if next_draft.tick_id != tick.id or next_draft.revision != previous_draft.revision + 1,
+          do: Repo.rollback(:invalid_draft)
+
+        verify_draft!(next_draft, snapshot, review)
+        {review, edit.draft_id}
+      end)
+
+    if last_id != current_draft(tick).id, do: Repo.rollback(:invalid_draft)
+    review
   end
 
   defp apply_review_operation(
@@ -449,7 +499,72 @@ defmodule AsyncWorlds.Ticks do
       else: Map.put(review, "world_news", news)
   end
 
+  defp apply_review_operation(review, %{"type" => type} = operation)
+       when type in ["reroll", "outcome", "player_narration"],
+       do: AsyncWorlds.Ticks.QuestReview.apply_operation(review, operation)
+
   defp apply_review_operation(_, _), do: Repo.rollback(:invalid_edit)
+
+  defp prepare_quest_operation!(
+         %{"type" => "reroll", "identity" => id, "old_value" => old} = op,
+         snapshot,
+         review,
+         roller
+       )
+       when map_size(op) == 3 do
+    die =
+      rolls(snapshot)
+      |> AsyncWorlds.Ticks.QuestReview.dice(review)
+      |> Enum.find(&(&1["identity"] == id))
+
+    if is_nil(die) or die["value"] != old, do: Repo.rollback(:stale_identity)
+    value = roller.()
+    unless is_integer(value) and value in 1..6, do: Repo.rollback(:invalid_rolls)
+    Map.put(op, "new_value", value)
+  end
+
+  defp prepare_quest_operation!(%{"type" => type} = op, snapshot, _review, _roller)
+       when type in ["outcome", "player_narration"] do
+    case AsyncWorlds.Ticks.QuestReview.validate(snapshot, op) do
+      {:ok, op} -> op
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  defp prepare_quest_operation!(%{"type" => "reroll"}, _, _, _), do: Repo.rollback(:invalid_edit)
+  defp prepare_quest_operation!(operation, _, _, _), do: operation
+
+  defp apply_quest_state!(campaign_id, payload) do
+    for c <- payload["characters"] || [] do
+      character =
+        Repo.get_by!(AsyncWorlds.Characters.Character, id: c["id"], campaign_id: campaign_id)
+
+      update!(character, flags: c["flags"])
+    end
+
+    for p <- payload["progressions"] || [] do
+      progression =
+        Repo.get_by!(AsyncWorlds.Quests.Progression, id: p["id"], campaign_id: campaign_id)
+
+      update!(progression,
+        node_id: p["node_id"],
+        status: String.to_existing_atom(p["status"]),
+        position_version: p["position_version"]
+      )
+    end
+
+    for unlock <- payload["unlocked_quests"] || [], quest_id <- unlock["quest_ids"] do
+      Repo.insert!(
+        %AsyncWorlds.Quests.Unlock{
+          campaign_id: campaign_id,
+          character_id: unlock["character_id"],
+          quest_id: quest_id
+        },
+        on_conflict: :nothing,
+        conflict_target: [:character_id, :quest_id]
+      )
+    end
+  end
 
   defp validate_review_target!(%{"type" => "clock_delta", "clock_id" => id}, snapshot) do
     unless Enum.any?(snapshot.data["clocks"], &(&1["id"] == id and not &1["completed"])),
@@ -503,7 +618,9 @@ defmodule AsyncWorlds.Ticks do
 
   defp comparable(data) do
     if data["quest_inputs"] do
-      update_in(data["quest_inputs"], &Map.drop(&1, ["quests", "revisions"]))
+      data
+      |> Map.put_new("quest_unlocks", [])
+      |> update_in(["quest_inputs"], &Map.drop(&1, ["quests", "revisions"]))
     else
       data
     end
@@ -523,6 +640,13 @@ defmodule AsyncWorlds.Ticks do
         ]),
       "tick_number" => tick.number,
       "quest_inputs" => AsyncWorlds.Quests.Submissions.freeze(campaign.id, tick.id),
+      "quest_unlocks" =>
+        Repo.all(
+          from u in AsyncWorlds.Quests.Unlock,
+            where: u.campaign_id == ^campaign.id,
+            order_by: [u.character_id, u.quest_id],
+            select: %{character_id: u.character_id, quest_id: u.quest_id}
+        ),
       "ordering" => %{
         "clocks" => Enum.map(clocks, & &1.id),
         "race_tie_break" => "ascending_clock_id",

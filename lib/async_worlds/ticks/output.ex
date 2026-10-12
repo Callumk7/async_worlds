@@ -18,7 +18,7 @@ defmodule AsyncWorlds.Ticks.Output do
 
     title = "Tick #{payload["tick_number"]}"
 
-    %{
+    outputs = %{
       "public" =>
         messages(
           [title] ++ payload["world_news"] ++ public_clocks,
@@ -32,6 +32,41 @@ defmodule AsyncWorlds.Ticks.Output do
           campaign["dm_user_id"]
         )
     }
+
+    players =
+      Enum.flat_map(payload["next_nodes"] || [], fn next ->
+        id = next["character_id"]
+        character = Enum.find(payload["characters"], &(&1["id"] == id))
+        results = Enum.filter(payload["private_results"], &(&1["character_id"] == id))
+        projection = next["projection"]
+
+        choices =
+          Enum.map(projection["choices"], fn choice ->
+            choice["label"] <> if(choice["enabled"], do: "", else: " — Not available right now.")
+          end)
+
+        result_lines =
+          Enum.flat_map(results, fn result ->
+            dice = Enum.filter(payload["rolls"], &(&1["input"] == result["input"]))
+
+            summary =
+              if dice == [],
+                do: [],
+                else: [
+                  "Dice: #{Enum.map_join(dice, ", ", & &1["value"])} · #{result["outcome"]}#{if result["critical"], do: " · critical", else: ""}"
+                ]
+
+            summary ++ [result["text"]]
+          end)
+
+        messages(
+          [title] ++ result_lines ++ [projection["text"]] ++ choices,
+          "private",
+          character["discord_user_id"]
+        )
+      end)
+
+    if players == [], do: outputs, else: Map.put(outputs, "players", players)
   end
 
   defp messages(lines, kind, recipient) do

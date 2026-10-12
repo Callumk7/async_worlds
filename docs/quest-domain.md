@@ -76,5 +76,5 @@ exactly one same-campaign `character_id` and `quest_id` (stable quest row, not a
 mutable node). Unlock means availability, not assignment or interruption of an
 active quest. ENG-16 freezes these targets and definitions on close. ENG-18 executes them only
 in the draft trigger phase, once per completed winner clock. They never mutate
-live published state during resolution. Quest publication/review expansion remains
-ENG-20; see [world-resolution.md](world-resolution.md).
+live published state during resolution. ENG-20 publishes these with approved progression and flags atomically, including
+idempotent quest availability. See [quest-review.md](quest-review.md).

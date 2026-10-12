@@ -87,16 +87,14 @@ same dice without even invoking the random callback. A crash after reservation b
 before draft insertion reuses the committed pool. Duplicate workers cannot overwrite
 a reviewed draft. Changed downstream effects do not generate or replace unrelated
 dice. Controlled roll replacement is possible as pure input; durable reroll/review
-operations are ENG-20, not provided here.
+operations are provided by ENG-20; see [quest-review.md](quest-review.md).
 
 `Ticks.fetch_draft(guild_id, verified_actor_id, tick_id)` reauthorizes the current DM
 and scopes retrieval to the campaign. Player projections continue reading live state;
 resolution sends no narration/draft deliveries and mutates no live characters,
-progressions or clocks. Existing world-only publication remains supported, but
-publication of submitted quest turns/dependent triggers fails closed with
-`quest_publication_required` until ENG-20 supplies atomic quest publication. No
-resource mechanics, roll-edit controls, player results delivery or quest publication
-are added by ENG-18.
+progressions or clocks. ENG-20 adds audited die/outcome/narration review and atomic
+quest/world publication with exact private output; see [quest-review.md](quest-review.md).
+Resources remain unimplemented.
 ENG-7's [durable worker](durable-work.md) owns job orchestration; ENG-8's
 [audited review/publication](tick-review-publication.md) owns validated edits and
 atomic publication. `resolve(snapshot, review)` accepts clock-delta and narration

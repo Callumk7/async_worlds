@@ -49,12 +49,18 @@ defmodule AsyncWorldsWeb.AdminComponents do
     do:
       "This draft changed in another window. Reload the review, inspect the new revision, and try again."
 
+  def error_message(:stale_identity),
+    do: "This frozen quest or selected die identity is stale. Reload the review before editing."
+
+  def error_message(:stale_input),
+    do: "The input revision does not match this frozen tick. Reload and inspect the review."
+
   def error_message(:stale_delivery),
     do: "This delivery changed. Refresh its status before retrying."
 
   def error_message(:stale_live_state),
     do:
-      "Live clocks or campaign routing no longer match the frozen inputs. Restore compatible configuration before publishing."
+      "Live clocks, characters, quest positions or campaign routing no longer match the frozen inputs. Restore compatible configuration before publishing."
 
   def error_message(:stale_clock),
     do: "This clock changed in another window. Select it again before saving."
@@ -89,7 +95,7 @@ defmodule AsyncWorldsWeb.AdminComponents do
 
   def error_message(:invalid_edit),
     do:
-      "Choose an eligible clock and a whole-number delta, or valid news paragraphs (at most 2000 characters each)."
+      "Choose a configured quest outcome, valid narration/news, or an eligible clock with a whole-number delta. Text must be at most 2000 characters."
 
   def error_message(:invalid_reason), do: "An audit reason is required (at most 2000 characters)."
 

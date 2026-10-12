@@ -155,6 +155,59 @@ defmodule AsyncWorlds.DeliveriesTest do
     assert fetch(delivery).status == :sent
   end
 
+  test "approved quest private intent uses player user ID through existing delivery adapter", %{
+    campaign: id,
+    tick: tick
+  } do
+    campaign = Repo.get!(AsyncWorlds.Campaigns.Campaign, id)
+
+    {:ok, character} =
+      AsyncWorlds.Characters.create_character(campaign, "456", %{
+        name: "Player",
+        discord_user_id: "991"
+      })
+
+    {:ok, revision} =
+      AsyncWorlds.Quests.create_quest(
+        campaign,
+        "456",
+        %{content_id: "quest", name: "Quest"},
+        AsyncWorlds.QuestFixtures.definition()
+      )
+
+    {:ok, progression} = AsyncWorlds.Quests.assign(campaign, "456", character.id, revision.id)
+    {:ok, state} = AsyncWorlds.Quests.Submissions.player_state("123", "991")
+    {:ok, _} = AsyncWorlds.Quests.Submissions.submit("123", "991", state.identity, "finish")
+    {:ok, %{snapshot: snapshot}} = Ticks.close_tick(id, tick.id)
+
+    assert :ok =
+             perform_job(AsyncWorlds.Workers.ResolveTick, %{
+               campaign_id: id,
+               tick_id: tick.id,
+               input_revision: snapshot.revision
+             })
+
+    {:ok, draft} = Ticks.fetch_draft(id, tick.id)
+    {:ok, outputs} = Ticks.preview_draft(id, tick.id, draft.id)
+    {:ok, _} = Ticks.publish_tick(id, tick.id, draft.id)
+    delivery = Enum.find(Deliveries.list_deliveries(id), &(&1.recipient_id == "991"))
+    assert delivery.kind == :private
+    assert delivery.content == hd(outputs["players"])["content"]
+    FakeAdapter.fail(:send_private, {:error, {:permanent, :forbidden}})
+    assert {:cancel, :forbidden} = run(delivery)
+    assert_receive {:discord, :send_private, {"991", _}}
+    assert Repo.get!(AsyncWorlds.Quests.Progression, progression.id).status == :completed
+    assert {:error, :already_published} = Ticks.publish_tick(id, tick.id, draft.id)
+    FakeAdapter.fail(:send_private, nil)
+    {:ok, retry} = Deliveries.retry_delivery(id, delivery.id, 0)
+    assert :ok = run(retry)
+    assert_receive {:discord, :send_private, {"991", payload}}
+    assert payload.content == delivery.content
+    assert :ok = run(retry)
+    refute_receive {:discord, :send_private, _}
+    assert Repo.get!(AsyncWorlds.Quests.Progression, progression.id).status == :completed
+  end
+
   test "explicit rate-limit rejection retries safely and records a stable nonce", %{
     campaign: id,
     tick: tick
