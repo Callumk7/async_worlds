@@ -38,8 +38,8 @@ defmodule AsyncWorlds.Workers.ResolveTick do
          {:ok, _} <- Ticks.put_draft(campaign, tick, snapshot.revision, payload) do
       :ok
     else
-      {:error, :invalid_snapshot} ->
-        {:cancel, :invalid_snapshot}
+      {:error, reason} when reason in [:invalid_snapshot, :invalid_flags] ->
+        {:cancel, reason}
 
       {:error, :stale_draft} ->
         :ok

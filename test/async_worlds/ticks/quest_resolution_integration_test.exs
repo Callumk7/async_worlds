@@ -115,7 +115,8 @@ defmodule AsyncWorlds.Ticks.QuestResolutionIntegrationTest do
   end
 
   @tag full_flags: true
-  test "an actual engine failure preserves committed dice across worker retries", c do
+  test "a deterministic engine failure cancels and preserves committed dice on operator retry",
+       c do
     {:ok, rolls} =
       Ticks.record_quest_rolls(c.campaign.id, c.tick.id, c.snapshot.revision, fn -> 6 end)
 
@@ -130,7 +131,7 @@ defmodule AsyncWorlds.Ticks.QuestResolutionIntegrationTest do
     }
 
     for _ <- 1..2 do
-      assert {:error, :resolution_failed} = ResolveTick.perform(%Oban.Job{args: args})
+      assert {:cancel, :invalid_flags} = ResolveTick.perform(%Oban.Job{args: args})
       assert {:error, :no_draft} = Ticks.fetch_draft(c.campaign.id, c.tick.id)
       assert Repo.aggregate(Roll, :count) == 6
 

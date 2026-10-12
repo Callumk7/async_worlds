@@ -140,6 +140,83 @@ defmodule AsyncWorlds.Workers.ResolveTickTest do
     end
   end
 
+  for kind <- [:submission, :trigger] do
+    @kind kind
+    test "#{@kind} flag overflow cancels distinctly and preserves frozen input and dice", %{
+      campaign: id,
+      tick: tick
+    } do
+      campaign = Repo.get!(AsyncWorlds.Campaigns.Campaign, id)
+      flags = Map.new(1..100, &{"flag_#{&1}", flag()})
+
+      {:ok, character} =
+        Characters.create_character(campaign, "456", %{
+          name: "At flag capacity",
+          discord_user_id: "991",
+          flags: flags
+        })
+
+      effect = %{"type" => "set_flag", "key" => "overflow", "flag" => flag()}
+      choice = rolled()
+
+      outcomes =
+        Map.new(choice["outcomes"], fn {key, value} ->
+          {key, Map.put(value, "effects", if(@kind == :submission, do: [effect], else: []))}
+        end)
+
+      choice = Map.merge(choice, %{"outcomes" => outcomes, "critical_effects" => []})
+
+      {:ok, revision} =
+        Quests.create_quest(
+          campaign,
+          "456",
+          %{content_id: "overflow", name: "Overflow"},
+          replace_choice(definition(), choice)
+        )
+
+      {:ok, _} = Quests.assign(campaign, "456", character.id, revision.id)
+      {:ok, state} = Submissions.player_state("123", "991")
+      {:ok, _} = Submissions.submit("123", "991", state.identity, "roll")
+
+      if @kind == :trigger do
+        {:ok, clock} = Clocks.create_clock(id, %{name: "Overflow", segments: 4, filled: 4}, "dm")
+
+        {:ok, _} =
+          Quests.configure_clock_triggers(campaign, "456", clock.id, [
+            %{type: :set_flag, character_id: character.id, key: "overflow", flag: flag()}
+          ])
+      end
+
+      {:ok, %{snapshot: snapshot}} = Ticks.close_tick(id, tick.id)
+      opts = [name: __MODULE__.Oban, repo: AsyncWorlds.Repo, testing: :manual]
+      start_supervised!({Oban, opts})
+
+      assert %{cancelled: 1, failure: 0} =
+               Oban.drain_queue(__MODULE__.Oban, queue: :resolution)
+
+      assert {:ok, [job]} = Ticks.resolution_jobs(id, tick.id)
+      assert job.state == "cancelled"
+      assert inspect(job.errors) =~ "invalid_flags"
+      assert {:ok, rolls} = Ticks.record_quest_rolls(id, tick.id, snapshot.revision)
+      assert length(rolls) == 3
+
+      assert :ok = Oban.retry_job(__MODULE__.Oban, job.id)
+
+      assert %{cancelled: 1, failure: 0} =
+               Oban.drain_queue(__MODULE__.Oban, queue: :resolution)
+
+      assert {:ok, ^rolls} = Ticks.record_quest_rolls(id, tick.id, snapshot.revision)
+      assert {:ok, ^snapshot} = Ticks.fetch_snapshot(id, tick.id)
+      assert {:ok, %{status: :resolving}} = Ticks.fetch_tick(id, tick.id)
+      assert {:error, :no_draft} = Ticks.fetch_draft(id, tick.id)
+
+      assert {:error, :tick_locked} =
+               Characters.clear_flag(campaign, "456", character.id, "flag_1")
+
+      assert Repo.get!(AsyncWorlds.Characters.Character, character.id).flags == flags
+    end
+  end
+
   test "malformed frozen input cancels safely and leaves the tick locked for investigation", %{
     campaign: id,
     tick: tick

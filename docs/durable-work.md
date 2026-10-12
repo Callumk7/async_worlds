@@ -29,8 +29,13 @@ See [world-resolution.md](world-resolution.md) for identities and ordering. Mana
 stays locked during resolution/review; drafts never change published player state.
 
 Transient failures retry up to ten times. Invalid input/schema, missing records and
-stale input cancel safely. Invalid snapshots leave the tick resolving and clock
-management locked; do not unlock or edit immutable inputs to hide a failed job.
+stale input cancel safely. Invalid resulting character flags (including exceeding
+100 flags) cancel with `:invalid_flags`, rather than retrying a deterministic failure.
+Invalid snapshots and invalid flags leave the tick resolving and management locked;
+do not unlock, edit immutable inputs, or delete recorded dice to hide a failed job.
+For `:invalid_flags`, inspect the cancelled job and frozen effects/triggers, diagnose
+and deploy an engine/policy fix, then use `Oban.retry_job(job.id)` to resume against
+the same snapshot and recorded dice. Retrying without a fix cannot change the outcome.
 `Ticks.resolution_jobs(campaign_id, tick_id)` returns owning-tick Oban records for
 DM-only diagnostics (state, attempts, sanitized errors). Authorized operator tools
 may use Oban.retry_job(job.id) for a diagnosed transient failure. A stale job remains
