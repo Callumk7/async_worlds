@@ -3,8 +3,8 @@
 ## Player access
 
 - `/quest`: current player-safe quest, with editable controls only during the open tick. Closed/review states expose no draft results.
-- `/submission`: current choice/controls while applicable; otherwise the latest closed turn in which this character participated. A newer world-only turn does not erase the previous personal submission.
-- `/result`: latest applicable **published** personal output, including approved narration/dice and the next-node projection. Later open/resolving/review ticks do not replace it. Completed quests retain their last personal output.
+- `/submission`: current choice/controls while applicable; otherwise the latest closed turn containing this character’s actual submission. A newer world-only turn does not erase the previous personal submission.
+- `/result`: latest applicable **published** personal output, including approved narration/dice and the next-node projection. Later open/resolving/review ticks or projection-only published turns without a personal result do not replace it. Completed quests retain their last personal output.
 
 All commands are ephemeral, scoped to the verified guild member. They do not depend on DMs succeeding and do not enqueue outbound messages. Historical reads require both current character ownership and matching historical character ID/Discord owner; transferring a character does not give the new owner its previous owner's private history.
 

@@ -12,6 +12,7 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
     player(guild, user, fn campaign, character ->
       owner = [%{id: character.id, discord_user_id: character.discord_user_id}]
       recipient = [%{recipient_id: character.discord_user_id}]
+      personal = [%{character_id: character.id}]
 
       publication =
         Repo.one(
@@ -21,6 +22,7 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
             where:
               t.campaign_id == ^campaign.id and t.status == :published and
                 fragment("?->'characters' @> ?::jsonb", p.payload, ^owner) and
+                fragment("?->'private_results' @> ?::jsonb", p.payload, ^personal) and
                 fragment("?->'players' @> ?::jsonb", p.outputs, ^recipient),
             order_by: [desc: t.number],
             limit: 1
@@ -54,7 +56,7 @@ defmodule AsyncWorlds.Discord.PrivateRetrieval do
             where:
               t.campaign_id == ^campaign.id and
                 fragment("?->'quest_inputs'->'characters' @> ?::jsonb", s.data, ^owner) and
-                fragment("?->'quest_inputs'->'progressions' @> ?::jsonb", s.data, ^participant),
+                fragment("?->'quest_inputs'->'submissions' @> ?::jsonb", s.data, ^participant),
             order_by: [desc: t.number],
             limit: 1
         )

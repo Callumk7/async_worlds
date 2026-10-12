@@ -373,6 +373,38 @@ defmodule AsyncWorlds.PrivateTickNotificationsTest do
     assert {:ok, ^submission} = AsyncWorlds.Discord.Commands.execute(:submission, context)
   end
 
+  test "active player's personal result and submitted choice survive a later missed turn", c do
+    publish = fn tick ->
+      {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, tick.id)
+      {:ok, payload} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
+      {:ok, %{draft: draft}} = Ticks.put_draft(c.campaign.id, tick.id, snapshot.revision, payload)
+      {:ok, _} = Ticks.publish_tick(c.campaign.id, tick.id, draft.id)
+    end
+
+    {:ok, tick} = Ticks.open_tick(c.campaign.id)
+    {:ok, state} = AsyncWorlds.Quests.Submissions.player_state("123", "991")
+    {:ok, _} = AsyncWorlds.Quests.Submissions.submit("123", "991", state.identity, "loop")
+    publish.(tick)
+    context = %{campaign: c.campaign, user_id: "991"}
+    {:ok, result} = AsyncWorlds.Discord.Commands.execute(:result, context)
+    {:ok, submission} = AsyncWorlds.Discord.Commands.execute(:submission, context)
+    assert submission =~ "Latest choice: loop"
+    {:ok, next} = Ticks.open_tick(c.campaign.id)
+    publish.(next)
+    assert {:ok, ^result} = AsyncWorlds.Discord.Commands.execute(:result, context)
+    assert {:ok, ^submission} = AsyncWorlds.Discord.Commands.execute(:submission, context)
+
+    {:ok, third} = Ticks.open_tick(c.campaign.id)
+    {:ok, state} = AsyncWorlds.Quests.Submissions.player_state("123", "991")
+    {:ok, _} = AsyncWorlds.Quests.Submissions.submit("123", "991", state.identity, "finish")
+    publish.(third)
+    assert {:ok, newest} = AsyncWorlds.Discord.Commands.execute(:result, context)
+    assert newest =~ "Tick 3"
+    assert {:ok, newest_submission} = AsyncWorlds.Discord.Commands.execute(:submission, context)
+    assert newest_submission =~ "Tick 3"
+    assert newest_submission =~ "Latest choice: finish"
+  end
+
   test "unguarded legacy personal outputs fail closed for pending and targeted retries", c do
     {:ok, tick} = Ticks.open_tick(c.campaign.id)
 
