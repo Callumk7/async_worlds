@@ -20,6 +20,67 @@ defmodule AsyncWorlds.Quests do
 
   alias AsyncWorlds.Ticks.Tick
 
+  @doc "Atomically imports versioned JSON. Exact latest definition/name repeats reuse revisions."
+  def import_json(campaign, dm_id, json, opts \\ []) do
+    manage(campaign, dm_id, fn current ->
+      clocks = clock_map(current.id)
+      bindings = Keyword.get(opts, :clock_refs, %{})
+
+      quests =
+        case AsyncWorlds.Quests.Import.decode(json, clocks, bindings) do
+          {:ok, quests} -> quests
+          {:error, errors} -> Repo.rollback(errors)
+        end
+
+      Enum.map(quests, fn entry ->
+        quest = Repo.get_by(Quest, campaign_id: current.id, content_id: entry["content_id"])
+
+        latest =
+          quest &&
+            Repo.one(
+              from r in Revision,
+                where: r.quest_id == ^quest.id,
+                order_by: [desc: r.number],
+                limit: 1
+            )
+
+        if latest && latest.definition == entry["definition"] && quest.name == entry["name"] do
+          %{action: :unchanged, revision: latest}
+        else
+          action = if quest, do: :appended, else: :created
+
+          quest =
+            if quest do
+              Repo.update!(change(quest, name: entry["name"]))
+            else
+              Repo.insert!(%Quest{
+                campaign_id: current.id,
+                content_id: entry["content_id"],
+                name: entry["name"]
+              })
+            end
+
+          %{action: action, revision: append!(current.id, quest.id, entry["definition"])}
+        end
+      end)
+    end)
+  end
+
+  @doc "Freshly authorized clock creation for trusted operators and other shared callers."
+  def create_clock(campaign, dm_id, attrs) do
+    manage(campaign, dm_id, fn current ->
+      name = if is_map(attrs), do: Map.get(attrs, :name) || Map.get(attrs, "name")
+
+      unless Definition.text?(name) and byte_size(name) <= 200,
+        do: Repo.rollback(:invalid_clock_name)
+
+      case Clocks.create_clock(current.id, attrs, "dm:#{current.dm_user_id}") do
+        {:ok, clock} -> clock
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
   def create_quest(campaign, dm_id, attrs, definition) do
     manage(campaign, dm_id, fn current ->
       unless is_map(attrs) and not is_struct(attrs) and Definition.id?(attrs[:content_id]) and
