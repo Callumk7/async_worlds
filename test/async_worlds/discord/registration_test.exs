@@ -31,13 +31,15 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
              "admin",
              "character",
              "quest",
+             "result",
              "submission"
            ]
 
     assert Enum.map(Enum.at(Commands.definitions(), 1).options, & &1.name) == [
              "open",
              "close",
-             "status"
+             "status",
+             "remind"
            ]
   end
 

@@ -214,7 +214,7 @@ defmodule AsyncWorlds.Ticks.QuestRollConcurrencyTest do
                from p in AsyncWorlds.Quests.Progression, where: p.campaign_id == ^c.campaign.id
              ).status == :completed
 
-      assert length(AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)) == 4
+      assert length(AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)) == 5
     end)
   end
 
@@ -244,7 +244,7 @@ defmodule AsyncWorlds.Ticks.QuestRollConcurrencyTest do
         :ok
     end
 
-    assert db(fn -> length(AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)) end) == 4
+    assert db(fn -> length(AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)) end) == 5
   end
 
   test "separate-connection reservations and duplicate workers preserve exactly one pool and one draft",

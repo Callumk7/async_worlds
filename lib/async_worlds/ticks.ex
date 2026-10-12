@@ -164,6 +164,7 @@ defmodule AsyncWorlds.Ticks do
       })
       |> persist!()
 
+      AsyncWorlds.Ticks.PrivateNotifications.opened(campaign, tick)
       tick
     end)
   end
@@ -402,13 +403,32 @@ defmodule AsyncWorlds.Ticks do
         outputs: outputs
       })
 
-      for {audience, messages} <- outputs, {message, index} <- Enum.with_index(messages) do
+      for {audience, messages} <- outputs,
+          {_owner, owned_messages} <- Enum.group_by(messages, & &1["recipient_id"]),
+          {message, index} <- Enum.with_index(owned_messages) do
         attrs =
           Map.put(
             message,
             "key",
             "tick:#{tick.id}:#{audience}:#{message["recipient_id"]}:#{index}"
           )
+
+        attrs =
+          if audience == "players" do
+            character =
+              Enum.find(
+                draft.payload["characters"],
+                &(&1["discord_user_id"] == message["recipient_id"])
+              )
+
+            Map.put(attrs, "guard", %{
+              "type" => "published_player",
+              "character_id" => character["id"],
+              "guild" => campaign.discord_guild_id
+            })
+          else
+            attrs
+          end
 
         case Deliveries.enqueue(campaign_id, tick.id, attrs) do
           {:ok, _} -> :ok
