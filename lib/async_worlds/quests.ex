@@ -301,30 +301,20 @@ defmodule AsyncWorlds.Quests do
 
   @doc "Read-only safe projection using verified player identity; no arbitrary character selector."
   def player_quest(guild_id, verified_user_id) do
-    with {:ok, user_id} <- normalize(verified_user_id),
-         {:ok, expected} <- Campaigns.fetch_campaign_by_guild(guild_id) do
-      Repo.transaction(fn ->
-        current = lock!(expected.id)
-        if current.discord_guild_id != expected.discord_guild_id, do: Repo.rollback(:not_found)
+    AsyncWorlds.PlayerAccess.run(guild_id, verified_user_id, fn current, character ->
+      progression =
+        active(current.id, character.id) || latest_completed(current.id, character.id) ||
+          Repo.rollback(:no_quest)
 
-        character =
-          Repo.get_by(Character, campaign_id: current.id, discord_user_id: user_id) ||
-            Repo.rollback(:not_found)
+      revision = fetch!(Revision, current.id, progression.revision_id)
 
-        progression =
-          active(current.id, character.id) || latest_completed(current.id, character.id) ||
-            Repo.rollback(:no_quest)
-
-        revision = fetch!(Revision, current.id, progression.revision_id)
-
-        Rules.project(revision.definition, %{
-          node_id: progression.node_id,
-          status: progression.status,
-          flags: character.flags,
-          clocks: clock_map(current.id)
-        })
-      end)
-    end
+      Rules.project(revision.definition, %{
+        node_id: progression.node_id,
+        status: progression.status,
+        flags: character.flags,
+        clocks: clock_map(current.id)
+      })
+    end)
   end
 
   defp append!(campaign_id, quest_id, definition) do

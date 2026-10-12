@@ -9,7 +9,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   require Logger
 
   alias AsyncWorlds.Campaigns
-  alias AsyncWorlds.Discord.{Commands, QuestInteractions, Snowflake}
+  alias AsyncWorlds.Discord.{Commands, DebugInteractions, QuestInteractions, Snowflake}
 
   def handle(interaction, opts \\ Application.fetch_env!(:async_worlds, :discord))
 
@@ -38,14 +38,15 @@ defmodule AsyncWorlds.Discord.Dispatcher do
     result =
       safely(:command, fn ->
         with {:ok, command, permission} <- route(interaction),
-             {:ok, campaign, user_id} <- authorize(interaction, permission, opts) do
+             {:ok, campaign, user_id} <- authorize(interaction, permission, opts),
+             {:ok, context} <- command_context(permission, campaign, user_id),
+             true <- permission != :dm or context.role == :dm do
           handler = Keyword.get(opts, :handler, Commands)
-
-          handler.execute(command, %{
-            campaign: campaign,
-            user_id: user_id,
-            interaction_id: envelope.id
-          })
+          context = Map.put(context, :interaction_id, envelope.id)
+          handler.execute(command, context) |> testing_banner(context, permission)
+        else
+          false -> {:error, :unauthorized}
+          error -> error
         end
       end)
 
@@ -90,6 +91,9 @@ defmodule AsyncWorlds.Discord.Dispatcher do
     end
   end
 
+  defp route(%{type: 3, data: %{custom_id: "db:" <> _} = data}),
+    do: DebugInteractions.component_route(data)
+
   defp route(%{type: 3, data: data}), do: QuestInteractions.route(data)
   defp route(interaction), do: Commands.route(Map.get(interaction, :data))
 
@@ -123,8 +127,27 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   defp get_in_member(%{member: %{user_id: id}}), do: id
   defp get_in_member(_), do: nil
 
-  defp lookup(:dm, guild_id, user_id), do: Campaigns.authorize_dm(guild_id, user_id)
+  defp lookup(permission, guild_id, user_id) when permission in [:dm, :debug],
+    do: Campaigns.authorize_dm(guild_id, user_id)
+
   defp lookup(:player, guild_id, _user_id), do: Campaigns.fetch_campaign_by_guild(guild_id)
+
+  # Debug is the escape hatch even if a selected character was deleted.
+  defp command_context(:debug, campaign, actor),
+    do: {:ok, %{campaign: campaign, user_id: actor, access: actor, role: :dm}}
+
+  defp command_context(_, campaign, actor), do: AsyncWorlds.PlayerAccess.context(campaign, actor)
+
+  defp testing_banner({:ok, response}, %{debug_character: name}, :player) do
+    banner = "Testing as #{name} · player · changes are real\n"
+
+    case response do
+      content when is_binary(content) -> {:ok, banner <> content}
+      %{content: content} -> {:ok, %{response | content: banner <> content}}
+    end
+  end
+
+  defp testing_banner(result, _, _), do: result
 
   @doc false
   def safely(stage, fun) do

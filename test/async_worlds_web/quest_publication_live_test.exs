@@ -153,7 +153,7 @@ defmodule AsyncWorldsWeb.QuestPublicationLiveTest do
                  input_revision: snapshot.revision
                })
 
-      assert snapshot.schema_version == 2
+      assert snapshot.schema_version == 3
       {:ok, view, _} = live(c.conn, ~p"/ticks/#{tick.id}/review")
 
       if @kind == :submission do

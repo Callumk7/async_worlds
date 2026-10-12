@@ -1,7 +1,8 @@
 defmodule Mix.Tasks.Discord.RegisterCommands do
-  @shortdoc "Replaces milestone-1 slash commands in the configured development guild"
+  @shortdoc "Replaces campaign slash commands in the configured guild"
   @moduledoc """
-  Registers `/clocks`, `/tick open`, `/tick close`, `/tick status` and `/admin`.
+  Registers `/clocks`, `/tick`, `/admin`, `/character`, `/quest`, `/submission`
+  and `/debug`, plus `/result`, in the configured guild.
 
       DISCORD_ENABLED=true mix discord.register_commands
 

@@ -112,6 +112,38 @@ defmodule AsyncWorlds.QuestSubmissionsConcurrencyTest do
     Enum.map(tasks, &Task.await(&1, 10_000))
   end
 
+  test "persona switch racing submit serializes without writing to the new subject", c do
+    alias AsyncWorlds.Discord.DebugSessions
+    guild = c.campaign.discord_guild_id
+    {:ok, first} = db(fn -> Characters.player_character(guild, "991") end)
+    assert first.name == "Player"
+    {:ok, characters} = db(fn -> Characters.list_characters(c.campaign, "456") end)
+    original = hd(characters)
+    {:ok, other} = db(fn -> Characters.create_character(c.campaign, "456", %{name: "Other"}) end)
+    {:ok, _} = db(fn -> DebugSessions.transition(guild, "456", {:player, original.id}) end)
+    {:ok, context} = db(fn -> AsyncWorlds.PlayerAccess.context(c.campaign, "456") end)
+
+    [result, {:ok, switched}] =
+      race(c.supervisor, [
+        fn -> Submissions.submit(guild, context.access, c.identity, "loop") end,
+        fn -> DebugSessions.transition(guild, "456", {:player, other.id}) end
+      ])
+
+    assert switched.character_id == other.id
+    assert match?({:ok, _}, result) or result == {:error, :stale_component}
+
+    submissions =
+      db(fn ->
+        Repo.all(from s in AsyncWorlds.Quests.Submission, where: s.campaign_id == ^c.campaign.id)
+      end)
+
+    assert Enum.all?(submissions, &(&1.character_id == original.id))
+    assert length(submissions) == if(match?({:ok, _}, result), do: 1, else: 0)
+
+    assert {:error, :stale_component} =
+             db(fn -> Submissions.clear(guild, context.access, c.identity) end)
+  end
+
   defp expected_choice({:ok, _}, :clear), do: nil
   defp expected_choice({:ok, _}, :replace), do: "finish"
   defp expected_choice({:ok, _}, :submit), do: "loop"

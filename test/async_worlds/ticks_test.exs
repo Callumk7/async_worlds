@@ -48,7 +48,7 @@ defmodule AsyncWorlds.TicksTest do
     assert Ticks.latest_published_tick(id) == nil
     assert {:error, :active_tick} = Ticks.open_tick(id)
     {snapshot, draft} = review(id, tick)
-    assert snapshot.schema_version == 2
+    assert snapshot.schema_version == 3
     assert draft.revision == 1
     assert draft.input_revision == snapshot.revision
     assert {:ok, reviewed} = Ticks.fetch_tick(id, tick.id)

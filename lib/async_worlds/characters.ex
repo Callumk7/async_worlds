@@ -56,13 +56,9 @@ defmodule AsyncWorlds.Characters do
 
   @doc "Identity comes ONLY from a verified interaction/session, never a player-supplied character ID."
   def player_character(guild_id, verified_discord_user_id) do
-    with {:ok, user_id} <- normalize(verified_discord_user_id),
-         {:ok, campaign} <- Campaigns.fetch_campaign_by_guild(guild_id) do
-      case Repo.get_by(Character, campaign_id: campaign.id, discord_user_id: user_id) do
-        nil -> {:error, :not_found}
-        character -> {:ok, player_payload(character)}
-      end
-    end
+    AsyncWorlds.PlayerAccess.run(guild_id, verified_discord_user_id, fn _campaign, character ->
+      player_payload(character)
+    end)
   end
 
   defp player_payload(character) do

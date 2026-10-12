@@ -54,11 +54,27 @@ defmodule AsyncWorlds.Ticks.Output do
             summary ++ [result["text"]]
           end)
 
-        messages(
-          [title] ++ result_lines ++ AsyncWorlds.Discord.PlayerContent.quest_lines(projection),
-          "private",
-          character["discord_user_id"]
-        )
+        lines =
+          [title] ++ result_lines ++ AsyncWorlds.Discord.PlayerContent.quest_lines(projection)
+
+        if payload["schema_version"] == 3 do
+          payload["player_delivery"]["routes"]
+          |> Enum.filter(&(&1["character_id"] == id))
+          |> Enum.flat_map(fn route ->
+            labelled = if route["label"], do: [route["label"] | lines], else: lines
+
+            messages(labelled, "private", route["recipient_id"])
+            |> Enum.with_index(fn message, chunk ->
+              Map.merge(message, %{
+                "character_id" => id,
+                "delivery_audience" => route["audience"],
+                "chunk_index" => chunk
+              })
+            end)
+          end)
+        else
+          messages(lines, "private", character["discord_user_id"])
+        end
       end)
 
     if players == [], do: outputs, else: Map.put(outputs, "players", players)

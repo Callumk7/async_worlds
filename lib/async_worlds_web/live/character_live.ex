@@ -125,14 +125,15 @@ defmodule AsyncWorldsWeb.CharacterLive do
           <p class="text-xs uppercase tracking-widest text-amber-300">Campaign cast</p>
           <h1 class="mt-2 text-4xl font-semibold tracking-tight">Characters</h1>
           <p class="mt-3 text-sm text-slate-400">
-            One character per Discord player. Facts stay private unless explicitly shared.
+            Link one character per Discord player, or leave the account blank for a DM-controlled character.
+            Facts stay private unless explicitly shared.
           </p>
         </header>
         <div class="grid gap-7 lg:grid-cols-2">
           <section class="admin-panel space-y-5">
             <div class="flex justify-between items-center">
               <h2 class="text-xl font-semibold">
-                {if @editing, do: "Edit character", else: "Link a player"}
+                {if @editing, do: "Edit character", else: "Create a character"}
               </h2>
               <button id="new-character" phx-click="new" class="admin-button admin-secondary">New</button>
             </div>
@@ -146,8 +147,7 @@ defmodule AsyncWorldsWeb.CharacterLive do
               />
               <.input
                 field={@form[:discord_user_id]}
-                label="Discord user ID"
-                required
+                label="Discord user ID (optional; blank means DM-controlled)"
                 class="admin-input"
               />
               <button id="save-character" class="admin-button" phx-disable-with="Saving…">Save character</button>
@@ -213,10 +213,10 @@ defmodule AsyncWorldsWeb.CharacterLive do
             </section>
           </section>
           <section class="admin-panel">
-            <h2 class="mb-5 text-xl font-semibold">Linked players</h2>
+            <h2 class="mb-5 text-xl font-semibold">Campaign characters</h2>
             <div id="managed-characters" phx-update="stream" class="space-y-3">
               <p id="characters-empty" class="hidden only:block text-sm text-slate-400">
-                Link the first player to get started.
+                Create the first character to get started.
               </p>
               <article
                 :for={{dom_id, character} <- @streams.characters}
@@ -224,8 +224,13 @@ defmodule AsyncWorldsWeb.CharacterLive do
                 class="rounded-xl border border-white/10 p-4 flex justify-between gap-4 items-center"
               >
                 <div>
-                  <h3 class="font-semibold">{character.name}</h3><p class="text-xs text-slate-400 mt-1">
-                    Discord {character.discord_user_id}
+                  <h3 class="font-semibold">{character.name}</h3><p
+                    id={"character-destination-#{character.id}"}
+                    class="text-xs text-slate-400 mt-1"
+                  >
+                    ID {character.id} · {if character.discord_user_id,
+                      do: "Discord #{character.discord_user_id}",
+                      else: "DM-controlled · personal messages go to the DM"}
                   </p>
                 </div>
                 <div class="flex flex-wrap gap-2">

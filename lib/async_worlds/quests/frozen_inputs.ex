@@ -1,9 +1,11 @@
 defmodule AsyncWorlds.Quests.FrozenInputs do
-  @moduledoc "Pure validation of the v2 quest input contract. Never consults live state."
+  @moduledoc "Pure validation of the v2/v3 quest input contract. Never consults live state."
   alias AsyncWorlds.Characters.Flags
   alias AsyncWorlds.Quests.{Definition, Rules}
 
-  def valid?(inputs, clocks) when is_map(inputs) do
+  def valid?(inputs, clocks, version \\ 2)
+
+  def valid?(inputs, clocks, version) when is_map(inputs) do
     with true <-
            Enum.sort(Map.keys(inputs)) ==
              Enum.sort(~w(characters progressions quests revisions submissions invalidations)),
@@ -27,11 +29,15 @@ defmodule AsyncWorlds.Quests.FrozenInputs do
       progressions = Map.new(inputs["progressions"], &{&1["id"], &1})
 
       valid_targets?(clocks, characters, quests) and
-        unique?(inputs["characters"], "discord_user_id") and
+        unique?(
+          Enum.reject(inputs["characters"], &(version == 3 and is_nil(&1["discord_user_id"]))),
+          "discord_user_id"
+        ) and
         unique?(inputs["quests"], "content_id") and
         Enum.all?(inputs["characters"], fn c ->
           exact?(c, ~w(id name discord_user_id flags)) and Definition.text?(c["name"]) and
-            is_binary(c["discord_user_id"]) and Flags.valid?(c["flags"])
+            (is_binary(c["discord_user_id"]) or (version == 3 and is_nil(c["discord_user_id"]))) and
+            Flags.valid?(c["flags"])
         end) and
         Enum.all?(inputs["quests"], fn q ->
           exact?(q, ~w(id content_id name)) and Definition.id?(q["content_id"]) and
@@ -77,7 +83,7 @@ defmodule AsyncWorlds.Quests.FrozenInputs do
     _ -> false
   end
 
-  def valid?(_, _), do: false
+  def valid?(_, _, _), do: false
 
   defp valid_targets?(clocks, characters, quests) do
     Enum.all?(clocks, fn clock ->

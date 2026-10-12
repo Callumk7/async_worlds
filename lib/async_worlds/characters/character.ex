@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.Characters.Character do
-  @moduledoc "A campaign-owned character linked to one Discord identity."
+  @moduledoc "A campaign-owned character with an optional Discord owner; unlinked characters are DM-controlled."
   use Ecto.Schema
   import Ecto.Changeset
   alias AsyncWorlds.Characters.Flags
@@ -16,7 +16,7 @@ defmodule AsyncWorlds.Characters.Character do
   def changeset(character, attrs) do
     character
     |> cast(attrs, [:name, :discord_user_id, :flags])
-    |> validate_required([:name, :discord_user_id])
+    |> validate_required([:name])
     |> validate_length(:name, max: 200, count: :codepoints)
     |> validate_change(:name, fn :name, name ->
       if String.valid?(name) and not String.contains?(name, <<0>>),

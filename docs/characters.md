@@ -17,7 +17,7 @@ DM APIs accept the previously loaded `%Campaign{}` plus the **authenticated** Di
 
 All return `{:ok, result}` or `{:error, reason_or_changeset}`. Every operation starts a transaction, locks and reloads the campaign, checks the current DM, and rejects changed guild/DM/public-channel configuration (`:stale_campaign`). An old DM receives `:unauthorized`. Setup's upsert takes the same row lock, so concurrent setup cannot slip between authorization and persistence. Reads are protected too. Character IDs are positive database IDs and always scoped to that campaign; invalid/missing/foreign IDs return `:not_found`. Snowflakes use the existing strict unsigned-64-bit type; malformed actor IDs return `:invalid_id`. Failed validations, authorization, uniqueness or flag updates leave all character fields unchanged.
 
-`attrs` may contain `name`, `discord_user_id`, and `flags`. `campaign_id`, primary keys and timestamps are never cast. The DM may intentionally relink ownership; a conflicting relink fails atomically. A non-null campaign foreign key and PostgreSQL unique index on `(campaign_id, discord_user_id)` enforce one character per identity per campaign, without an application uniqueness precheck. A database check also guards canonical snowflakes. Separate campaigns may link the same Discord identity.
+`attrs` may contain `name`, `discord_user_id`, and `flags`. `campaign_id`, primary keys and timestamps are never cast. The DM may intentionally relink ownership; a conflicting relink fails atomically. A non-null campaign foreign key and PostgreSQL unique index on `(campaign_id, discord_user_id)` enforce one character per linked identity per campaign, without an application uniqueness precheck. Discord ownership is optional: null/blank means a DM-controlled character, and multiple accountless characters are allowed. Their labelled personal messages go to the campaign DM via frozen delivery routes. A database check also guards canonical snowflakes. Separate campaigns may link the same Discord identity.
 
 ## Flags
 
@@ -37,7 +37,7 @@ The small web editor accepts JSON values (e.g. `true`, `3`, `"Captain"`) and an 
 
 ## Player identity and privacy
 
-`player_character(guild_id, verified_discord_user_id)` accepts an identity obtained from a trusted Discord interaction (or a future verified session), **not arbitrary player parameters**. There is deliberately no character-ID argument. It returns only:
+`player_character(guild_id, verified_discord_user_id)` accepts an identity obtained from a trusted Discord interaction (or a future verified session), **not arbitrary player parameters**. There is deliberately no arbitrary player character-ID argument. The verified-user API remains compatible; Discord debug calls use the shared `PlayerAccess` subject context instead, freshly checked against the current DM and persisted persona under the campaign lock. It returns only:
 
 ```elixir
 {:ok, %{name: "Rook", flags: %{"debt" => %{"type" => "integer", "value" => 3}}}}
@@ -45,7 +45,7 @@ The small web editor accepts JSON values (e.g. `true`, `3`, `"Captain"`) and an 
 
 The projection constructs a whitelist: no internal character/campaign IDs, Discord IDs, timestamps, associations, visibility metadata or future schema fields. Hidden flags are omitted entirely, including their names; malformed stored facts fail closed. No character returns `{:error, :not_found}`.
 
-The Discord dispatcher supplies only the authenticated guild member identity, never a top-level user or command option. `/character` has no options; forged character/user-ID options are rejected. It inherits the existing private defer/edit/followup adapter path (ephemeral flag 64 and suppressed mentions), guild/application checks, chunking, and failure handling. No proactive DM or public message is sent.
+The Discord dispatcher retains the authenticated guild member as the real actor, never a top-level user or player-supplied ownership option. The current DM may explicitly select a gameplay subject using `/debug`; this does not relink the character or change OAuth identity. See [single-account testing](discord.md#single-account-player-testing-including-live-campaigns). `/character` has no options; forged character/user-ID options are rejected. It inherits the existing private defer/edit/followup adapter path (ephemeral flag 64 and suppressed mentions), guild/application checks, chunking, and failure handling. No proactive DM or public message is sent.
 
 LiveView uses the existing authenticated-DM live session, with session reauthorization on every event and revocation/expiry handling. Domain authorization is additional protection, not a substitute for the session check.
 
