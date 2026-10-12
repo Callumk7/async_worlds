@@ -1,0 +1,53 @@
+type: http_request
+model: http_request
+id: rq_DY5XkF7tiv
+createdAt: 2026-10-12T10:46:59.070511
+updatedAt: 2026-10-12T10:46:59.070512
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Ba7czAVrRf
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "version": 1,
+      "quests": []
+    }
+bodyType: application/json
+description: Expected 422 invalid_document. Writes nothing.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+- enabled: true
+  name: Accept
+  value: application/json
+  id: null
+- enabled: true
+  name: Authorization
+  value: Bearer ${[ API_TOKEN ]}
+  id: null
+method: POST
+name: 04 - Reject an invalid document
+sortPriority: 3.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

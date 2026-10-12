@@ -1,0 +1,117 @@
+type: http_request
+model: http_request
+id: rq_9TmpE5GEjb
+createdAt: 2026-10-12T10:46:59.070511
+updatedAt: 2026-10-12T10:46:59.070512
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Ba7czAVrRf
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "version": 1,
+      "quests": [
+        {
+          "content_id": "yaak-courier-batch",
+          "name": "The Courier",
+          "definition": {
+            "start_node": "end",
+            "nodes": [
+              {
+                "id": "end",
+                "text": "The courier thanks you. Your journey is complete.",
+                "ending": true,
+                "choices": []
+              }
+            ]
+          }
+        },
+        {
+          "content_id": "yaak-crossing",
+          "name": "The River Crossing",
+          "definition": {
+            "start_node": "bank",
+            "nodes": [
+              {
+                "id": "bank",
+                "text": "A swift river blocks your path.",
+                "ending": false,
+                "choices": [
+                  {
+                    "id": "cross",
+                    "label": "Attempt the crossing",
+                    "eligibility": "disabled",
+                    "conditions": [],
+                    "mode": "rolled",
+                    "dice": 2,
+                    "critical_effects": [],
+                    "outcomes": {
+                      "success": {
+                        "text": "You cross safely.",
+                        "next_node": "end",
+                        "effects": []
+                      },
+                      "partial": {
+                        "text": "You retreat to the bank.",
+                        "next_node": "bank",
+                        "effects": []
+                      },
+                      "failure": {
+                        "text": "The current forces you back.",
+                        "next_node": "bank",
+                        "effects": []
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "end",
+                "text": "You arrive on the far shore.",
+                "ending": true,
+                "choices": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+bodyType: application/json
+description: '200: imports two quests atomically, including a 2d6 rolled choice.'
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+- enabled: true
+  name: Accept
+  value: application/json
+  id: null
+- enabled: true
+  name: Authorization
+  value: Bearer ${[ API_TOKEN ]}
+  id: null
+method: POST
+name: 02 - Import multiple quests with a dice roll
+sortPriority: 1.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto
