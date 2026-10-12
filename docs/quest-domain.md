@@ -10,7 +10,9 @@ and resolution order. Cycles are valid. `ending: true` explicitly requires an
 empty choice list; non-endings require choices. Revision rows and node indexes
 are protected against UPDATE/DELETE in PostgreSQL. No deletion API is offered.
 
-Definitions are strict string-keyed maps (not an importer): `start_node`, `nodes`.
+Definitions are strict string-keyed maps: `start_node`, `nodes`. ENG-15 adds a
+versioned, atomic JSON import envelope and trusted operator commands; see
+[quest-import.md](quest-import.md) and `priv/quests/harbor.json`.
 Nodes: `id`, `text`, `ending`, `choices`. Choices: `id`, `label`, `eligibility`
 (`hidden` or `disabled`), `conditions`, `mode`, `outcomes`; rolled choices also
 require `dice` (1–3) and `critical_effects`. Fixed outcomes have exactly `fixed`;

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "quests": [
+    {
+      "content_id": "harbor-smugglers",
+      "name": "The Lanterns Below",
+      "definition": {
+        "start_node": "quayside",
+        "nodes": [
+          {
+            "id": "quayside",
+            "text": "At dusk, a lantern flashes beneath the customs pier. A courier offers you a salt-stained token. The watch is still searching the warehouses.",
+            "ending": false,
+            "choices": [
+              {
+                "id": "accept-token",
+                "label": "Accept the token and follow the courier",
+                "eligibility": "disabled",
+                "conditions": [],
+                "mode": "fixed",
+                "outcomes": {
+                  "fixed": {
+                    "text": "The courier marks you as a friend of the lantern crew.",
+                    "next_node": "tunnel",
+                    "effects": [
+                      {"type": "set_flag", "key": "lantern_token", "flag": {"type": "boolean", "value": true, "player_visible": true}},
+                      {"type": "clock_delta", "clock_id": "alarm", "delta": 1}
+                    ]
+                  }
+                }
+              },
+              {
+                "id": "leave-harbor",
+                "label": "Leave before the watch arrives",
+                "eligibility": "disabled",
+                "conditions": [],
+                "mode": "fixed",
+                "outcomes": {"fixed": {"text": "You turn away. The harbor keeps its secrets.", "next_node": "departed", "effects": []}}
+              }
+            ]
+          },
+          {
+            "id": "tunnel",
+            "text": "A flooded passage runs beneath the pier. Beyond a rusted grate, the crew's signal lamp flickers. Above you, boots echo across the boards.",
+            "ending": false,
+            "choices": [
+              {
+                "id": "signal-crew",
+                "label": "Show the token and signal the crew",
+                "eligibility": "hidden",
+                "conditions": [
+                  {"type": "character_flag", "key": "lantern_token", "flag_type": "boolean", "value": true},
+                  {"type": "clock_threshold", "clock_id": "alarm", "operator": "lte", "value": 4}
+                ],
+                "mode": "rolled",
+                "dice": 2,
+                "critical_effects": [
+                  {"type": "set_flag", "key": "crew_trust", "flag": {"type": "integer", "value": 2, "player_visible": true}},
+                  {"type": "clock_delta", "clock_id": "alarm", "delta": -1}
+                ],
+                "outcomes": {
+                  "success": {
+                    "text": "The crew opens the grate. You escape with the names of the corrupt customs officers.",
+                    "next_node": "rescued",
+                    "effects": [
+                      {"type": "clear_flag", "key": "lantern_token"},
+                      {"type": "set_flag", "key": "crew_trust", "flag": {"type": "integer", "value": 1, "player_visible": true}}
+                    ]
+                  },
+                  "partial": {
+                    "text": "A watchman spots your light. You retreat to the quay before he can identify you.",
+                    "next_node": "quayside",
+                    "effects": [{"type": "clock_delta", "clock_id": "alarm", "delta": 1}]
+                  },
+                  "failure": {
+                    "text": "The watch closes the pier. You slip away, but the crew must scatter.",
+                    "next_node": "departed",
+                    "effects": [
+                      {"type": "clock_delta", "clock_id": "alarm", "delta": 2},
+                      {"type": "clear_flag", "key": "lantern_token"}
+                    ]
+                  }
+                }
+              },
+              {
+                "id": "retreat-to-quay",
+                "label": "Return to the quay and wait for another opening",
+                "eligibility": "disabled",
+                "conditions": [],
+                "mode": "fixed",
+                "outcomes": {"fixed": {"text": "You retrace your steps. The courier is still waiting.", "next_node": "quayside", "effects": [{"type": "clock_delta", "clock_id": "alarm", "delta": -1}]}}
+              }
+            ]
+          },
+          {"id": "rescued", "text": "The lantern crew owes you a debt. Dawn finds you safely beyond the harbor.", "ending": true, "choices": []},
+          {"id": "departed", "text": "Your part in the harbor affair is over. Other roads await.", "ending": true, "choices": []}
+        ]
+      }
+    }
+  ]
+}
