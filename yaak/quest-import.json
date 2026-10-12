@@ -1,0 +1,369 @@
+{
+  "yaakVersion": "0.1.0",
+  "yaakSchema": 4,
+  "timestamp": "2026-10-12T10:48:08.648254",
+  "resources": {
+    "workspaces": [
+      {
+        "model": "workspace",
+        "id": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-11T19:54:02.074980",
+        "updatedAt": "2026-10-11T19:54:02.074981",
+        "authentication": {},
+        "authenticationType": null,
+        "description": "",
+        "headers": [],
+        "name": "Async Worlds",
+        "encryptionKeyChallenge": null,
+        "settingValidateCertificates": true,
+        "settingFollowRedirects": true,
+        "settingRequestTimeout": 0,
+        "settingRequestMessageSize": 67108864,
+        "settingDnsOverrides": [],
+        "settingSendCookies": true,
+        "settingStoreCookies": true,
+        "settingHttpVersion": "auto"
+      }
+    ],
+    "environments": [
+      {
+        "model": "environment",
+        "id": "ev_aTPoMYaMR5",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-12T10:46:51.749101",
+        "updatedAt": "2026-10-12T10:46:51.749102",
+        "name": "Quest import examples",
+        "public": true,
+        "base": false,
+        "parentModel": "workspace",
+        "parentId": null,
+        "variables": [
+          {
+            "enabled": true,
+            "name": "BASE_URL",
+            "value": "http://localhost:4000",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "GUILD_ID",
+            "value": "123",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "ALARM_CLOCK_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "API_TOKEN",
+            "value": "",
+            "id": null
+          }
+        ],
+        "color": null,
+        "sortPriority": 0.0
+      }
+    ],
+    "folders": [
+      {
+        "model": "folder",
+        "id": "fl_QCVPTorZkq",
+        "createdAt": "2026-10-12T10:46:28.609521",
+        "updatedAt": "2026-10-12T10:46:28.609521",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": null,
+        "authentication": {},
+        "authenticationType": null,
+        "description": "ENG-29: authenticated, atomic quest imports. Select Quest import examples and configure credentials locally.",
+        "headers": [],
+        "name": "Quest JSON imports",
+        "sortPriority": 0.0,
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingRequestMessageSize": {
+          "enabled": false,
+          "value": 67108864
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "httpRequests": [
+      {
+        "model": "http_request",
+        "id": "rq_UMTRAkAxDv",
+        "createdAt": "2026-10-12T10:46:59.070511",
+        "updatedAt": "2026-10-12T10:46:59.070512",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_QCVPTorZkq",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": 1,\n  \"quests\": [\n    {\n      \"content_id\": \"yaak-courier\",\n      \"name\": \"The Courier\",\n      \"definition\": {\n        \"start_node\": \"end\",\n        \"nodes\": [\n          {\n            \"id\": \"end\",\n            \"text\": \"The courier thanks you. Your journey is complete.\",\n            \"ending\": true,\n            \"choices\": []\n          }\n        ]\n      }\n    }\n  ]\n}"
+        },
+        "bodyType": "application/json",
+        "description": "200: created first time, unchanged on repeat. Creates an ending-only quest.",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Accept",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer ${[ API_TOKEN ]}",
+            "enabled": true
+          }
+        ],
+        "method": "POST",
+        "name": "01 - Import a simple quest",
+        "sortPriority": 0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_QuestRoll29",
+        "createdAt": "2026-10-12T10:46:59.070511",
+        "updatedAt": "2026-10-12T10:46:59.070512",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_QCVPTorZkq",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": 1,\n  \"quests\": [\n    {\n      \"content_id\": \"yaak-courier-batch\",\n      \"name\": \"The Courier\",\n      \"definition\": {\n        \"start_node\": \"end\",\n        \"nodes\": [\n          {\n            \"id\": \"end\",\n            \"text\": \"The courier thanks you. Your journey is complete.\",\n            \"ending\": true,\n            \"choices\": []\n          }\n        ]\n      }\n    },\n    {\n      \"content_id\": \"yaak-crossing\",\n      \"name\": \"The River Crossing\",\n      \"definition\": {\n        \"start_node\": \"bank\",\n        \"nodes\": [\n          {\n            \"id\": \"bank\",\n            \"text\": \"A swift river blocks your path.\",\n            \"ending\": false,\n            \"choices\": [\n              {\n                \"id\": \"cross\",\n                \"label\": \"Attempt the crossing\",\n                \"eligibility\": \"disabled\",\n                \"conditions\": [],\n                \"mode\": \"rolled\",\n                \"dice\": 2,\n                \"critical_effects\": [],\n                \"outcomes\": {\n                  \"success\": {\n                    \"text\": \"You cross safely.\",\n                    \"next_node\": \"end\",\n                    \"effects\": []\n                  },\n                  \"partial\": {\n                    \"text\": \"You retreat to the bank.\",\n                    \"next_node\": \"bank\",\n                    \"effects\": []\n                  },\n                  \"failure\": {\n                    \"text\": \"The current forces you back.\",\n                    \"next_node\": \"bank\",\n                    \"effects\": []\n                  }\n                }\n              }\n            ]\n          },\n          {\n            \"id\": \"end\",\n            \"text\": \"You arrive on the far shore.\",\n            \"ending\": true,\n            \"choices\": []\n          }\n        ]\n      }\n    }\n  ]\n}"
+        },
+        "bodyType": "application/json",
+        "description": "200: imports two quests atomically, including a 2d6 rolled choice.",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Accept",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer ${[ API_TOKEN ]}",
+            "enabled": true
+          }
+        ],
+        "method": "POST",
+        "name": "02 - Import multiple quests with a dice roll",
+        "sortPriority": 1,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_QuestClock29",
+        "createdAt": "2026-10-12T10:46:59.070511",
+        "updatedAt": "2026-10-12T10:46:59.070512",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_QCVPTorZkq",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": 1,\n  \"quests\": [\n    {\n      \"content_id\": \"harbor-smugglers\",\n      \"name\": \"The Lanterns Below\",\n      \"definition\": {\n        \"start_node\": \"quayside\",\n        \"nodes\": [\n          {\n            \"id\": \"quayside\",\n            \"text\": \"At dusk, a lantern flashes beneath the customs pier. A courier offers you a salt-stained token. The watch is still searching the warehouses.\",\n            \"ending\": false,\n            \"choices\": [\n              {\n                \"id\": \"accept-token\",\n                \"label\": \"Accept the token and follow the courier\",\n                \"eligibility\": \"disabled\",\n                \"conditions\": [],\n                \"mode\": \"fixed\",\n                \"outcomes\": {\n                  \"fixed\": {\n                    \"text\": \"The courier marks you as a friend of the lantern crew.\",\n                    \"next_node\": \"tunnel\",\n                    \"effects\": [\n                      {\n                        \"type\": \"set_flag\",\n                        \"key\": \"lantern_token\",\n                        \"flag\": {\n                          \"type\": \"boolean\",\n                          \"value\": true,\n                          \"player_visible\": true\n                        }\n                      },\n                      {\n                        \"type\": \"clock_delta\",\n                        \"clock_id\": \"alarm\",\n                        \"delta\": 1\n                      }\n                    ]\n                  }\n                }\n              },\n              {\n                \"id\": \"leave-harbor\",\n                \"label\": \"Leave before the watch arrives\",\n                \"eligibility\": \"disabled\",\n                \"conditions\": [],\n                \"mode\": \"fixed\",\n                \"outcomes\": {\n                  \"fixed\": {\n                    \"text\": \"You turn away. The harbor keeps its secrets.\",\n                    \"next_node\": \"departed\",\n                    \"effects\": []\n                  }\n                }\n              }\n            ]\n          },\n          {\n            \"id\": \"tunnel\",\n            \"text\": \"A flooded passage runs beneath the pier. Beyond a rusted grate, the crew's signal lamp flickers. Above you, boots echo across the boards.\",\n            \"ending\": false,\n            \"choices\": [\n              {\n                \"id\": \"signal-crew\",\n                \"label\": \"Show the token and signal the crew\",\n                \"eligibility\": \"hidden\",\n                \"conditions\": [\n                  {\n                    \"type\": \"character_flag\",\n                    \"key\": \"lantern_token\",\n                    \"flag_type\": \"boolean\",\n                    \"value\": true\n                  },\n                  {\n                    \"type\": \"clock_threshold\",\n                    \"clock_id\": \"alarm\",\n                    \"operator\": \"lte\",\n                    \"value\": 4\n                  }\n                ],\n                \"mode\": \"rolled\",\n                \"dice\": 2,\n                \"critical_effects\": [\n                  {\n                    \"type\": \"set_flag\",\n                    \"key\": \"crew_trust\",\n                    \"flag\": {\n                      \"type\": \"integer\",\n                      \"value\": 2,\n                      \"player_visible\": true\n                    }\n                  },\n                  {\n                    \"type\": \"clock_delta\",\n                    \"clock_id\": \"alarm\",\n                    \"delta\": -1\n                  }\n                ],\n                \"outcomes\": {\n                  \"success\": {\n                    \"text\": \"The crew opens the grate. You escape with the names of the corrupt customs officers.\",\n                    \"next_node\": \"rescued\",\n                    \"effects\": [\n                      {\n                        \"type\": \"clear_flag\",\n                        \"key\": \"lantern_token\"\n                      },\n                      {\n                        \"type\": \"set_flag\",\n                        \"key\": \"crew_trust\",\n                        \"flag\": {\n                          \"type\": \"integer\",\n                          \"value\": 1,\n                          \"player_visible\": true\n                        }\n                      }\n                    ]\n                  },\n                  \"partial\": {\n                    \"text\": \"A watchman spots your light. You retreat to the quay before he can identify you.\",\n                    \"next_node\": \"quayside\",\n                    \"effects\": [\n                      {\n                        \"type\": \"clock_delta\",\n                        \"clock_id\": \"alarm\",\n                        \"delta\": 1\n                      }\n                    ]\n                  },\n                  \"failure\": {\n                    \"text\": \"The watch closes the pier. You slip away, but the crew must scatter.\",\n                    \"next_node\": \"departed\",\n                    \"effects\": [\n                      {\n                        \"type\": \"clock_delta\",\n                        \"clock_id\": \"alarm\",\n                        \"delta\": 2\n                      },\n                      {\n                        \"type\": \"clear_flag\",\n                        \"key\": \"lantern_token\"\n                      }\n                    ]\n                  }\n                }\n              },\n              {\n                \"id\": \"retreat-to-quay\",\n                \"label\": \"Return to the quay and wait for another opening\",\n                \"eligibility\": \"disabled\",\n                \"conditions\": [],\n                \"mode\": \"fixed\",\n                \"outcomes\": {\n                  \"fixed\": {\n                    \"text\": \"You retrace your steps. The courier is still waiting.\",\n                    \"next_node\": \"quayside\",\n                    \"effects\": [\n                      {\n                        \"type\": \"clock_delta\",\n                        \"clock_id\": \"alarm\",\n                        \"delta\": -1\n                      }\n                    ]\n                  }\n                }\n              }\n            ]\n          },\n          {\n            \"id\": \"rescued\",\n            \"text\": \"The lantern crew owes you a debt. Dawn finds you safely beyond the harbor.\",\n            \"ending\": true,\n            \"choices\": []\n          },\n          {\n            \"id\": \"departed\",\n            \"text\": \"Your part in the harbor affair is over. Other roads await.\",\n            \"ending\": true,\n            \"choices\": []\n          }\n        ]\n      }\n    }\n  ]\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Requires an existing six-segment (or larger) campaign clock. Set ALARM_CLOCK_ID.",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Accept",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer ${[ API_TOKEN ]}",
+            "enabled": true
+          }
+        ],
+        "method": "POST",
+        "name": "03 - Import Harbor quests with a clock binding",
+        "sortPriority": 2,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import",
+        "urlParameters": [
+          {
+            "name": "clock_refs[alarm]",
+            "value": "${[ ALARM_CLOCK_ID ]}",
+            "enabled": true
+          }
+        ],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_QuestInvalid29",
+        "createdAt": "2026-10-12T10:46:59.070511",
+        "updatedAt": "2026-10-12T10:46:59.070512",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_QCVPTorZkq",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": 1,\n  \"quests\": []\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 422 invalid_document. Writes nothing.",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Accept",
+            "value": "application/json",
+            "enabled": true
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer ${[ API_TOKEN ]}",
+            "enabled": true
+          }
+        ],
+        "method": "POST",
+        "name": "04 - Reject an invalid document",
+        "sortPriority": 3,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "grpcRequests": [],
+    "websocketRequests": []
+  }
+}

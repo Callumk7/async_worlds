@@ -43,10 +43,11 @@ defmodule AsyncWorldsWeb.Router do
     end
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", AsyncWorldsWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", AsyncWorldsWeb do
+    pipe_through :api
+
+    post "/campaigns/:guild_id/quests/import", QuestImportController, :create
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:async_worlds, :dev_routes) do

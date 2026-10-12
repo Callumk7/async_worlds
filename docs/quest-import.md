@@ -1,11 +1,99 @@
 # Quest JSON import (ENG-15)
 
-Import is a **trusted DM/operator** tool, not a player upload endpoint. No new
-web authoring UI is added. Operator tasks and future interfaces share
+Import is a **trusted DM/operator** tool, not a player upload endpoint. The Mix
+task and authenticated HTTP endpoint share
 `AsyncWorlds.Quests.import_json(campaign, dm_id, json, clock_refs: bindings)`.
 It re-fetches the campaign and authorizes its current DM while holding the
 campaign row lock. Supplying an old campaign struct cannot restore revoked
 access. It never assigns, swaps, moves, or publishes a character.
+
+## HTTP import (ENG-29)
+
+`POST /api/campaigns/:guild_id/quests/import` accepts the **original version-1
+JSON document** as the body, with `Content-Type: application/json` and
+`Authorization: Bearer <token>`. `guild_id` is the Discord guild ID, not the
+internal database campaign ID. No multipart upload or extra JSON wrapper is used.
+The maximum body size is **1 MiB (1,048,576 bytes)**, including whitespace.
+
+Configure a trusted operator credential on the server before starting it:
+
+```sh
+# Generate a random credential locally; never commit it.
+export QUEST_IMPORT_API_TOKEN="$(openssl rand -hex 32)"
+export QUEST_IMPORT_API_DM_USER_ID="456"
+mix phx.server
+```
+
+The token must be at least 32 bytes; use a cryptographically random value.
+Both settings are required together. Without them the endpoint fails closed.
+The token authenticates the configured Discord DM identity, not a caller-supplied
+ID. Current campaign ownership is rechecked on every request and again under the
+import transaction lock. A token can access only campaigns currently owned by
+that identity. Browser cookies do not authenticate this endpoint; it uses no
+cookie/session authentication and needs no CSRF token. Use HTTPS outside localhost.
+Rotate/revoke the credential by changing/removing the settings and restarting.
+This is a single operator credential, not a public token issuance service.
+
+Optional clock bindings are query parameters such as
+`?clock_refs[alarm]=1&clock_refs[danger]=2`. Values must be positive integer IDs;
+clocks must exist in the selected campaign. All other query parameters are
+rejected. The body remains strict: adding `clock_refs` or `dm_user_id` to it
+is not supported.
+
+Successful imports return **200**, including mixed created/appended/unchanged
+batches, with results in input order:
+
+```json
+{
+  "data": [
+    {
+      "action": "created",
+      "quest_id": 1,
+      "revision_id": 1,
+      "revision_number": 1
+    }
+  ]
+}
+```
+
+Failures return `{"error":{"code":"..."}}`, optionally with `details`:
+
+| Status | Code                     | Meaning                                                         |
+| ------ | ------------------------ | --------------------------------------------------------------- |
+| 400    | `invalid_json`           | JSON syntax error; details include `$` and decoder message      |
+| 400    | `body_read_failed`       | Request body could not be read                                  |
+| 401    | `unauthenticated`        | Missing/invalid token or API credential not configured          |
+| 404    | `not_found`              | Missing, invalid or unauthorized campaign (same response)       |
+| 413    | `payload_too_large`      | Body exceeds 1 MiB                                              |
+| 415    | `unsupported_media_type` | Content-Type is not application/json                            |
+| 422    | `invalid_document`       | Strict document validation failed; details include path/message |
+| 422    | `invalid_clock_refs`     | Query parameters/bindings have an invalid shape or value        |
+
+Duplicate JSON keys are rejected with 422, not silently overwritten. Authentication
+and campaign authorization happen before reading or decoding the body. A bad
+clock reference produces an `invalid_document` error at its document path.
+
+### Yaak examples
+
+The existing **Async Worlds** workspace has a **Quest JSON imports** folder with
+four requests: a minimal quest, a multi-quest/2d6 batch, Harbor with an `alarm`
+binding, and an intentional 422 validation failure. Select **Quest import examples**
+and set `BASE_URL`, `GUILD_ID`, and `ALARM_CLOCK_ID` to your local values. Keep
+`API_TOKEN` in a **private local environment** (copy the examples environment and
+mark it private before filling in credentials). The checked-in examples contain
+no token. Do not export real credentials or commit secret environment files.
+
+To load the portable examples into another existing workspace:
+
+```sh
+yaak import yaak/quest-import.json --workspace-id YOUR_WORKSPACE_ID
+```
+
+The import command copies resources; do not repeatedly import it into the same
+workspace. Send individual requests when checking outcomes; the fourth request
+is deliberately invalid and should return 422. Valid requests persist campaign
+content, so use a disposable/local campaign first. Neither import nor these
+requests assigns or publishes quests.
 
 ## Bootstrap without SQL
 

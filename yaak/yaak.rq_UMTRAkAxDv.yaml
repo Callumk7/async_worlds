@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_UMTRAkAxDv
+createdAt: 2026-10-12T10:46:59.070511
+updatedAt: 2026-10-12T10:46:59.070512
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_QCVPTorZkq
+authentication: {}
+authenticationType: null
+body:
+  text: '{}'
+bodyType: application/json
+description: ''
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+- enabled: true
+  name: Authorization
+  value: Bearer ${[ API_TOKEN ]}
+  id: null
+method: POST
+name: 01 - Import a simple quest
+sortPriority: 0.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/import
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

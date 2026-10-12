@@ -1,0 +1,19 @@
+type: workspace
+model: workspace
+id: wk_gKCDaoQfbG
+createdAt: 2026-10-11T19:54:02.074980
+updatedAt: 2026-10-11T19:54:02.074981
+authentication: {}
+authenticationType: null
+description: ''
+headers: []
+name: Async Worlds
+encryptionKeyChallenge: null
+settingValidateCertificates: true
+settingFollowRedirects: true
+settingRequestTimeout: 0
+settingRequestMessageSize: 67108864
+settingDnsOverrides: []
+settingSendCookies: true
+settingStoreCookies: true
+settingHttpVersion: auto
