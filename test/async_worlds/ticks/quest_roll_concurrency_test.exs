@@ -135,6 +135,118 @@ defmodule AsyncWorlds.Ticks.QuestRollConcurrencyTest do
     Enum.map(tasks, &Task.await(&1, 10_000))
   end
 
+  defp resolve(c) do
+    db(fn ->
+      {:ok, rolls} =
+        Ticks.record_quest_rolls(c.campaign.id, c.tick.id, c.snapshot.revision, fn -> 1 end)
+
+      {:ok, payload} = AsyncWorlds.Ticks.WorldResolver.resolve(c.snapshot, %{}, rolls)
+
+      {:ok, %{draft: draft}} =
+        Ticks.put_draft(c.campaign.id, c.tick.id, c.snapshot.revision, payload)
+
+      draft
+    end)
+  end
+
+  test "concurrent selected rerolls append one audit and never mutate original Roll", c do
+    draft = resolve(c)
+    die = hd(draft.payload["rolls"])
+
+    callbacks =
+      for value <- [4, 6, 2],
+          do: fn ->
+            Ticks.edit_draft(
+              c.campaign.id,
+              c.tick.id,
+              draft.id,
+              %{type: "reroll", identity: die["identity"], old_value: 1},
+              "456",
+              "Review",
+              fn -> value end
+            )
+          end
+
+    results = race(c.supervisor, callbacks)
+    assert Enum.count(results, &match?({:ok, _}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :stale_draft})) == 2
+
+    db(fn ->
+      assert {:ok, [_]} = Ticks.list_review_edits(c.campaign.id, c.tick.id)
+
+      assert Enum.all?(
+               Repo.all(from r in Roll, where: r.snapshot_id == ^c.snapshot.id),
+               &(&1.value == 1)
+             )
+    end)
+  end
+
+  test "concurrent quest publication commits progression/history/private intents exactly once",
+       c do
+    draft = resolve(c)
+
+    operation = %{
+      type: "outcome",
+      input_revision: c.snapshot.revision,
+      input: hd(c.snapshot.data["quest_inputs"]["submissions"]),
+      value: "success"
+    }
+
+    {:ok, %{draft: draft}} =
+      db(fn ->
+        Ticks.edit_draft(c.campaign.id, c.tick.id, draft.id, operation, "456", "Approve")
+      end)
+
+    results =
+      race(
+        c.supervisor,
+        List.duplicate(fn -> Ticks.publish_tick(c.campaign.id, c.tick.id, draft.id) end, 4)
+      )
+
+    assert Enum.count(results, &match?({:ok, _}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :already_published})) == 3
+
+    db(fn ->
+      assert {:ok, publication} = Ticks.fetch_publication(c.campaign.id, c.tick.id)
+      assert publication.payload == draft.payload
+
+      assert Repo.one!(
+               from p in AsyncWorlds.Quests.Progression, where: p.campaign_id == ^c.campaign.id
+             ).status == :completed
+
+      assert length(AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)) == 4
+    end)
+  end
+
+  test "quest edit racing publication cannot overwrite the approved revision", c do
+    draft = resolve(c)
+
+    operation = %{
+      type: "outcome",
+      input_revision: c.snapshot.revision,
+      input: hd(c.snapshot.data["quest_inputs"]["submissions"]),
+      value: "success"
+    }
+
+    [edited, published] =
+      race(c.supervisor, [
+        fn ->
+          Ticks.edit_draft(c.campaign.id, c.tick.id, draft.id, operation, "456", "Approve")
+        end,
+        fn -> Ticks.publish_tick(c.campaign.id, c.tick.id, draft.id) end
+      ])
+
+    case {edited, published} do
+      {{:ok, %{draft: current}}, {:error, :stale_draft}} ->
+        assert {:ok, _} = db(fn -> Ticks.publish_tick(c.campaign.id, c.tick.id, current.id) end)
+
+      {{:error, {:invalid_transition, :published, :edit_draft}}, {:ok, _}} ->
+        :ok
+    end
+
+    assert db(fn -> length(AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)) end) == 4
+  end
+
   test "separate-connection reservations and duplicate workers preserve exactly one pool and one draft",
        c do
     callbacks =

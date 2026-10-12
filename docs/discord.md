@@ -96,7 +96,9 @@ The registered command set is:
 Only opening and explicit approved web publication enqueue public messages.
 Closing, status, admin, character/clock queries, and draft edits never announce draft
 content. Publication uses the existing audited domain API and privacy-filtered
-renderer; private publication output remains DM-only. Delivery failures never
+renderer; the review preview is DM-only, while approved personal results/next
+choices are routed privately to each frozen player's Discord user ID. See
+[quest-review.md](quest-review.md). Delivery failures never
 reapply world state. Inspect/retry individual outbox records in the console;
 ambiguous sends require explicit confirmation. See [delivery semantics](durable-work.md)
 and [review/publication](tick-review-publication.md).

@@ -49,6 +49,17 @@ editing/publication until explicit reload; stale publication attempts reload and
 reset confirmation so the DM must inspect the current preview again. Domain
 checks remain authoritative even if browser-disabled controls are bypassed.
 
+## Quest turn review (ENG-20)
+
+The same review page groups submitted turns by player. Inspect the pinned choice,
+node transition, effective outcome, dice and final next choices. Reroll exactly one
+die with a reason, choose a configured rolled outcome (or restore dice-derived),
+and edit private player narration (blank restores authored text). Every accepted
+edit recomputes all frozen consequences, preserving unrelated dice. Inspect both
+**Exact public preview** and **Exact private preview**, including recipient IDs,
+before confirmation/publication. The transaction applies quest progression,
+flags, availability and world clocks together. See [quest-review.md](quest-review.md).
+
 ## Personal quest operations
 
 **Characters** links players and manages typed facts. **Quests** assigns an

@@ -59,6 +59,46 @@ defmodule AsyncWorldsWeb.TickReviewLive do
      )}
   end
 
+  def handle_event("quest_edit", %{"quest" => params}, socket) when is_map(params) do
+    result =
+      with true <- is_binary(params["input"]),
+           {:ok, input} <- Jason.decode(params["input"]),
+           true <- params["type"] in ["outcome", "player_narration"] do
+        value = if params["value"] == "", do: nil, else: params["value"]
+
+        edit(
+          socket,
+          params["draft_id"],
+          %{
+            type: params["type"],
+            input: input,
+            input_revision: params["input_revision"],
+            value: value
+          },
+          params["reason"]
+        )
+      else
+        _ -> {:error, :invalid_edit}
+      end
+
+    {:noreply,
+     complete(socket, result, "Quest consequences recomputed. Review all outgoing content.")}
+  end
+
+  def handle_event("reroll", %{"die" => params}, socket) when is_map(params) do
+    result =
+      with {:ok, old} <- integer(params["old_value"]) do
+        edit(
+          socket,
+          params["draft_id"],
+          %{type: "reroll", identity: params["identity"], old_value: old},
+          params["reason"]
+        )
+      end
+
+    {:noreply, complete(socket, result, "Selected die rerolled; other dice preserved.")}
+  end
+
   def handle_event("publish", %{"publish" => params}, socket) do
     if params["confirm"] == "true" do
       case Ticks.publish_tick(campaign_id(socket), socket.assigns.tick.id, params["draft_id"]) do
@@ -101,7 +141,9 @@ defmodule AsyncWorldsWeb.TickReviewLive do
     do: socket |> put_flash(:info, message) |> load(socket.assigns.tick.id)
 
   defp complete(socket, {:error, reason}, _) do
-    stale = reason == :stale_draft or match?({:invalid_transition, _, _}, reason)
+    stale =
+      reason in [:stale_draft, :stale_identity, :stale_input] or
+        match?({:invalid_transition, _, _}, reason)
 
     socket =
       socket
@@ -109,7 +151,11 @@ defmodule AsyncWorldsWeb.TickReviewLive do
       |> put_flash(:error, error_message(reason))
 
     if stale and socket.assigns.preview_ready do
-      stream(socket, :review_clocks, review_clocks(socket.assigns.draft, socket.assigns.snapshot),
+      socket
+      |> stream(:review_clocks, review_clocks(socket.assigns.draft, socket.assigns.snapshot),
+        reset: true
+      )
+      |> stream(:quest_review, quest_items(socket.assigns.draft, socket.assigns.snapshot),
         reset: true
       )
     else
@@ -147,6 +193,20 @@ defmodule AsyncWorldsWeb.TickReviewLive do
       clocks = if match?({:ok, _}, preview), do: review_clocks(draft, snapshot), else: []
       log = Enum.map(payload["log"] || [], &%{id: &1["sequence"], event: &1})
 
+      private_messages =
+        case preview do
+          {:ok, outputs} ->
+            Enum.with_index((outputs["dm"] || []) ++ (outputs["players"] || []), fn message,
+                                                                                    index ->
+              Map.put(message, :id, index)
+            end)
+
+          _ ->
+            []
+        end
+
+      quests = if match?({:ok, _}, preview), do: quest_items(draft, snapshot), else: []
+
       socket
       |> assign(
         tick: tick,
@@ -174,9 +234,73 @@ defmodule AsyncWorldsWeb.TickReviewLive do
       |> stream(:resolution_log, log, reset: true)
       |> stream(:review_edits, edits, reset: true)
       |> stream(:public_preview, messages, reset: true)
+      |> stream(:private_preview, private_messages, reset: true)
+      |> stream(:quest_review, quests, reset: true)
     else
       _ -> unavailable(socket)
     end
+  end
+
+  defp quest_items(draft, snapshot) do
+    payload = draft.payload
+
+    Enum.map(payload["private_results"] || [], fn result ->
+      id = result["character_id"]
+      character = Enum.find(payload["characters"], &(&1["id"] == id))
+      key = AsyncWorlds.Ticks.QuestReview.key(snapshot, result["input"])
+
+      base = %{
+        "draft_id" => draft.id,
+        "input_revision" => snapshot.revision,
+        "input" => Jason.encode!(result["input"]),
+        "reason" => ""
+      }
+
+      dice = Enum.filter(payload["rolls"], &(&1["input"] == result["input"]))
+
+      %{
+        id: id,
+        name: character["name"],
+        result: result,
+        next: Enum.find(payload["next_nodes"], &(&1["character_id"] == id))["projection"],
+        outcome_form:
+          params_form(
+            Map.merge(base, %{
+              "type" => "outcome",
+              "value" => get_in(payload, ["review", "outcomes", key]) || ""
+            }),
+            [:draft_id, :input_revision, :input, :type, :value, :reason],
+            as: :quest,
+            id: "quest-outcome-#{id}"
+          ),
+        narration_form:
+          params_form(
+            Map.merge(base, %{"type" => "player_narration", "value" => result["text"]}),
+            [:draft_id, :input_revision, :input, :type, :value, :reason],
+            as: :quest,
+            id: "quest-narration-#{id}"
+          ),
+        dice:
+          Enum.map(dice, fn die ->
+            %{
+              index: die["die_index"],
+              value: die["value"],
+              form:
+                params_form(
+                  %{
+                    "draft_id" => draft.id,
+                    "identity" => die["identity"],
+                    "old_value" => to_string(die["value"]),
+                    "reason" => ""
+                  },
+                  [:draft_id, :identity, :old_value, :reason],
+                  as: :die,
+                  id: "quest-die-#{id}-#{die["die_index"]}"
+                )
+            }
+          end)
+      }
+    end)
   end
 
   defp review_clocks(draft, snapshot) do
@@ -238,6 +362,131 @@ defmodule AsyncWorldsWeb.TickReviewLive do
         >
           This revision is stale. Editing and publication are disabled until you reload and inspect the current review.
         </p>
+        <section class="admin-panel">
+          <h2 class="text-xl font-semibold mb-4">Player quest review</h2>
+          <div id="quest-review" phx-update="stream" class="space-y-5">
+            <article
+              :for={{dom_id, item} <- @streams.quest_review}
+              id={dom_id}
+              class="rounded-xl border border-white/10 p-4 space-y-4"
+            >
+              <h3 class="font-semibold">
+                {item.name} · {item.result["outcome"]}{if item.result["critical"],
+                  do: " · critical",
+                  else: ""}
+              </h3>
+              <p class="text-xs text-slate-400">
+                Pinned revision #{item.result["input"]["revision_id"]} · choice {item.result["input"][
+                  "choice_id"
+                ]} · node {item.result["before"]["node_id"]} → {item.result["after"]["node_id"]} · {item.result[
+                  "after"
+                ]["status"]}
+              </p>
+              <p>{item.result["text"]}</p>
+              <div id={"quest-next-#{item.id}"} class="text-sm text-slate-400">
+                <p>Next: {item.next["text"]}</p>
+                <p :for={choice <- item.next["choices"]}>
+                  {choice["label"]} · {if choice["enabled"],
+                    do: "available",
+                    else: "Not available right now."}
+                </p>
+              </div>
+              <.form
+                :if={item.dice != []}
+                for={item.outcome_form}
+                id={"quest-outcome-#{item.id}"}
+                phx-submit="quest_edit"
+                class="admin-form space-y-3"
+              >
+                <fieldset disabled={@stale || !@preview_ready}>
+                  <.input
+                    :for={field <- [:draft_id, :input_revision, :input, :type]}
+                    field={item.outcome_form[field]}
+                    type="hidden"
+                  />
+                  <.input
+                    field={item.outcome_form[:value]}
+                    type="select"
+                    label="Outcome override"
+                    options={[
+                      "Restore dice-derived outcome": "",
+                      Failure: "failure",
+                      Partial: "partial",
+                      Success: "success"
+                    ]}
+                    class="admin-input"
+                  />
+                  <.input
+                    field={item.outcome_form[:reason]}
+                    label="Audit reason"
+                    required
+                    class="admin-input"
+                  />
+                  <button class="admin-button admin-secondary">Recompute outcome</button>
+                </fieldset>
+              </.form>
+              <.form
+                for={item.narration_form}
+                id={"quest-narration-#{item.id}"}
+                phx-submit="quest_edit"
+                class="admin-form space-y-3"
+              >
+                <fieldset disabled={@stale || !@preview_ready}>
+                  <.input
+                    :for={field <- [:draft_id, :input_revision, :input, :type]}
+                    field={item.narration_form[field]}
+                    type="hidden"
+                  />
+                  <.input
+                    field={item.narration_form[:value]}
+                    type="textarea"
+                    label="Player narration (blank restores authored text)"
+                    class="admin-input"
+                  />
+                  <.input
+                    field={item.narration_form[:reason]}
+                    label="Audit reason"
+                    required
+                    class="admin-input"
+                  />
+                  <button class="admin-button admin-secondary">Save player narration</button>
+                </fieldset>
+              </.form>
+              <.form
+                :for={die <- item.dice}
+                for={die.form}
+                id={"quest-die-#{item.id}-#{die.index}"}
+                phx-submit="reroll"
+                class="admin-form space-y-2"
+              >
+                <fieldset disabled={@stale || !@preview_ready}>
+                  <p>Die {die.index + 1}: {die.value}</p>
+                  <.input
+                    :for={field <- [:draft_id, :identity, :old_value]}
+                    field={die.form[field]}
+                    type="hidden"
+                  />
+                  <.input
+                    field={die.form[:reason]}
+                    label="Reroll reason"
+                    required
+                    class="admin-input"
+                  />
+                  <button class="admin-button admin-secondary">Reroll only this die</button>
+                </fieldset>
+              </.form>
+            </article>
+          </div>
+        </section>
+        <section class="admin-panel">
+          <h2 class="text-xl font-semibold mb-4">Exact private preview</h2>
+          <div id="private-preview" phx-update="stream" class="space-y-3">
+            <article :for={{dom_id, message} <- @streams.private_preview} id={dom_id}>
+              <p class="text-xs text-slate-400">Private recipient {message["recipient_id"]}</p>
+              <pre class="whitespace-pre-wrap break-words font-sans text-sm">{message["content"]}</pre>
+            </article>
+          </div>
+        </section>
         <div class="grid gap-7 lg:grid-cols-[1.1fr_1fr]">
           <section class="admin-panel">
             <h2 class="mb-2 text-xl font-semibold">Clock results</h2>
@@ -380,7 +629,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 <.input
                   field={@publish_form[:confirm]}
                   type="checkbox"
-                  label="I reviewed this revision and its outgoing public content"
+                  label="I reviewed this revision and all outgoing public/private content"
                   class="admin-checkbox"
                 />
                 <p class="text-xs text-slate-400">
@@ -444,6 +693,14 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               class="border-b border-white/10 pb-3 text-sm"
             >
               <p>{edit.operation["type"]} · DM {edit.actor_id}</p>
+              <p
+                :if={edit.operation["type"] == "reroll"}
+                class="mt-1 break-all text-xs text-amber-200"
+              >
+                {edit.operation["identity"]} · {edit.operation["old_value"]} → {edit.operation[
+                  "new_value"
+                ]}
+              </p>
               <p class="mt-1 text-slate-400">
                 {edit.reason}
               </p>

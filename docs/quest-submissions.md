@@ -53,5 +53,5 @@ drafts with separately committed recorded dice. Previously scheduled capability-
 jobs can execute the same frozen input on their next retry. Invalid snapshots still
 cancel for investigation. Existing v1 snapshots remain supported. Ordering, stable
 die identities and the no-live-mutation boundary are documented in
-[world-resolution.md](world-resolution.md). Quest publication/review expansion is
-ENG-20. Discord components and commands are ENG-19; minimal DM intervention UI is ENG-17.
+[world-resolution.md](world-resolution.md). Audited quest review and atomic publication are now implemented by
+ENG-20; see [quest-review.md](quest-review.md). Discord components and commands are ENG-19; minimal DM intervention UI is ENG-17.

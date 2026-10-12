@@ -97,7 +97,7 @@ defmodule AsyncWorlds.Ticks.QuestResolutionIntegrationTest do
 
     assert hd(Clocks.list_clocks(c.campaign.id)).filled == 0
 
-    assert {:error, :quest_publication_required} =
+    assert {:ok, %{status: :published}} =
              Ticks.publish_tick(c.campaign.id, c.tick.id, draft.id)
 
     assert {:error, :unauthorized} = Ticks.fetch_draft("123", "991", c.tick.id)

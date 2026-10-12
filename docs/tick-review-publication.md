@@ -5,6 +5,12 @@ Snapshot/draft/edit/publication reads and previews are DM-only. Player-facing
 interfaces consume only the public projection or approved public output, never
 raw payloads, full history, or the `dm` output. ENG-9/ENG-10 own UI/commands.
 
+ENG-20 extends this contract with player-grouped quest review, individual die
+rerolls, configured outcome overrides, player narration and atomic quest state/
+availability publication. See [quest-review.md](quest-review.md) for exact semantics
+and operation formats. The exact output map adds `players` when personal quest
+projections exist; these are private messages routed to frozen player user IDs.
+
 ## Review operations
 
 Use `Ticks.edit_draft(campaign_id, tick_id, expected_draft_id, operation,
@@ -61,7 +67,8 @@ each message includes kind, recipient ID, and content.
    published number, and management lock to match. Drift returns
    `:stale_live_state`, without partial writes. Restore compatible live state
    through authorized administration; do not rewrite frozen inputs/history.
-4. Apply ordered clock effects and source-labelled clock audits.
+4. Apply ordered clock effects and source-labelled clock audits, approved character
+   flags/progression positions and idempotent quest availability.
 5. Persist one immutable publication with the approved payload/log and exact
    outputs, then enqueue each message and its Oban job. Keys include tick,
    audience, recipient, and deterministic chunk index.

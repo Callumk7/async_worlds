@@ -134,8 +134,8 @@ explicit endings, typed flags, a clock threshold, clamped clock deltas, a
 2d6 roll, and ordered critical bonus effects. Normal tests execute the fixture
 through import, assignment, submission, close/freeze and draft resolution,
 plus controlled pure cyclic/rolled/ending transitions. Existing quest
-publication is intentionally still blocked by ENG-20; import does not bypass
-that boundary.
+publication uses ENG-20's audited review boundary; import cannot repin or
+rewrite a frozen or published turn. See [quest-review.md](quest-review.md).
 
 ## Version 1 contract
 

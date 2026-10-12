@@ -98,6 +98,21 @@ defmodule AsyncWorlds.Quests do
     end)
   end
 
+  @doc "DM-only published quest availability; unlocks never interrupt an assignment."
+  def list_unlocked(campaign, dm_id, character_id) do
+    manage(campaign, dm_id, fn current ->
+      fetch!(Character, current.id, character_id)
+
+      Repo.all(
+        from q in Quest,
+          join: u in AsyncWorlds.Quests.Unlock,
+          on: u.quest_id == q.id,
+          where: u.campaign_id == ^current.id and u.character_id == ^character_id,
+          order_by: q.id
+      )
+    end)
+  end
+
   def append_revision(campaign, dm_id, quest_id, definition) do
     manage(campaign, dm_id, fn current ->
       quest = fetch!(Quest, current.id, quest_id)

@@ -14,7 +14,8 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
   def resolve(%Snapshot{schema_version: 1, revision: revision, data: data}, review, [])
       when is_binary(revision) and byte_size(revision) > 0 and is_map(data) do
-    if valid?(data) and valid_review?(review, data["clocks"]) do
+    if valid?(data) and valid_review?(review, data["clocks"]) and
+         Enum.all?(Map.keys(review), &(&1 in ["clock_deltas", "world_news"])) do
       payload = run(data, revision, review)
       payload = if map_size(review) == 0, do: payload, else: Map.put(payload, "review", review)
       {:ok, payload}
@@ -30,13 +31,15 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       )
       when is_map(data) and is_binary(revision) and byte_size(revision) > 0 do
     cond do
-      not valid_v2?(data) or not valid_review?(review, data["clocks"]) ->
+      not valid_v2?(data) or not valid_review?(review, data["clocks"]) or
+          not AsyncWorlds.Ticks.QuestReview.valid?(snapshot, review) ->
         {:error, :invalid_snapshot}
 
       not QuestDice.valid?(snapshot, rolls) ->
         {:error, :invalid_rolls}
 
       true ->
+        rolls = AsyncWorlds.Ticks.QuestReview.dice(rolls, review)
         payload = run(data, revision, review, rolls)
         payload = if map_size(review) == 0, do: payload, else: Map.put(payload, "review", review)
 
@@ -68,9 +71,22 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
         end)
       end)
 
-    valid?(world) and AsyncWorlds.Quests.FrozenInputs.valid?(data["quest_inputs"], data["clocks"])
+    valid?(world) and AsyncWorlds.Quests.FrozenInputs.valid?(data["quest_inputs"], data["clocks"]) and
+      valid_unlocks?(data)
   rescue
     _ -> false
+  end
+
+  defp valid_unlocks?(data) do
+    unlocks = Map.get(data, "quest_unlocks", [])
+    characters = Enum.map(data["quest_inputs"]["characters"], & &1["id"])
+    quests = Enum.map(data["quest_inputs"]["quests"], & &1["id"])
+
+    is_list(unlocks) and
+      Enum.all?(unlocks, fn u ->
+        is_map(u) and Enum.sort(Map.keys(u)) == ~w(character_id quest_id) and
+          u["character_id"] in characters and u["quest_id"] in quests
+      end) and unlocks == Enum.sort_by(Enum.uniq(unlocks), &{&1["character_id"], &1["quest_id"]})
   end
 
   defp valid_review?(review, clocks) when is_map(review) do
@@ -78,13 +94,20 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     deltas = Map.get(review, "clock_deltas", %{})
     news = Map.get(review, "world_news", [])
 
-    Enum.all?(Map.keys(review), &(&1 in ["clock_deltas", "world_news"])) and
+    Enum.all?(
+      Map.keys(review),
+      &(&1 in ["clock_deltas", "world_news", "dice", "outcomes", "narration"])
+    ) and
       is_map(deltas) and
       Enum.all?(deltas, fn {id, delta} ->
         id in ids and is_integer(delta) and
           not Enum.find(clocks, &(to_string(&1["id"]) == id))["completed"]
       end) and is_list(news) and length(news) <= 100 and
-      Enum.all?(news, &(is_binary(&1) and String.trim(&1) != "" and String.length(&1) <= 2000))
+      Enum.all?(
+        news,
+        &(is_binary(&1) and String.valid?(&1) and not String.contains?(&1, <<0>>) and
+            String.trim(&1) != "" and String.length(&1) <= 2000)
+      )
   end
 
   defp valid_review?(_, _), do: false
@@ -156,11 +179,14 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       characters: Map.new(get_in(data, ["quest_inputs", "characters"]) || [], &{&1["id"], &1}),
       progressions:
         Map.new(get_in(data, ["quest_inputs", "progressions"]) || [], &{&1["character_id"], &1}),
-      unlocked: %{}
+      unlocked:
+        Enum.reduce(data["quest_unlocks"] || [], %{}, fn u, acc ->
+          Map.update(acc, u["character_id"], [u["quest_id"]], &(&1 ++ [u["quest_id"]]))
+        end)
     }
 
     state = Enum.reduce(order, state, &latch/2)
-    state = quests(state, data["quest_inputs"], rolls)
+    state = quests(state, data["quest_inputs"], rolls, review, revision)
     state = Enum.reduce(order, state, &background/2)
     state = Enum.reduce(order, state, &complete/2)
     log = Enum.reverse(state.log)
@@ -202,16 +228,20 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     end
   end
 
-  defp quests(state, nil, _), do: state
+  defp quests(state, nil, _, _, _), do: state
 
-  defp quests(state, inputs, rolls) do
+  defp quests(state, inputs, rolls, review, revision) do
     revisions = Map.new(inputs["revisions"], &{&1["id"], &1["definition"]})
 
     Enum.reduce(inputs["submissions"], state, fn submission, acc ->
       choice = QuestDice.choice(submission, revisions)
       dice = Enum.filter(rolls, &(&1["input"] == submission))
-      {:ok, outcome, critical} = Rules.outcome(choice, Enum.map(dice, & &1["value"]))
+      {:ok, natural, critical} = Rules.outcome(choice, Enum.map(dice, & &1["value"]))
+      key = QuestDice.identity(revision, submission, 0)
+      outcome = Map.get(Map.get(review, "outcomes", %{}), key, natural)
+      critical = critical and outcome == "success"
       result = choice["outcomes"][outcome]
+      text = Map.get(Map.get(review, "narration", %{}), key, result["text"])
 
       source =
         "quest:tick:#{acc.tick}:character:#{submission["character_id"]}:choice:#{submission["choice_id"]}"
@@ -264,7 +294,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
         "input" => submission,
         "outcome" => outcome,
         "critical" => critical,
-        "text" => result["text"],
+        "text" => text,
         "before" => progression,
         "after" => updated
       })
