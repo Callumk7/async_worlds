@@ -248,6 +248,77 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
     end
   end
 
+  for mode <- [:no_tick, :completed, :closed] do
+    @mode mode
+    test "long #{@mode} quests use private read-only pages without followup bursts", c do
+      narrative = String.duplicate("🌍", 1950)
+      [hub, ending] = definition()["nodes"]
+
+      content =
+        put_in(definition()["nodes"], [
+          Map.put(hub, "text", narrative),
+          Map.put(ending, "text", narrative)
+        ])
+
+      {:ok, revision} = Quests.append_revision(c.campaign, "456", c.revision.quest_id, content)
+      {:ok, progression} = Quests.swap(c.campaign, "456", c.character.id, revision.id)
+
+      case @mode do
+        :no_tick ->
+          :ok
+
+        :completed ->
+          {:ok, _} = Quests.move(c.campaign, "456", progression.id, "end")
+
+        :closed ->
+          {:ok, tick} = Ticks.open_tick(c.campaign.id)
+          {:ok, _} = Ticks.close_tick(c.campaign.id, tick.id)
+      end
+
+      {:ok, first} = invoke(c, %{name: "quest"})
+      assert {:error, :stale_component} = click(c, button(first, "Next"), 998)
+      pages = collect_pages(c, first, [])
+      assert length(pages) >= 2
+
+      joined =
+        Enum.map_join(pages, "", fn p ->
+          p.content |> String.split("\n\n", parts: 2) |> List.last()
+        end)
+
+      assert joined =~ narrative
+
+      for page <- pages do
+        assert length(String.codepoints(page.content)) <= 2000
+        assert Enum.all?(buttons(page), &(&1.label in ["Previous", "Next"]))
+        assert NostrumAdapter.response_data(page).allowed_mentions == %{parse: []}
+        assert NostrumAdapter.followup_data(page).flags == 64
+      end
+
+      {:ok, back} = click(c, button(List.last(pages), "Previous"))
+      assert back.content == first.content
+      refute_receive {:discord, :followup_response, _}
+      refute_receive {:discord, :send_public, _}
+      refute_receive {:discord, :send_private, _}
+
+      if @mode == :no_tick do
+        {:ok, _} = Ticks.open_tick(c.campaign.id)
+        assert {:error, :stale_component} = click(c, button(first, "Next"))
+      end
+    end
+  end
+
+  test "webhook creates omit empty components while edits can clear them" do
+    payload = %{content: "Read-only text", components: []}
+    assert NostrumAdapter.response_data(payload).components == []
+    followup = NostrumAdapter.followup_data(payload)
+    refute Map.has_key?(followup, :components)
+    assert followup.flags == 64
+    assert followup.allowed_mentions == :none
+    button = %{type: 2, style: 2, custom_id: "test", label: "Next"}
+    with_controls = %{payload | components: [%{type: 1, components: [button]}]}
+    assert NostrumAdapter.followup_data(with_controls).components == with_controls.components
+  end
+
   test "maximum stable identities fit and Nostrum button data routes correctly" do
     max = 9_223_372_036_854_775_807
 

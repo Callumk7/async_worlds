@@ -65,6 +65,9 @@ defmodule AsyncWorlds.Discord.Commands do
   def execute(command, context) when command in [:quest, :submission],
     do: QuestInteractions.show(context)
 
+  def execute({:quest_page, _, _} = command, context),
+    do: QuestInteractions.execute(command, context)
+
   def execute({:quest_component, _, _, _} = command, context),
     do: QuestInteractions.execute(command, context)
 

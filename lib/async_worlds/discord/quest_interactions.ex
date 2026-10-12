@@ -3,12 +3,24 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
   alias AsyncWorlds.Quests
   alias AsyncWorlds.Quests.Submissions
 
-  def show(context, page \\ 0) do
+  def show(context, page \\ 0, expected_view \\ nil) do
     guild = context.campaign.discord_guild_id
 
     case Submissions.player_state(guild, context.user_id) do
+      {:ok, %{open: true} = state} ->
+        if expected_view, do: {:error, :stale_component}, else: {:ok, present(state, page)}
+
       {:ok, state} ->
-        {:ok, present(state, page)}
+        selected = Enum.find(state.quest.choices, &(&1.id == state.choice_id))
+        latest = if selected, do: truncate(selected.label, 120), else: "None"
+
+        readonly(
+          context,
+          state,
+          "Submissions closed; awaiting publication.\nLatest choice: #{latest}",
+          page,
+          expected_view
+        )
 
       {:error, reason} when reason in [:no_tick, :no_quest] ->
         case Quests.player_quest(guild, context.user_id) do
@@ -18,15 +30,12 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
                 do: "Quest completed.",
                 else: "No open tick. Choices cannot be submitted yet."
 
-            choices =
-              Enum.map_join(quest.choices, "\n", fn choice ->
-                choice.label <> if(choice.enabled, do: "", else: " — Not available right now.")
-              end)
-
-            {:ok, %{content: quest.text <> "\n" <> suffix <> "\n" <> choices, components: []}}
+            readonly(context, %{quest: quest}, suffix, page, expected_view)
 
           {:error, :no_quest} ->
-            {:ok, "No quest assigned yet. Try /quest again after your DM assigns one."}
+            if expected_view,
+              do: {:error, :stale_component},
+              else: {:ok, "No quest assigned yet. Try /quest again after your DM assigns one."}
 
           error ->
             error
@@ -42,12 +51,24 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
       ["q1", _, _, _, _, _, action, arg] when action in ["s", "c", "p"] ->
         {:ok, {:quest_component, id, action, arg}, :player}
 
+      ["qv", view, "p", page] ->
+        {:ok, {:quest_page, view, page}, :player}
+
       _ ->
         {:error, :unknown_command}
     end
   end
 
   def route(_), do: {:error, :unknown_command}
+
+  def execute({:quest_page, view, arg}, context) do
+    with {page, ""} when page >= 0 <- Integer.parse(arg),
+         {:ok, _} = result <- show(context, page, view) do
+      result
+    else
+      _ -> {:error, :stale_component}
+    end
+  end
 
   def execute({:quest_component, id, action, arg}, context) do
     guild = context.campaign.discord_guild_id
@@ -93,20 +114,33 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
 
   defp operate(_, _, _, _, _), do: {:error, :stale_component}
 
-  @doc "Pure bounded presentation of an already authorized player submission projection."
-  def present(%{open: false} = state, _) do
-    selected = Enum.find(state.quest.choices, &(&1.id == state.choice_id))
-    latest = if selected, do: selected.label, else: "None"
+  # Read-only pages bind to the verified owner and freshly projected view, never
+  # expose a submit/clear control, and create only one private reply per click.
+  defp readonly(context, state, heading, page, expected) do
+    view = digest(:erlang.term_to_binary({context.campaign.id, context.user_id, state, heading}))
+    pages = pages(state)
 
-    %{
-      content:
-        "Submissions closed; awaiting publication.\nLatest choice: #{latest}\n\n" <>
-          Enum.map_join(pages(state), "", & &1.text),
-      components: []
-    }
+    if (not is_nil(expected) and expected != view) or page >= length(pages) do
+      {:error, :stale_component}
+    else
+      navigation =
+        [{page - 1, "Previous"}, {page + 1, "Next"}]
+        |> Enum.filter(fn {index, _} -> index >= 0 and index < length(pages) end)
+        |> Enum.map(fn {index, label} ->
+          %{type: 2, style: 2, custom_id: "qv:#{view}:p:#{index}", label: label}
+        end)
+
+      {:ok,
+       %{
+         content:
+           "#{heading}\nPage #{page + 1}/#{length(pages)}\n\n" <> Enum.at(pages, page).text,
+         components: if(navigation == [], do: [], else: [row(navigation)])
+       }}
+    end
   end
 
-  def present(state, page) do
+  @doc "Pure bounded presentation of an already authorized open player submission projection."
+  def present(%{open: true} = state, page) do
     pages = pages(state)
     page = min(page, length(pages) - 1)
     selected = Enum.find(state.quest.choices, &(&1.id == state.choice_id))

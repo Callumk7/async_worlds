@@ -127,7 +127,12 @@ dumps can include credentials and private player content.
 Quest pages use at most 15 choice buttons (three rows) plus a navigation/clear
 row. Long node text and full choice labels paginate in 1,400-codepoint chunks;
 button labels truncate to 80 codepoints and include choice numbers. All text is
-preserved across pages. Components encode tick, quest instance, pinned revision,
+preserved across pages. No-tick, completed and closed views also paginate one
+private message per click, with navigation only (no submit/clear controls).
+Read-only navigation binds to the verified owner and fresh projected state;
+changed views require a refresh. Webhook followup creates omit the `components`
+key when there are no controls; response edits may use `[]` to clear controls.
+Submission components encode tick, quest instance, pinned revision,
 position version and 96-bit node/choice ID digests in under 100 characters.
 These are locators, not authorization tokens: the handler compares them to the
 verified owner's freshly projected state, then shared submission operations

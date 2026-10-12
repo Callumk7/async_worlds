@@ -50,9 +50,14 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
     # Interaction.edit_response, which accepts the Discord payload map directly.
     content
     |> response_data()
+    |> omit_empty_components()
     |> Map.put(:flags, 64)
     |> message_options()
   end
+
+  # An edit can clear components with [], but webhook creates must omit the key.
+  defp omit_empty_components(%{components: []} = payload), do: Map.delete(payload, :components)
+  defp omit_empty_components(payload), do: payload
 
   @doc false
   def message_options(payload) do
