@@ -8,72 +8,146 @@ defmodule AsyncWorlds.Discord.Commands do
   alias AsyncWorlds.{Characters, Clocks, Ticks}
   alias AsyncWorlds.Discord.{DebugInteractions, QuestInteractions}
 
-  def definitions do
+  @doc "Discord registration definitions, stripped of internal routing metadata."
+  def definitions, do: Enum.map(catalogue(), &discord_definition/1)
+
+  @doc """
+  Single source for registration, routing permissions and command discovery.
+
+  Entries use Discord's definition format plus internal `:permission` and `:command`
+  metadata. Subcommands inherit their parent's permission unless overridden;
+  actionable entries name the operation passed to `execute/2`. Discord registration
+  strips this metadata, and help reads the same entries at request time. No separate
+  help descriptions or command list should be maintained.
+  """
+  def catalogue do
     [
-      DebugInteractions.definition(),
-      %{name: "clocks", description: "View the campaign's visible clocks", type: 1},
+      Map.put(DebugInteractions.definition(), :permission, :debug),
+      %{
+        name: "clocks",
+        description: "View the campaign's visible clocks",
+        type: 1,
+        permission: :player,
+        command: :clocks
+      },
       %{
         name: "tick",
         description: "Manage the campaign tick (DM only)",
         type: 1,
+        permission: :dm,
         options: [
-          %{name: "open", description: "Open a new tick", type: 1},
-          %{name: "close", description: "Close submissions and resolve the tick", type: 1},
-          %{name: "status", description: "View the current tick status", type: 1},
+          %{name: "open", description: "Open a new tick", type: 1, command: :tick_open},
+          %{
+            name: "close",
+            description: "Close submissions and resolve the tick",
+            type: 1,
+            command: :tick_close
+          },
+          %{
+            name: "status",
+            description: "View the current tick status",
+            type: 1,
+            command: :tick_status
+          },
           %{
             name: "remind",
             description: "Privately remind players with missing submissions",
-            type: 1
+            type: 1,
+            command: :tick_remind
           }
         ]
       },
-      %{name: "admin", description: "Access the campaign web admin (DM only)", type: 1},
-      %{name: "character", description: "View your character and visible flags", type: 1},
-      %{name: "quest", description: "View your private quest and choose an action", type: 1},
-      %{name: "result", description: "Retrieve your latest approved personal result", type: 1},
+      %{
+        name: "admin",
+        description: "Access the campaign web admin (DM only)",
+        type: 1,
+        permission: :dm,
+        command: :admin
+      },
+      %{
+        name: "character",
+        description: "View your character and visible flags",
+        type: 1,
+        permission: :player,
+        command: :character
+      },
+      %{
+        name: "quest",
+        description: "View your private quest and choose an action",
+        type: 1,
+        permission: :player,
+        command: :quest
+      },
+      %{
+        name: "result",
+        description: "Retrieve your latest approved personal result",
+        type: 1,
+        permission: :player,
+        command: :result
+      },
       %{
         name: "submission",
         description: "View, revise or clear your latest quest choice",
-        type: 1
+        type: 1,
+        permission: :player,
+        command: :submission
+      },
+      %{
+        name: "help",
+        description: "List the commands available to you",
+        type: 1,
+        permission: :player,
+        command: :help
       }
     ]
   end
 
-  def route(%{name: "debug"} = data), do: DebugInteractions.route(data)
+  def route(%{name: name} = data) do
+    case Enum.find(catalogue(), &(&1.name == name)) do
+      %{name: "debug", permission: permission} ->
+        with {:ok, command, _} <- DebugInteractions.route(data),
+             do: {:ok, command, permission}
 
-  def route(%{name: name} = data)
-      when name in ["clocks", "admin", "character", "quest", "submission", "result"] do
-    if Map.get(data, :options) in [nil, []] do
-      case name do
-        "clocks" -> {:ok, :clocks, :player}
-        "admin" -> {:ok, :admin, :dm}
-        "character" -> {:ok, :character, :player}
-        "quest" -> {:ok, :quest, :player}
-        "submission" -> {:ok, :submission, :player}
-        "result" -> {:ok, :result, :player}
-      end
-    else
-      {:error, :unknown_command}
-    end
-  end
+      %{permission: permission} = entry ->
+        route_entry(entry, data, permission)
 
-  def route(%{name: "tick", options: [%{type: 1, name: name} = option]}) do
-    if Map.get(option, :options) in [nil, []] do
-      case name do
-        "open" -> {:ok, :tick_open, :dm}
-        "close" -> {:ok, :tick_close, :dm}
-        "status" -> {:ok, :tick_status, :dm}
-        "remind" -> {:ok, :tick_remind, :dm}
-        _ -> {:error, :unknown_command}
-      end
-    else
-      {:error, :unknown_command}
+      _ ->
+        {:error, :unknown_command}
     end
   end
 
   def route(_), do: {:error, :unknown_command}
 
+  defp route_entry(entry, data, inherited_permission) do
+    permission = Map.get(entry, :permission, inherited_permission)
+
+    case {Map.get(entry, :command), Map.get(data, :options)} do
+      {command, options} when not is_nil(command) and options in [nil, []] ->
+        {:ok, command, permission}
+
+      {nil, [%{type: type, name: name} = option]} when type in [1, 2] ->
+        case Enum.find(Map.get(entry, :options, []), &(&1.name == name and &1.type == type)) do
+          nil -> {:error, :unknown_command}
+          child -> route_entry(child, option, permission)
+        end
+
+      _ ->
+        {:error, :unknown_command}
+    end
+  end
+
+  defp discord_definition(entry) do
+    definition = Map.drop(entry, [:command, :permission])
+
+    case Map.fetch(definition, :options) do
+      {:ok, options} -> Map.put(definition, :options, Enum.map(options, &discord_definition/1))
+      :error -> definition
+    end
+  end
+
   def execute({:debug, _} = command, context), do: DebugInteractions.execute(command, context)
+
+  def execute(:help, context), do: {:ok, AsyncWorlds.Discord.Help.render(context)}
 
   def execute(:quest, context), do: QuestInteractions.show(context)
 

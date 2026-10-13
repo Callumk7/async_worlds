@@ -1,7 +1,7 @@
 defmodule AsyncWorlds.Discord.DebugInteractions do
   @moduledoc "DM-only private persona controls and interaction discovery."
   alias AsyncWorlds.{Characters, Campaigns}
-  alias AsyncWorlds.Discord.{Commands, DebugSessions}
+  alias AsyncWorlds.Discord.{DebugSessions, Help}
 
   def definition do
     %{
@@ -119,27 +119,7 @@ defmodule AsyncWorlds.Discord.DebugInteractions do
         |> Enum.filter(fn {p, _} -> p >= 0 and p < count end)
         |> Enum.map(fn {p, label} -> button("db:v:#{p}", label) end)
 
-      catalogue =
-        Enum.map_join(Commands.definitions(), "\n", fn definition ->
-          permission =
-            case Commands.route(%{name: definition.name}) do
-              {:ok, _, :player} -> "player / DM"
-              _ -> if definition.name == "debug", do: "real DM (always)", else: "DM role only"
-            end
-
-          entries =
-            case Map.get(definition, :options) do
-              options when is_list(options) ->
-                Enum.map(options, &{"/#{definition.name} #{&1.name}", &1.description})
-
-              _ ->
-                [{"/#{definition.name}", definition.description}]
-            end
-
-          Enum.map_join(entries, "\n", fn {command, description} ->
-            "#{command} — #{permission}: #{description}"
-          end)
-        end)
+      catalogue = Help.render(context)
 
       {:ok,
        %{
