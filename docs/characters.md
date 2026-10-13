@@ -64,6 +64,16 @@ The Discord dispatcher retains the authenticated guild member as the real actor,
 
 LiveView uses the existing authenticated-DM live session, with session reauthorization on every event and revocation/expiry handling. Domain authorization is additional protection, not a substitute for the session check.
 
+## Journal ownership
+
+[Player journals](journals.md) use the owner-approved **character-owned** policy:
+relinking grants the new current owner access to all of that character's private
+journal history and deletion rights. Former owners lose private access. Journal
+original-author identity is attribution only. This deliberately differs from the
+historical tick-result/submission ownership protections described in the Discord
+documentation. DM personas follow the selected character's permissions; actual DM
+attribution and explicit origin remain immutable server-set journal fields.
+
 ## Deliberate boundaries
 
 The connected DM editor shows Discord ownership, active pinned quest revision/node/status,

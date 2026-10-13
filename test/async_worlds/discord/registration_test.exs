@@ -27,6 +27,7 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
 
     assert Enum.map(Commands.definitions(), & &1.name) == [
              "debug",
+             "journal",
              "clocks",
              "tick",
              "admin",
@@ -37,7 +38,9 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
              "help"
            ]
 
-    assert Enum.map(Enum.at(Commands.definitions(), 2).options, & &1.name) == [
+    tick = Enum.find(Commands.definitions(), &(&1.name == "tick"))
+
+    assert Enum.map(tick.options, & &1.name) == [
              "open",
              "close",
              "status",

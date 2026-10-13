@@ -13,6 +13,7 @@ defmodule AsyncWorlds.Application do
       [
         AsyncWorldsWeb.Telemetry,
         AsyncWorlds.Repo,
+        {Task.Supervisor, name: AsyncWorlds.Discord.ModalTasks, max_children: 100},
         {DNSCluster, query: Application.get_env(:async_worlds, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: AsyncWorlds.PubSub},
         # Start a worker by calling: AsyncWorlds.Worker.start_link(arg)

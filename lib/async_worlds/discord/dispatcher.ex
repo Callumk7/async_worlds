@@ -13,7 +13,8 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   alias AsyncWorlds.Discord.{
     Commands,
     DebugInteractions,
-    JournalModalSpike,
+    JournalInteractions,
+    ModalDeadline,
     QuestInteractions,
     Snowflake
   }
@@ -21,7 +22,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   def handle(interaction, opts \\ Application.fetch_env!(:async_worlds, :discord))
 
   def handle(%{type: 5} = interaction, opts) do
-    if JournalModalSpike.modal_submit?(interaction),
+    if JournalInteractions.modal_submit?(interaction),
       do: handle_supported(interaction, opts),
       else: :ignored
   end
@@ -41,7 +42,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
          token when is_binary(token) and byte_size(token) > 0 <- Map.get(interaction, :token) do
       envelope = %{id: id, application_id: application_id, token: token}
 
-      if JournalModalSpike.modal_open?(interaction) do
+      if JournalInteractions.modal_open?(interaction) do
         open_journal_modal(interaction, envelope, opts)
       else
         case safely(:acknowledgment, fn -> adapter.defer(envelope) end) do
@@ -59,10 +60,12 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   defp open_journal_modal(interaction, envelope, opts) do
     result =
       safely(:command, fn ->
-        with {:ok, campaign, actor} <- authorize(interaction, :player, opts),
-             {:ok, context} <- command_context(:player, campaign, actor) do
-          JournalModalSpike.open(interaction.data.custom_id, context)
-        end
+        ModalDeadline.run(Keyword.get(opts, :modal_deadline, ModalDeadline.deadline()), fn ->
+          with {:ok, campaign, actor} <- authorize(interaction, :player, opts),
+               {:ok, context} <- command_context(:player, campaign, actor) do
+            JournalInteractions.open(interaction.data.custom_id, context)
+          end
+        end)
       end)
 
     adapter = Keyword.fetch!(opts, :adapter)
@@ -99,7 +102,8 @@ defmodule AsyncWorlds.Discord.Dispatcher do
       end)
 
     journal? =
-      JournalModalSpike.modal_submit?(interaction) or
+      JournalInteractions.modal_submit?(interaction) or
+        JournalInteractions.journal_control?(interaction) or
         match?(%{data: %{name: "journal"}}, interaction)
 
     respond(result, envelope, opts, journal?)
@@ -117,9 +121,12 @@ defmodule AsyncWorlds.Discord.Dispatcher do
         {:error, :stale_component} ->
           if journal?,
             do:
-              "This journal preview has expired or changed. Run /journal new again; nothing was saved.",
+              "This journal control has expired or changed. Refresh with /journal list, /journal open or /journal new.",
             else:
               "This control is no longer available. Use /quest or /submission to refresh your choices."
+
+        {:error, :modal_deadline} ->
+          "The journal form could not be prepared in time. Run /journal new and try again."
 
         {:error, :invalid_journal_input} ->
           "Use a nonblank title (up to 100 characters) and entry (up to 4,000 characters). Nothing was saved; run /journal new to try again."
@@ -128,7 +135,9 @@ defmodule AsyncWorlds.Discord.Dispatcher do
           "This command is not supported."
 
         {:error, reason} when reason in [:unauthorized, :not_found, :invalid_id] ->
-          "This command is not available to you in this server."
+          if journal?,
+            do: "This journal entry or operation is unavailable.",
+            else: "This command is not available to you in this server."
 
         _ ->
           "The command could not be completed. Please check its status before retrying."
@@ -155,13 +164,14 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   end
 
   defp route(%{type: 5, data: %{custom_id: id, components: components}}) do
-    if JournalModalSpike.enabled?(),
-      do: {:ok, {:journal_spike_submit, id, components}, :player},
-      else: {:error, :unknown_command}
+    {:ok, {:journal_submit, id, components}, :player}
   end
 
   defp route(%{type: 3, data: %{custom_id: "db:" <> _} = data}),
     do: DebugInteractions.component_route(data)
+
+  defp route(%{type: 3, data: %{custom_id: "j1:" <> _} = data}),
+    do: JournalInteractions.component_route(data)
 
   defp route(%{type: 3, data: data}), do: QuestInteractions.route(data)
   defp route(interaction), do: Commands.route(Map.get(interaction, :data))

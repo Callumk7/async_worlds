@@ -159,7 +159,10 @@ defmodule AsyncWorlds.Discord.HelpTest do
 
     if subcommands == [] do
       options =
-        Enum.map(Map.get(definition, :options, []), fn option ->
+        definition
+        |> Map.get(:options, [])
+        |> Enum.filter(&Map.get(&1, :required, false))
+        |> Enum.map(fn option ->
           %{
             name: option.name,
             type: option.type,
