@@ -14,6 +14,19 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
     |> normalize_acknowledgment()
   end
 
+  @impl true
+  def open_modal(interaction, modal) do
+    Interaction.create_response(
+      integer_id(interaction.id),
+      interaction.token,
+      modal_response(modal)
+    )
+    |> normalize_acknowledgment()
+  end
+
+  @doc false
+  def modal_response(modal), do: %{type: 9, data: modal}
+
   @doc false
   def normalize_acknowledgment({:ok}), do: :ok
   def normalize_acknowledgment({:error, _} = error), do: error

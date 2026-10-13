@@ -11,6 +11,9 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
   def defer(envelope), do: call(:defer, envelope)
 
   @impl true
+  def open_modal(envelope, modal), do: call(:open_modal, {envelope, modal})
+
+  @impl true
   def edit_response(envelope, content), do: call(:edit_response, {envelope, content})
 
   @impl true
@@ -59,6 +62,8 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
       result -> {:reply, result, state}
     end
   end
+
+  defp perform(:open_modal, {envelope, _modal}, state), do: perform(:defer, envelope, state)
 
   defp perform(:defer, envelope, state) do
     if MapSet.member?(state.acknowledged, envelope.id) do
