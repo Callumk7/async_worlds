@@ -37,7 +37,6 @@ defmodule AsyncWorldsWeb.ClockAuthoringLiveTest do
 
     fill(view, %{
       name: "Clock rehearsal",
-      content_id: "clock_rehearsal",
       node_0_text: "The crossing",
       node_0_choice_0_label: "Cross",
       node_0_choice_0_text: "Crossed"

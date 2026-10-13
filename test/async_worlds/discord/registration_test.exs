@@ -33,7 +33,8 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
              "character",
              "quest",
              "result",
-             "submission"
+             "submission",
+             "help"
            ]
 
     assert Enum.map(Enum.at(Commands.definitions(), 2).options, & &1.name) == [

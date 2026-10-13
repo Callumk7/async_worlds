@@ -3,6 +3,10 @@ defmodule AsyncWorldsWeb.QuestGraphTest do
   import AsyncWorlds.QuestFixtures
   alias AsyncWorldsWeb.QuestGraph
 
+  test "content identity diagnostics target the read-only identity display" do
+    assert QuestGraph.target("content_id", definition()) == "quest-identity"
+  end
+
   test "fixed label diagnostics target the label input" do
     assert QuestGraph.target(
              "nodes[0].choices[0].label",

@@ -40,7 +40,6 @@ defmodule AsyncWorldsWeb.RolledAuthoringLiveTest do
 
     fill(v, %{
       name: "Dice rehearsal",
-      content_id: "dice_rehearsal",
       node_0_text: "Attempt the crossing",
       node_0_choice_0_label: "Cross",
       node_0_choice_0_text: "Safely across"

@@ -541,13 +541,14 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                 class="admin-form space-y-5"
               >
                 <.input field={@form[:name]} id="quest-name" label="Quest name" class="admin-input" />
-                <.input
-                  field={@form[:content_id]}
-                  id="quest-content-id"
-                  label="Content identity (stable library key)"
-                  readonly={@work.quest_id != nil}
-                  class="admin-input"
-                />
+                <p id="quest-identity" tabindex="-1" class="text-xs text-slate-400 break-all">
+                  Content identity (generated, read-only): {if Quests.Definition.id?(
+                                                                 @work.content_id
+                                                               ),
+                                                               do: @work.content_id,
+                                                               else:
+                                                                 "Assigned automatically when saved or released"}
+                </p>
                 <.input
                   field={@form[:start_node]}
                   id="quest-start-node"

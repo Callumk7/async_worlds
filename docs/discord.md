@@ -70,6 +70,10 @@ Registration is explicit, not repeated on every reconnect or deploy.
 
 The registered command set is:
 
+- `/help` — private command names, descriptions and argument placeholders from the
+  live command catalogue. Players see player commands; DMs also see DM commands.
+  In player-testing mode, DM-role commands are hidden but real-DM debug controls
+  remain visible. No linked character is required for ordinary player help.
 - `/clocks` — private reply available to guild players: live public clock fills
   and known clock names only. Hidden clocks and known fills never appear. Draft
   state is never read. Large lists continue in private followups.
@@ -96,6 +100,14 @@ The registered command set is:
   configured guild, not in a direct message.
 - `/admin` — configured DM only; privately links to `/dashboard`. This is a
   normal URL, **not** a bearer login token; web Discord OAuth verifies the DM.
+
+Command discovery uses `AsyncWorlds.Discord.Commands.catalogue/0`, the same source
+used for Discord registration and routing permissions. Add, edit or remove commands
+there (or in a delegated definition such as `DebugInteractions.definition/0`); `/help`
+and the `/debug status` listing update automatically without help-specific changes.
+Subcommands inherit permission metadata from their parent. Help lists role-appropriate
+commands regardless of tick/quest state; it does not promise an action is currently
+executable. Re-register Discord commands after changing the registered definitions.
 
 Only opening and explicit approved web publication enqueue public messages.
 Closing, status, admin, character/clock queries, and draft edits never announce draft

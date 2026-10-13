@@ -21,7 +21,6 @@ defmodule AsyncWorldsWeb.FlagAuthoringLiveTest do
 
     fill(view, %{
       name: "Flag rehearsal",
-      content_id: "flags",
       node_0_text: "A door",
       node_0_choice_0_label: "Enter",
       node_0_choice_0_text: "Entered"

@@ -68,7 +68,11 @@ defmodule AsyncWorlds.Quests do
             definition: revision.definition
           }
         else
-          %{name: "", content_id: "", definition: Authoring.new_definition()}
+          %{
+            name: "",
+            content_id: new_content_id(),
+            definition: Authoring.new_definition()
+          }
         end
 
       attrs =
@@ -108,7 +112,7 @@ defmodule AsyncWorlds.Quests do
           do: errors,
           else: [
             {"content_id",
-             "Content identity is required; use letters, numbers, underscores or hyphens"}
+             "Content identity is invalid; recover this working copy as a separate quest"}
             | errors
           ]
 
@@ -156,6 +160,8 @@ defmodule AsyncWorlds.Quests do
     end)
   end
 
+  defp new_content_id, do: "quest_" <> Ecto.UUID.generate()
+
   defp editable_work!(current, id, version) do
     draft = fetch!(WorkingCopy, current.id, id)
     if draft.version != version, do: Repo.rollback(:stale_working_copy)
@@ -189,6 +195,13 @@ defmodule AsyncWorlds.Quests do
 
     if draft.quest_id != nil and draft.content_id != attrs[:content_id],
       do: Repo.rollback(:immutable_content_id)
+
+    # Pre-generation drafts may retain blank or invalid identities. Repair only
+    # unreleased work, within the same version-checked save/release transaction.
+    attrs =
+      if is_nil(draft.quest_id) and not Definition.id?(attrs[:content_id]),
+        do: Map.put(attrs, :content_id, new_content_id()),
+        else: attrs
 
     draft
     |> change(

@@ -118,7 +118,6 @@ defmodule AsyncWorlds.Quests.Authoring do
     %{
       work
       | name: binary_param(params, "name", work.name),
-        content_id: binary_param(params, "content_id", work.content_id),
         definition: %{
           definition
           | "nodes" => nodes,
@@ -132,7 +131,6 @@ defmodule AsyncWorlds.Quests.Authoring do
     |> Enum.reduce(
       %{
         "name" => work.name,
-        "content_id" => work.content_id,
         "start_node" => work.definition["start_node"]
       },
       fn {node, i}, acc ->
