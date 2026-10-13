@@ -159,10 +159,52 @@ defmodule AsyncWorldsWeb.QuestGraph do
       ])
 
     cond do
-      String.ends_with?(suffix, "next_node") -> "choice-#{i}-#{j}-destination"
-      Authoring.editable?(choice) and suffix == ".label" -> "choice-#{i}-#{j}-label"
-      Authoring.editable?(choice) and suffix == ".outcomes.fixed.text" -> "choice-#{i}-#{j}-text"
-      true -> "editor-choice-#{i}-#{j}"
+      Authoring.editable?(choice) and String.starts_with?(suffix, ".outcomes.") ->
+        case String.split(suffix, ".") do
+          ["", "outcomes", kind, field] when field in ["text", "next_node"] ->
+            Authoring.outcome_prefix("choice-#{i}-#{j}", kind) <>
+              if(field == "text", do: "-text", else: "-destination")
+
+          _ ->
+            "editor-choice-#{i}-#{j}"
+        end
+
+      suffix == ".dice" ->
+        "choice-#{i}-#{j}-dice"
+
+      String.starts_with?(suffix, ".critical_effects") ->
+        critical_target(i, j, suffix)
+
+      String.ends_with?(suffix, "next_node") ->
+        "choice-#{i}-#{j}-destination"
+
+      Authoring.editable?(choice) and suffix == ".label" ->
+        "choice-#{i}-#{j}-label"
+
+      Authoring.editable?(choice) and suffix == ".outcomes.fixed.text" ->
+        "choice-#{i}-#{j}-text"
+
+      true ->
+        "editor-choice-#{i}-#{j}"
+    end
+  end
+
+  defp critical_target(i, j, suffix) do
+    case Regex.run(~r/critical_effects\[(\d+)\](.*)/, suffix) do
+      [_, k, field] ->
+        ending =
+          case field do
+            ".clock_id" -> "-clock"
+            ".delta" -> "-delta"
+            ".key" -> "-key"
+            ".flag" -> "-value"
+            _ -> ""
+          end
+
+        "choice-#{i}-#{j}-critical-#{k}" <> ending
+
+      _ ->
+        "choice-#{i}-#{j}-critical"
     end
   end
 

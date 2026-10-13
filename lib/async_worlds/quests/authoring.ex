@@ -1,5 +1,6 @@
 defmodule AsyncWorlds.Quests.Authoring do
-  @moduledoc "Fixed form vocabulary. IDs are allocated once; unsupported imported choices are opaque."
+  @moduledoc "Fixed and rolled form vocabulary with stable identities and opaque-field preservation."
+  alias AsyncWorlds.Quests.EffectAuthoring
 
   def new_definition do
     node = new_node()
@@ -22,8 +23,8 @@ defmodule AsyncWorlds.Quests.Authoring do
   end
 
   def editable?(choice) do
-    choice["mode"] == "fixed" and choice["conditions"] == [] and
-      get_in(choice, ["outcomes", "fixed", "effects"]) == []
+    choice["mode"] in ["fixed", "rolled"] and is_map(choice["outcomes"]) and
+      Enum.sort(Map.keys(choice["outcomes"])) == Enum.sort(outcome_kinds(choice))
   end
 
   # Never rebuild imported content from a lossy UI projection.
@@ -55,17 +56,39 @@ defmodule AsyncWorlds.Quests.Authoring do
               choice =
                 Map.put(choice, "label", binary_param(params, cp <> "_label", choice["label"]))
 
-              outcome = choice["outcomes"]["fixed"]
+              outcomes =
+                Map.new(choice["outcomes"], fn {kind, outcome} ->
+                  op = outcome_prefix(cp, kind)
 
-              outcome =
-                outcome
-                |> Map.put("text", binary_param(params, cp <> "_text", outcome["text"]))
+                  {kind,
+                   outcome
+                   |> Map.put("text", binary_param(params, op <> "_text", outcome["text"]))
+                   |> Map.put(
+                     "next_node",
+                     binary_param(params, op <> "_destination", outcome["next_node"])
+                   )}
+                end)
+
+              choice = Map.put(choice, "outcomes", outcomes)
+
+              if choice["mode"] == "rolled" do
+                effects =
+                  Enum.with_index(choice["critical_effects"])
+                  |> Enum.map(fn {effect, k} ->
+                    EffectAuthoring.apply_form(effect, params, cp <> "_critical_#{k}")
+                  end)
+
+                choice
                 |> Map.put(
-                  "next_node",
-                  binary_param(params, cp <> "_destination", outcome["next_node"])
+                  "dice",
+                  EffectAuthoring.integer(
+                    binary_param(params, cp <> "_dice", to_string(choice["dice"]))
+                  )
                 )
-
-              put_in(choice, ["outcomes", "fixed"], outcome)
+                |> Map.put("critical_effects", effects)
+              else
+                choice
+              end
             else
               choice
             end
@@ -107,16 +130,125 @@ defmodule AsyncWorlds.Quests.Authoring do
           if editable?(choice) do
             cp = prefix <> "_choice_#{j}"
 
-            acc
-            |> Map.put(cp <> "_label", choice["label"])
-            |> Map.put(cp <> "_text", choice["outcomes"]["fixed"]["text"])
-            |> Map.put(cp <> "_destination", choice["outcomes"]["fixed"]["next_node"])
+            acc = Map.put(acc, cp <> "_label", choice["label"])
+
+            acc =
+              Enum.reduce(choice["outcomes"], acc, fn {kind, outcome}, acc ->
+                op = outcome_prefix(cp, kind)
+
+                acc
+                |> Map.put(op <> "_text", outcome["text"])
+                |> Map.put(op <> "_destination", outcome["next_node"])
+              end)
+
+            if choice["mode"] == "rolled" do
+              Enum.with_index(choice["critical_effects"])
+              |> Enum.reduce(Map.put(acc, cp <> "_dice", to_string(choice["dice"])), fn {effect,
+                                                                                         k},
+                                                                                        acc ->
+                Enum.reduce(EffectAuthoring.form_params(effect), acc, fn {key, value}, acc ->
+                  Map.put(acc, cp <> "_critical_#{k}_" <> key, value)
+                end)
+              end)
+            else
+              acc
+            end
           else
             acc
           end
         end)
       end
     )
+  end
+
+  def outcome_kinds(%{"mode" => "rolled"}), do: ~w(success partial failure)
+  def outcome_kinds(_), do: ["fixed"]
+  def outcome_prefix(prefix, "fixed"), do: prefix
+  def outcome_prefix(prefix, kind), do: prefix <> "_" <> kind
+
+  def convertible?(choice) do
+    editable?(choice) and
+      Enum.all?(choice["outcomes"], fn {_, o} ->
+        Map.keys(o) |> Enum.sort() == Enum.sort(~w(text next_node effects))
+      end) and
+      conversion_fields_safe?(choice)
+  end
+
+  defp conversion_fields_safe?(%{"mode" => "fixed"} = choice) do
+    not Map.has_key?(choice, "dice") and not Map.has_key?(choice, "critical_effects")
+  end
+
+  defp conversion_fields_safe?(%{"mode" => "rolled"} = choice) do
+    # Conversion must not provide a back door for discarding opaque imported fields.
+    Enum.all?(choice["critical_effects"], &EffectAuthoring.editable?/1) and
+      Enum.all?(~w(partial failure), fn kind ->
+        Enum.all?(choice["outcomes"][kind]["effects"], &EffectAuthoring.editable?/1)
+      end)
+  end
+
+  def convert(choice, mode) when mode in ["fixed", "rolled"] do
+    cond do
+      not convertible?(choice) or choice["mode"] == mode ->
+        choice
+
+      mode == "rolled" ->
+        outcome = choice["outcomes"]["fixed"]
+
+        choice
+        |> Map.put("mode", mode)
+        |> Map.put("dice", 1)
+        |> Map.put("critical_effects", [])
+        |> Map.put("outcomes", %{
+          "success" => outcome,
+          "partial" => %{"text" => "", "next_node" => "", "effects" => []},
+          "failure" => %{"text" => "", "next_node" => "", "effects" => []}
+        })
+
+      true ->
+        choice
+        |> Map.put("mode", mode)
+        |> Map.drop(["dice", "critical_effects"])
+        |> Map.put("outcomes", %{"fixed" => choice["outcomes"]["success"]})
+    end
+  end
+
+  def update_choice(definition, node_id, choice_id, fun) do
+    Map.update!(definition, "nodes", fn nodes ->
+      Enum.map(nodes, fn node ->
+        if node["id"] == node_id,
+          do:
+            Map.update!(node, "choices", fn choices ->
+              Enum.map(choices, fn choice ->
+                if choice["id"] == choice_id, do: fun.(choice), else: choice
+              end)
+            end),
+          else: node
+      end)
+    end)
+  end
+
+  defp safe_choice?(old, new) do
+    if editable?(old) and editable?(new) do
+      same_mode? = old["mode"] == new["mode"]
+      base = if same_mode?, do: old, else: convert(old, new["mode"])
+
+      opaque =
+        ["label", "outcomes"] ++
+          if(base["mode"] == "rolled", do: ["dice", "critical_effects"], else: [])
+
+      Map.drop(base, opaque) == Map.drop(new, opaque) and
+        Enum.all?(new["outcomes"], fn {kind, outcome} ->
+          previous = base["outcomes"][kind]
+
+          is_map(previous) and
+            Map.drop(previous, ["text", "next_node"]) == Map.drop(outcome, ["text", "next_node"])
+        end) and
+        (new["mode"] != "rolled" or
+           ((is_integer(new["dice"]) or is_binary(new["dice"])) and
+              EffectAuthoring.safe_edit?(base["critical_effects"], new["critical_effects"])))
+    else
+      old == new
+    end
   end
 
   @doc "Match by stable identity, permitting removal/reordering while preserving retained opaque fields."
@@ -136,16 +268,7 @@ defmodule AsyncWorlds.Quests.Authoring do
       safe_collection?(
         a["choices"],
         b["choices"],
-        fn x, y ->
-          if editable?(x) do
-            Map.drop(x, ["label", "outcomes"]) == Map.drop(y, ["label", "outcomes"]) and
-              Map.keys(y["outcomes"]) == ["fixed"] and
-              Map.drop(x["outcomes"]["fixed"], ["text", "next_node"]) ==
-                Map.drop(y["outcomes"]["fixed"], ["text", "next_node"])
-          else
-            x == y
-          end
-        end,
+        &safe_choice?/2,
         &fresh_choice?/1
       )
   end
@@ -221,11 +344,8 @@ defmodule AsyncWorlds.Quests.Authoring do
 
   defp fresh_choice?(choice),
     do:
-      Map.drop(choice, ["id", "label", "outcomes"]) ==
-        Map.drop(new_choice(), ["id", "label", "outcomes"]) and
-        allocated_id?(choice["id"], "choice") and
-        Map.keys(choice["outcomes"]) == ["fixed"] and
-        Map.drop(choice["outcomes"]["fixed"], ["text", "next_node"]) == %{"effects" => []}
+      allocated_id?(choice["id"], "choice") and
+        safe_choice?(%{new_choice() | "id" => choice["id"]}, choice)
 
   @doc "Persistence text diagnostics, separate from structural edit and release validation."
   def persistence_errors(attrs) when is_map(attrs) do

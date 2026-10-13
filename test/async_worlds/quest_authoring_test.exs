@@ -49,6 +49,34 @@ defmodule AsyncWorlds.QuestAuthoringTest do
     }
   end
 
+  test "unprojectable rolled pools cannot persist and the prior draft remains reopenable", c do
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456")
+    complete = complete(work)
+    path = ["nodes", Access.at(0), "choices", Access.at(0)]
+    definition = update_in(complete.definition, path, &Authoring.convert(&1, "rolled"))
+    assert {:ok, saved} = save(c.campaign, %{complete | definition: definition})
+
+    for invalid <- [%{}, [], [1]] do
+      malformed = put_in(saved.definition, path ++ ["dice"], invalid)
+      assert {:error, :unsupported_edit} = save(c.campaign, %{saved | definition: malformed})
+      assert {:ok, ^saved} = Quests.get_working_copy(c.campaign, "456", saved.id)
+      assert Authoring.form_params(saved)["node_0_choice_0_dice"] == "1"
+    end
+
+    for effect <- [
+          %{"type" => "clock_delta", "clock_id" => %{}, "delta" => 1},
+          %{
+            "type" => "set_flag",
+            "key" => "bonus",
+            "flag" => %{"type" => "string", "value" => %{}, "player_visible" => false}
+          }
+        ] do
+      malformed = put_in(saved.definition, path ++ ["critical_effects"], [effect])
+      assert {:error, :unsupported_edit} = save(c.campaign, %{saved | definition: malformed})
+      assert {:ok, ^saved} = Quests.get_working_copy(c.campaign, "456", saved.id)
+    end
+  end
+
   test "persistent incomplete copies are unassignable; invalid release rolls back every write; repair appends",
        c do
     {:ok, work} = Quests.create_working_copy(c.campaign, "456")
@@ -183,26 +211,31 @@ defmodule AsyncWorlds.QuestAuthoringTest do
       Authoring.apply_form(work, %{
         "name" => "New title",
         "node_0_text" => "New narrative",
-        "node_0_choice_0_label" => "Forged",
-        "node_0_ending" => "true"
+        "node_0_choice_0_label" => "Edited roll"
       })
 
-    assert hd(applied.definition["nodes"])["choices"] == hd(d["nodes"])["choices"]
+    original_choice = hd(hd(d["nodes"])["choices"])
+    edited_choice = Map.put(original_choice, "label", "Edited roll")
+    assert hd(applied.definition["nodes"])["choices"] == [edited_choice]
     assert hd(applied.definition["nodes"])["ending"] == false
     assert {:ok, %{revision: next}} = release(c.campaign, applied)
-    assert hd(next.definition["nodes"])["choices"] == hd(d["nodes"])["choices"]
+    assert hd(next.definition["nodes"])["choices"] == [edited_choice]
     {:ok, current} = Quests.create_working_copy(c.campaign, "456", next.id)
 
     tampered = %{
       current
       | definition:
-          put_in(current.definition, ["nodes", Access.at(0), "choices", Access.at(0), "dice"], 1)
+          put_in(
+            current.definition,
+            ["nodes", Access.at(0), "choices", Access.at(0), "conditions"],
+            []
+          )
     }
 
     assert {:error, :unsupported_edit} = save(c.campaign, tampered)
     assert {:error, :unsupported_edit} = release(c.campaign, tampered)
     assert Repo.get!(Revision, r.id).definition == d
-    # Effect-bearing fixed choices are also opaque, including their destinations.
+    # Outcome effects remain opaque even when narrative/destination controls are editable.
     {:ok, fixed} =
       Quests.create_quest(c.campaign, "456", %{name: "Fixed", content_id: "fixed"}, definition())
 
