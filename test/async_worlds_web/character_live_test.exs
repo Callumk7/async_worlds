@@ -1,6 +1,7 @@
 defmodule AsyncWorldsWeb.CharacterLiveTest do
   use AsyncWorldsWeb.ConnCase
   import Phoenix.LiveViewTest
+  import Ecto.Query
   alias AsyncWorlds.{Campaigns, Characters, Repo, WebAuth}
   alias AsyncWorlds.Characters.Character
 
@@ -20,7 +21,10 @@ defmodule AsyncWorldsWeb.CharacterLiveTest do
       Characters.create_character(c.campaign, "456", %{name: "Private", discord_user_id: "999"})
 
     socket =
-      %Phoenix.LiveView.Socket{private: %{lifecycle: %Phoenix.LiveView.Lifecycle{}}}
+      %Phoenix.LiveView.Socket{
+        private: %{lifecycle: %Phoenix.LiveView.Lifecycle{}, live_temp: %{}},
+        assigns: %{__changed__: %{}, flash: %{}}
+      }
       |> Phoenix.Component.assign(:current_scope, %{
         campaign: c.campaign,
         discord_user_id: "456"
@@ -49,6 +53,84 @@ defmodule AsyncWorldsWeb.CharacterLiveTest do
       assert rejected.assigns.connected == nil
       assert rejected.assigns.form[:name].value == nil
       assert Repo.get!(Character, character.id).name == "Private"
+    end
+  end
+
+  test "successful profile and flag writes stop reloading after authorization-loss redirect", c do
+    {:ok, character} =
+      Characters.create_character(c.campaign, "456", %{name: "Private", discord_user_id: "999"})
+
+    for event <- ["save", "set_flag"] do
+      {:ok, campaign} =
+        Campaigns.setup_campaign(%{
+          discord_guild_id: "123",
+          dm_user_id: "456",
+          public_channel_id: "789"
+        })
+
+      socket =
+        %Phoenix.LiveView.Socket{
+          private: %{lifecycle: %Phoenix.LiveView.Lifecycle{}, live_temp: %{}},
+          assigns: %{__changed__: %{}, flash: %{}}
+        }
+        |> Phoenix.Component.assign(:current_scope, %{campaign: campaign, discord_user_id: "456"})
+
+      {:ok, socket} = AsyncWorldsWeb.CharacterLive.mount(%{}, %{}, socket)
+
+      {:noreply, socket} =
+        AsyncWorldsWeb.CharacterLive.handle_event("edit", %{"id" => character.id}, socket)
+
+      handler = {__MODULE__, event, make_ref()}
+      owner = self()
+      # Revoke immediately after the authorized write, before its connected-view reload.
+      :telemetry.attach(
+        handler,
+        [:async_worlds, :repo, :query],
+        fn _, _, metadata, _ ->
+          if self() == owner and String.starts_with?(metadata.query, "UPDATE \"characters\"") do
+            Repo.update_all(
+              from(c in AsyncWorlds.Campaigns.Campaign, where: c.id == ^campaign.id),
+              set: [dm_user_id: "555"]
+            )
+          end
+        end,
+        nil
+      )
+
+      try do
+        params =
+          if event == "save",
+            do: %{"character" => %{"name" => "Updated"}},
+            else: %{
+              "flag" => %{
+                "key" => "ready",
+                "type" => "boolean",
+                "value" => "true",
+                "player_visible" => "false"
+              }
+            }
+
+        {:noreply, rejected} = AsyncWorldsWeb.CharacterLive.handle_event(event, params, socket)
+        assert {:redirect, %{to: "/login"}} = rejected.redirected
+        assert rejected.assigns.editing == nil
+        assert rejected.assigns.connected == nil
+        saved = Repo.get!(Character, character.id)
+
+        if event == "save",
+          do: assert(saved.name == "Updated"),
+          else: assert(saved.flags["ready"]["value"] == true)
+
+        {:noreply, again} =
+          AsyncWorldsWeb.CharacterLive.handle_event(
+            "save",
+            %{"character" => %{"name" => "Blocked"}},
+            rejected
+          )
+
+        assert again.redirected == rejected.redirected
+      after
+        :telemetry.detach(handler)
+      end
     end
   end
 

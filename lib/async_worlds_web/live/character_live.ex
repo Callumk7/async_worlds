@@ -138,13 +138,13 @@ defmodule AsyncWorldsWeb.CharacterLive do
 
   defp failure(socket, reason)
        when reason in [:unauthorized, :stale_campaign, :invalid_campaign] do
-    socket
-    |> new_form()
-    |> stream(:characters, [], reset: true)
-    |> redirect(to: ~p"/login")
+    cleared = socket |> new_form() |> stream(:characters, [], reset: true)
+    if cleared.redirected, do: cleared, else: redirect(cleared, to: ~p"/login")
   end
 
   defp failure(socket, reason), do: put_flash(socket, :error, error_message(reason))
+
+  defp refresh(%{redirected: redirect} = socket) when not is_nil(redirect), do: socket
 
   defp refresh(socket) do
     case Characters.list_characters(campaign(socket), actor(socket)) do
