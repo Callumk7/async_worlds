@@ -1,6 +1,6 @@
 defmodule AsyncWorlds.Quests.Authoring do
   @moduledoc "Fixed and rolled form vocabulary with stable identities and opaque-field preservation."
-  alias AsyncWorlds.Quests.EffectAuthoring
+  alias AsyncWorlds.Quests.{EffectAuthoring, ConditionAuthoring}
 
   def new_definition do
     node = new_node()
@@ -54,7 +54,21 @@ defmodule AsyncWorlds.Quests.Authoring do
               cp = prefix <> "_choice_#{j}"
 
               choice =
-                Map.put(choice, "label", binary_param(params, cp <> "_label", choice["label"]))
+                choice
+                |> Map.put("label", binary_param(params, cp <> "_label", choice["label"]))
+                |> Map.put(
+                  "eligibility",
+                  binary_param(params, cp <> "_eligibility", choice["eligibility"])
+                )
+                |> Map.put(
+                  "conditions",
+                  apply_items(
+                    choice["conditions"],
+                    params,
+                    cp <> "_condition",
+                    ConditionAuthoring
+                  )
+                )
 
               outcomes =
                 Map.new(choice["outcomes"], fn {kind, outcome} ->
@@ -62,6 +76,10 @@ defmodule AsyncWorlds.Quests.Authoring do
 
                   {kind,
                    outcome
+                   |> Map.put(
+                     "effects",
+                     apply_items(outcome["effects"], params, op <> "_effect", EffectAuthoring)
+                   )
                    |> Map.put("text", binary_param(params, op <> "_text", outcome["text"]))
                    |> Map.put(
                      "next_node",
@@ -130,13 +148,18 @@ defmodule AsyncWorlds.Quests.Authoring do
           if editable?(choice) do
             cp = prefix <> "_choice_#{j}"
 
-            acc = Map.put(acc, cp <> "_label", choice["label"])
+            acc =
+              acc
+              |> Map.put(cp <> "_label", choice["label"])
+              |> Map.put(cp <> "_eligibility", choice["eligibility"])
+
+            acc = item_params(choice["conditions"], acc, cp <> "_condition", ConditionAuthoring)
 
             acc =
               Enum.reduce(choice["outcomes"], acc, fn {kind, outcome}, acc ->
                 op = outcome_prefix(cp, kind)
 
-                acc
+                item_params(outcome["effects"], acc, op <> "_effect", EffectAuthoring)
                 |> Map.put(op <> "_text", outcome["text"])
                 |> Map.put(op <> "_destination", outcome["next_node"])
               end)
@@ -159,6 +182,22 @@ defmodule AsyncWorlds.Quests.Authoring do
         end)
       end
     )
+  end
+
+  defp apply_items(items, params, prefix, module) do
+    items
+    |> Enum.with_index()
+    |> Enum.map(fn {item, index} -> module.apply_form(item, params, prefix <> "_#{index}") end)
+  end
+
+  defp item_params(items, acc, prefix, module) do
+    items
+    |> Enum.with_index()
+    |> Enum.reduce(acc, fn {item, index}, acc ->
+      Enum.reduce(module.form_params(item), acc, fn {key, value}, acc ->
+        Map.put(acc, prefix <> "_#{index}_" <> key, value)
+      end)
+    end)
   end
 
   def outcome_kinds(%{"mode" => "rolled"}), do: ~w(success partial failure)
@@ -233,15 +272,19 @@ defmodule AsyncWorlds.Quests.Authoring do
       base = if same_mode?, do: old, else: convert(old, new["mode"])
 
       opaque =
-        ["label", "outcomes"] ++
+        ["label", "outcomes", "conditions", "eligibility"] ++
           if(base["mode"] == "rolled", do: ["dice", "critical_effects"], else: [])
 
       Map.drop(base, opaque) == Map.drop(new, opaque) and
+        new["eligibility"] in ~w(hidden disabled) and
+        ConditionAuthoring.safe_edit?(base["conditions"], new["conditions"]) and
         Enum.all?(new["outcomes"], fn {kind, outcome} ->
           previous = base["outcomes"][kind]
 
           is_map(previous) and
-            Map.drop(previous, ["text", "next_node"]) == Map.drop(outcome, ["text", "next_node"])
+            Map.drop(previous, ["text", "next_node", "effects"]) ==
+              Map.drop(outcome, ["text", "next_node", "effects"]) and
+            EffectAuthoring.safe_edit?(previous["effects"], outcome["effects"])
         end) and
         (new["mode"] != "rolled" or
            ((is_integer(new["dice"]) or is_binary(new["dice"])) and

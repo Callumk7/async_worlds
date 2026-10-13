@@ -92,14 +92,17 @@ working-copy link; pools, branches and bonus order persist before release.
 **Convert to fixed** requires confirmation: it keeps success as the fixed outcome
 and drops the pool, partial/failure and critical bonuses. Cancel preserves all work.
 There is no automatic mode change when editing a pool or submitting a mode field.
-Unsupported imported fields, conditions and ordinary outcome effects remain intact
-and read-only; supported rolled text/destinations and critical effects are editable.
-Opaque effects cannot be edited/removed through bonus controls. Conversions that
+Character flag equality conditions and ordinary outcome effects are now editable,
+using the same typed controls as critical bonuses. Choose hidden/disabled behavior
+for unmet AND conditions. See the [flag authoring checklist](dm-console.md#flag-authoring-checklist-eng-33).
+Unsupported imported fields, other conditions and opaque effects remain intact and
+read-only; opaque effects cannot be edited/removed through list controls. Conversions that
 would discard opaque imported data are unavailable; use corrected re-import or
 explicitly remove the whole choice instead. Every outcome remains visible in the
 graph without normalization. There are no drag-drop, resources, rollback, AI or
 new API editors, and no automatic choice-to-ending conversion. Retained IDs stay
-stable. Forms support up to 100 nodes, 100 choices per node and 100 critical bonuses,
+stable. Forms support up to 100 nodes, 100 choices per node, 100 conditions per choice,
+and 100 effects per outcome or critical bonus list,
 with text at most 8000 bytes (quest names at release: 200 bytes).
 
 After assignment and player submission, close the tick and open its **private

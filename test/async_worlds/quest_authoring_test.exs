@@ -183,7 +183,7 @@ defmodule AsyncWorlds.QuestAuthoringTest do
     assert fork.quest_id != r1.quest_id
   end
 
-  test "imported rolled conditions and effects roundtrip unchanged and unsafe edits are rejected",
+  test "imported rolled conditions and effects roundtrip unchanged and supported removals preserve revisions",
        c do
     d =
       definition()
@@ -232,10 +232,10 @@ defmodule AsyncWorlds.QuestAuthoringTest do
           )
     }
 
-    assert {:error, :unsupported_edit} = save(c.campaign, tampered)
-    assert {:error, :unsupported_edit} = release(c.campaign, tampered)
+    assert {:ok, saved} = save(c.campaign, tampered)
+    assert {:ok, _} = release(c.campaign, saved)
     assert Repo.get!(Revision, r.id).definition == d
-    # Outcome effects remain opaque even when narrative/destination controls are editable.
+    # Supported outcome effects can now be removed without changing immutable revisions.
     {:ok, fixed} =
       Quests.create_quest(c.campaign, "456", %{name: "Fixed", content_id: "fixed"}, definition())
 
@@ -253,7 +253,7 @@ defmodule AsyncWorlds.QuestAuthoringTest do
           )
     }
 
-    assert {:error, :unsupported_edit} = save(c.campaign, tampered)
+    assert {:ok, _} = save(c.campaign, tampered)
   end
 
   test "database-incompatible draft text is rejected without crashing or changing saved work",

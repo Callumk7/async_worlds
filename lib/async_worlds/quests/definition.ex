@@ -151,6 +151,15 @@ defmodule AsyncWorlds.Quests.Definition do
         "Provide exactly #{Enum.join(kinds, ", ")} outcomes"
       )
 
+    errors =
+      errors
+      |> issue(
+        path <> ".eligibility",
+        field(choice, "eligibility") in ~w(hidden disabled),
+        "Choose hidden or disabled behavior"
+      )
+      |> condition_errors(field(choice, "conditions"), path <> ".conditions", clocks)
+
     case mode do
       "rolled" ->
         errors
@@ -178,6 +187,45 @@ defmodule AsyncWorlds.Quests.Definition do
         errors
     end
   end
+
+  defp condition_errors(errors, conditions, path, clocks) when is_list(conditions) do
+    conditions
+    |> Enum.with_index()
+    |> Enum.reduce(errors, fn {condition, index}, acc ->
+      cp = "#{path}[#{index}]"
+
+      acc =
+        issue(
+          acc,
+          cp,
+          condition?(condition, clocks),
+          "Invalid condition; supported flag target is the acting character only"
+        )
+
+      if field(condition, "type") == "character_flag" do
+        acc
+        |> issue(
+          cp <> ".key",
+          Flags.valid_key?(field(condition, "key")),
+          "Enter a valid flag key"
+        )
+        |> issue(
+          cp <> ".value",
+          Flags.valid_flag?(%{
+            "type" => field(condition, "flag_type"),
+            "value" => field(condition, "value"),
+            "player_visible" => false
+          }),
+          "Value must match the explicit boolean, integer or string type"
+        )
+      else
+        acc
+      end
+    end)
+  end
+
+  defp condition_errors(errors, _, path, _),
+    do: issue(errors, path, false, "Provide an AND condition list")
 
   defp effect_errors(errors, effects, path, clocks) when is_list(effects) do
     Enum.with_index(effects)

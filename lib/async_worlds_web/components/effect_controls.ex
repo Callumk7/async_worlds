@@ -7,12 +7,22 @@ defmodule AsyncWorldsWeb.EffectControls do
   attr :prefix, :string, required: true
   attr :id, :string, required: true
   attr :clocks, :list, required: true
+  attr :condition, :boolean, default: false
 
   def effect_controls(assigns) do
     ~H"""
     <div id={@id} tabindex="-1" class="grid gap-3 rounded-lg border border-white/10 p-3">
       <%= if EffectAuthoring.editable?(@effect) do %>
-        <p class="text-sm font-semibold">{@effect["type"]}</p>
+        <p class="text-sm font-semibold">
+          {if @condition, do: "Flag equals (AND)", else: @effect["type"]} · {@effect["key"]}
+        </p>
+        <p :if={@effect["type"] == "set_flag"} class="whitespace-pre-wrap text-xs text-slate-400">
+          {@effect["flag"]["type"]}: {to_string(@effect["flag"]["value"])}{if !@condition,
+            do:
+              " · " <>
+                if(@effect["flag"]["player_visible"] == true, do: "player visible", else: "hidden"),
+            else: ""}
+        </p>
         <%= if @effect["type"] == "clock_delta" do %>
           <.input
             field={@form[@prefix <> "_clock_id"]}
@@ -49,11 +59,19 @@ defmodule AsyncWorldsWeb.EffectControls do
             <.input
               field={@form[@prefix <> "_value"]}
               id={@id <> "-value"}
-              type={if @effect["flag"]["type"] == "string", do: "textarea", else: "text"}
-              label="Value (boolean: true or false)"
+              type={
+                case @effect["flag"]["type"] do
+                  "string" -> "textarea"
+                  "boolean" -> "select"
+                  _ -> "number"
+                end
+              }
+              options={[{"True", "true"}, {"False", "false"}]}
+              label="Typed value (strings are plain text)"
               class="admin-input"
             />
             <.input
+              :if={!@condition}
               field={@form[@prefix <> "_visible"]}
               id={@id <> "-visible"}
               type="select"

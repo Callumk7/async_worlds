@@ -73,10 +73,35 @@ incomplete copies, inspect the read-only directed graph, and select diagnostics
 to repair broken start/destination links. Removing a referenced node asks for
 confirmation and keeps broken references for repair; unreachable warnings do not
 block release. Release appends immutable content; existing assignments stay pinned.
-Imported rolled/conditional/effect-bearing choices remain opaque but all outcomes
-are visible in the graph. See [quest-operations.md](quest-operations.md) for the
+Fixed and rolled choices expose all outcomes in the graph. Unsupported imported
+conditions, effects and extra fields remain protected rather than silently discarded. See [quest-operations.md](quest-operations.md) for the
 short authoring/recovery guide. Players run choices through normal Discord ticks,
 not by editing the graph or assigning a quest.
+
+## Flag authoring checklist (ENG-33)
+
+1. In **Quest library & editor**, add **flag equality** conditions to a choice.
+   Choose the key and explicit boolean/integer/string type. Every condition must
+   match (AND); an absent flag never matches, even when testing false. Strings are
+   ordinary text, not JSON: do not add JSON quotes. Types must match exactly.
+2. Choose **Hidden entirely** or **Disabled with generic hint** for unmet conditions.
+   Hidden choices are omitted; disabled choices show only “Not available right now.”
+   Keys, values and unmet reasons are never explained to players. Keep choice labels
+   and authored narration safe: those are player-facing text, not automatically redacted.
+3. Add/edit/remove/reorder `set_flag` and `clear_flag` in fixed outcomes, every rolled
+   outcome, and critical bonuses. Each set requires explicit visibility. Effects
+   affect only the acting character, in displayed order; clear removes even an absent
+   flag harmlessly. Critical bonuses run after success effects (two or more sixes).
+   Hidden facts do not appear in player character replies or turn output.
+4. Save incomplete drafts and resume them. Release diagnostics link to invalid keys
+   and typed values; release rejects unsupported targets and type mismatches without
+   replacing your local inputs or appending content. UTF-8/NUL persistence errors
+   block saving too. Unsupported imported items remain read-only and cannot be
+   changed or deleted individually through the editor.
+5. Release creates an immutable revision, not a live player-state update. Assignments
+   remain pinned; already-closed ticks retain frozen definitions. Resolve and inspect
+   private/public previews, then publish the approved tick to apply flag consequences.
+   Use the character fact editor for deliberate DM changes, not content release.
 
 ## Character operating checklist (ENG-35)
 
