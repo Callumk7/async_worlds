@@ -291,6 +291,43 @@ defmodule AsyncWorldsWeb.CharacterLiveTest do
     refute has_element?(view, "#connected-character")
   end
 
+  test "multiline imported strings retain CRLF on visibility edits and support changed text", c do
+    original = "First\r\nSecond\rThird\n\"Captain\""
+
+    {:ok, character} =
+      Characters.create_character(c.campaign, "456", %{name: "Rook", discord_user_id: "999"})
+
+    {:ok, _} =
+      Characters.set_flag(c.campaign, "456", character.id, "note", %{
+        "type" => "string",
+        "value" => original,
+        "player_visible" => false
+      })
+
+    {:ok, view, _} = live(c.conn, ~p"/characters?character_id=#{character.id}")
+    view |> element("#edit-flag-note") |> render_click()
+    assert has_element?(view, "textarea#flag_value")
+    normalized = "First\nSecond\nThird\n\"Captain\""
+
+    view
+    |> form("#flag-form", flag: %{value: normalized, player_visible: "true"})
+    |> render_change()
+
+    view
+    |> form("#flag-form", flag: %{value: normalized, player_visible: "true"})
+    |> render_submit()
+
+    assert Repo.get!(Character, character.id).flags["note"]["value"] == original
+
+    assert {:ok, %{flags: %{"note" => %{"value" => ^original}}}} =
+             Characters.player_character("123", "999")
+
+    view |> element("#edit-flag-note") |> render_click()
+    changed = "Changed\n\"Captain\""
+    view |> form("#flag-form", flag: %{value: changed, player_visible: "true"}) |> render_submit()
+    assert Repo.get!(Character, character.id).flags["note"]["value"] == changed
+  end
+
   test "plain quoted strings edit existing keys without trusting posted keys or IDs", c do
     {:ok, character} =
       Characters.create_character(c.campaign, "456", %{name: "Rook", discord_user_id: "999"})

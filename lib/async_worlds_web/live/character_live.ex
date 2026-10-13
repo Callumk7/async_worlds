@@ -128,10 +128,29 @@ defmodule AsyncWorldsWeb.CharacterLive do
   defp flag_result(socket, {:error, reason}), do: failure(socket, reason)
 
   defp pinned_flag_params(socket, params) do
-    if socket.assigns.editing_flag,
-      do: Map.put(params, "key", socket.assigns.editing_flag),
-      else: params
+    case socket.assigns.editing_flag do
+      nil ->
+        params
+
+      key ->
+        params
+        |> Map.put("key", key)
+        |> preserve_line_endings(socket.assigns.editing.flags[key])
+    end
   end
+
+  # Browsers normalize textarea CR/CRLF to LF. Visibility/type events must not
+  # rewrite an otherwise unchanged imported string just because of that normalization.
+  defp preserve_line_endings(
+         %{"type" => "string", "value" => value} = params,
+         %{"type" => "string", "value" => original}
+       )
+       when is_binary(value) do
+    normalized = original |> String.replace("\r\n", "\n") |> String.replace("\r", "\n")
+    if value == normalized, do: Map.put(params, "value", original), else: params
+  end
+
+  defp preserve_line_endings(params, _), do: params
 
   defp campaign(socket), do: socket.assigns.current_scope.campaign
   defp actor(socket), do: socket.assigns.current_scope.discord_user_id
@@ -319,7 +338,7 @@ defmodule AsyncWorldsWeb.CharacterLive do
                 <% else %>
                   <.input
                     field={@flag_form[:value]}
-                    type={if @flag_form[:type].value == "integer", do: "number", else: "text"}
+                    type={if @flag_form[:type].value == "integer", do: "number", else: "textarea"}
                     step="1"
                     label={
                       if @flag_form[:type].value == "integer",
