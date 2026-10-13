@@ -236,7 +236,6 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
 
     fill(view, %{
       name: "Branching rehearsal",
-      content_id: "branching_rehearsal",
       node_0_text: "Choose a route",
       node_1_text: "Return or finish",
       node_2_text: "Safe harbour",
