@@ -197,6 +197,95 @@ defmodule AsyncWorldsWeb.ClockTriggerLiveTest do
     assert length(Clocks.list_audits(c.campaign.id)) == baseline
   end
 
+  test "stored triggers retain invalid inputs across validate, add, repeated moves and remove",
+       c do
+    {:ok, _} =
+      Clocks.edit_clock(
+        c.campaign.id,
+        c.clock.id,
+        %{
+          triggers: [
+            %{
+              type: :set_flag,
+              character_id: c.a.id,
+              key: "memory",
+              flag: %{"type" => "integer", "value" => 12, "player_visible" => false}
+            },
+            %{type: :world_news, text: "Original news"}
+          ]
+        },
+        "dm:test"
+      )
+
+    original = Repo.get!(Clock, c.clock.id)
+    audits = length(Clocks.list_audits(c.campaign.id))
+    {:ok, view, _} = live(c.conn, ~p"/clocks")
+    view |> element("#edit-clock-#{c.clock.id}") |> render_click()
+
+    view
+    |> form("#clock-form",
+      clock: %{triggers: %{"0" => %{flag: %{value: "12nope"}}, "1" => %{text: "Edited news"}}}
+    )
+    |> render_change()
+
+    view |> element("#add-trigger") |> render_click()
+    view |> element("#move-trigger-0-down") |> render_click()
+    view |> element("#move-trigger-1-down") |> render_click()
+    view |> element("#remove-trigger-1") |> render_click()
+    assert has_element?(view, "#trigger-1 input[value='12nope']")
+    assert has_element?(view, "#trigger-1 .text-error")
+    refute has_element?(view, "#trigger-2")
+    assert has_element?(view, "#trigger-0 textarea", "Edited news")
+    assert Repo.get!(Clock, c.clock.id) == original
+    assert length(Clocks.list_audits(c.campaign.id)) == audits
+
+    view
+    |> form("#clock-form", clock: %{triggers: %{"1" => %{flag: %{value: "13"}}}})
+    |> render_submit()
+
+    assert [%{text: "Edited news"}, %{flag: %{"value" => 13}}] =
+             Repo.get!(Clock, c.clock.id).triggers
+  end
+
+  test "stored triggers reject foreign references with renderable field errors and no audit", c do
+    {:ok, _} =
+      Clocks.edit_clock(
+        c.campaign.id,
+        c.clock.id,
+        %{triggers: [%{type: :world_news, text: "Original news"}]},
+        "dm:test"
+      )
+
+    original = Repo.get!(Clock, c.clock.id)
+    audits = length(Clocks.list_audits(c.campaign.id))
+    {:ok, view, _} = live(c.conn, ~p"/clocks")
+    view |> element("#edit-clock-#{c.clock.id}") |> render_click()
+
+    for {field, trigger} <- [
+          {"character_id",
+           %{
+             "type" => "set_flag",
+             "character_id" => to_string(c.foreign.id),
+             "key" => "memory",
+             "flag" => %{"type" => "integer", "value" => "12", "player_visible" => "false"}
+           }},
+          {"quest_id",
+           %{
+             "type" => "unlock_quest",
+             "character_id" => to_string(c.a.id),
+             "quest_id" => to_string(c.foreign_revision.quest_id)
+           }},
+          {"clock_id", %{"type" => "start_clock", "clock_id" => "999999999"}}
+        ] do
+      render_submit(view, "save", %{"clock" => %{"triggers" => %{"0" => trigger}}})
+      assert has_element?(view, "#clock_triggers_0_#{field}.admin-input-error")
+      assert has_element?(view, "#trigger-0 .text-error")
+      refute has_element?(view, "#trigger-1")
+      assert Repo.get!(Clock, c.clock.id) == original
+      assert length(Clocks.list_audits(c.campaign.id)) == audits
+    end
+  end
+
   test "ordered edits preserve mixed trigger payloads and exact stored strings", c do
     flag = %{"type" => "string", "value" => "first\r\nsecond", "player_visible" => false}
 

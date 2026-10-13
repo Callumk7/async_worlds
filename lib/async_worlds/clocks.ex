@@ -243,8 +243,14 @@ defmodule AsyncWorlds.Clocks do
   end
 
   defp reference_error!(changeset, trigger, field, message) do
+    # Never feed cast_embed's replacement bookkeeping back into put_embed.
     triggers =
-      Enum.map(get_change(changeset, :triggers, []), fn child ->
+      changeset
+      |> get_change(:triggers, [])
+      |> Enum.reject(
+        &match?(%Ecto.Changeset{action: action} when action in [:replace, :delete], &1)
+      )
+      |> Enum.map(fn child ->
         if apply_changes(child) == trigger, do: add_error(child, field, message), else: child
       end)
 

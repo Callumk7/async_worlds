@@ -166,8 +166,15 @@ defmodule AsyncWorldsWeb.ClockLive do
   defp complete(socket, {:error, reason}, _),
     do: socket |> refresh() |> put_flash(:error, error_message(reason))
 
-  defp trigger_changes(changeset),
-    do: get_change(changeset, :triggers, get_field(changeset, :triggers))
+  defp trigger_changes(changeset) do
+    # Cast embeds include deletion bookkeeping for the stored, keyless embeds.
+    # Only active children belong to the editor; keep their params and errors.
+    changeset
+    |> get_change(:triggers, get_field(changeset, :triggers))
+    |> Enum.reject(
+      &match?(%Ecto.Changeset{action: action} when action in [:replace, :delete], &1)
+    )
+  end
 
   defp flag_form(trigger_form) do
     flag =
