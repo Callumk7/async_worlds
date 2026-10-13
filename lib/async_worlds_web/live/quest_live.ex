@@ -257,7 +257,7 @@ defmodule AsyncWorldsWeb.QuestLive do
                 </div>
                 <.link
                   id="quest-character-profile"
-                  navigate={~p"/characters"}
+                  navigate={~p"/characters?character_id=#{@selected.id}"}
                   class="text-sm text-amber-300 hover:text-amber-100 transition"
                 >Manage profile & facts</.link>
               </header>
@@ -334,7 +334,10 @@ defmodule AsyncWorldsWeb.QuestLive do
                     id="quest-assign-submit"
                     disabled={@locked || @revision_options == []}
                     data-confirm={
-                      @selected.progression && "Replace the current quest and clear the open choice?"
+                      if @selected.progression,
+                        do: "Replace the current quest and clear the open choice?",
+                        else:
+                          "Assign this pinned revision at its start node? This character progresses independently; any open choice is cleared."
                     }
                     class="admin-button"
                     phx-disable-with="Saving…"

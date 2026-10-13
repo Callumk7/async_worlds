@@ -1,6 +1,6 @@
-# Characters (ENG-13)
+# Characters (ENG-13 / ENG-35)
 
-This is the minimal milestone-2 bootstrap, not the full character/quest/resource admin. A DM can link players, edit names or Discord ownership, and set/clear typed facts at `/characters`. `/character` retrieves the invoking player's permitted state privately. Re-register the development guild commands using the existing registration task to add it.
+This is the character/profile/fact editor connected to existing quest operations, not a resource or full historical admin. A DM can link players, edit names or Discord ownership, and set/clear typed facts at `/characters`. `/character` retrieves the invoking player's permitted state privately. Re-register the development guild commands using the existing registration task to add it.
 
 ## Shared domain boundary
 
@@ -11,9 +11,18 @@ DM APIs accept the previously loaded `%Campaign{}` plus the **authenticated** Di
 - `create_character(campaign, dm_id, attrs)`
 - `list_characters(campaign, dm_id)`
 - `get_character(campaign, dm_id, character_id)`
-- `update_character(campaign, dm_id, character_id, attrs)`
-- `set_flag(campaign, dm_id, character_id, key, flag)`
-- `clear_flag(campaign, dm_id, character_id, key)` (idempotent)
+- `update_character(campaign, dm_id, character_id, attrs, opts \\ [])`
+- `set_flag(campaign, dm_id, character_id, key, flag, opts \\ [])`
+- `clear_flag(campaign, dm_id, character_id, key, opts \\ [])` (idempotent)
+
+Web mutations always pass `expected_character: server_loaded_character`. Under the campaign lock,
+all three compare the same-campaign record's database-maintained `state_version`, returning
+`:stale_character` before writes/invalidation on mismatch. A PostgreSQL UPDATE trigger advances
+this generation for **every writer**, including tick publication; name/flag/ownership changes
+away and back (ABA) cannot evade it. Timestamps are not used as conflict tokens. The additive
+schema migration must be run through the normal deployment migration process, not automatically
+on startup. Existing characters, flags and assignments are not converted or repinned. Trusted
+callers may omit the option for intentional current-state mutations.
 
 All return `{:ok, result}` or `{:error, reason_or_changeset}`. Every operation starts a transaction, locks and reloads the campaign, checks the current DM, and rejects changed guild/DM/public-channel configuration (`:stale_campaign`). An old DM receives `:unauthorized`. Setup's upsert takes the same row lock, so concurrent setup cannot slip between authorization and persistence. Reads are protected too. Character IDs are positive database IDs and always scoped to that campaign; invalid/missing/foreign IDs return `:not_found`. Snowflakes use the existing strict unsigned-64-bit type; malformed actor IDs return `:invalid_id`. Failed validations, authorization, uniqueness or flag updates leave all character fields unchanged.
 
@@ -33,7 +42,13 @@ Flags are a bounded JSON object (up to 100 keys). Keys start with a lowercase le
 
 Types are `boolean`, `integer`, or `string`, validated against native JSON values without coercion. Integers are limited to the JSON-safe range ±9007199254740991. Strings are valid UTF-8, at most 2000 bytes, and exclude NUL (U+0000), which PostgreSQL JSONB cannot store. Character names are limited to 200 Unicode codepoints and also reject invalid UTF-8 and NUL before persistence. Nulls, floats, containers, unknown types/fields and missing/non-boolean visibility are rejected. Visibility is always explicit; there is no implicit player-visible default. All supplied flags are validated before any profile/ownership/flag change is persisted. `update_character` replaces the whole flag object when supplied; omitting it preserves flags. Use `set_flag`/`clear_flag` for one fact, serialized on the campaign row, preserving other facts. Storage is JSONB; shape/type validation lives in the shared changeset, not in interfaces.
 
-The small web editor accepts JSON values (e.g. `true`, `3`, `"Captain"`) and an explicit Hidden/Visible selector. Set an existing key to edit its type, value or visibility.
+The web editor accepts ordinary boolean (True/False select), integer (whole-number input),
+and string (plain text) values plus an explicit Hidden/Visible selector. Quotes and whitespace
+in strings are literal; empty strings are allowed. `Flags.parse/1` is the named form parser;
+JSON decoding is not involved. **Edit** beside a fact preloads its key/type/value/visibility;
+the key is read-only and pinned server-side even if a forged event posts another key. **New fact**
+starts a fresh key. Save/clear rejects stale character snapshots without retrying: reopen the
+character and inspect current facts before applying local changes again.
 
 ## Player identity and privacy
 
@@ -51,4 +66,7 @@ LiveView uses the existing authenticated-DM live session, with session reauthori
 
 ## Deliberate boundaries
 
-No quest/node/resource fields, submission processing, character effects, draft progression or full milestone-3 admin are introduced. These facts are current live state; existing world-only tick snapshots/resolution remain unchanged and do not consume characters. Future quest work must freeze character inputs and apply only approved progression at publication, extending this whitelist explicitly rather than serializing schemas. Normal tests use sandbox PostgreSQL, the existing Discord fake adapter and session helpers; no OAuth or live Discord requests are required.
+The connected DM editor shows Discord ownership, active pinned quest revision/node/status,
+the ten most recent DM-only intervention audits, and links to quest operations/content.
+Quest operations link back to the selected profile. No deletion, archive, resources,
+automatic content migration, or new quest executor is introduced. These facts are current live state; existing world-only tick snapshots/resolution remain unchanged and do not consume characters. Future quest work must freeze character inputs and apply only approved progression at publication, extending this whitelist explicitly rather than serializing schemas. Normal tests use sandbox PostgreSQL, the existing Discord fake adapter and session helpers; no OAuth or live Discord requests are required.

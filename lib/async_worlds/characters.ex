@@ -9,7 +9,11 @@ defmodule AsyncWorlds.Characters do
   def create_character(campaign, dm_id, attrs) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
-      persist(Repo.insert(Character.changeset(%Character{campaign_id: current.id}, attrs)))
+
+      character =
+        persist(Repo.insert(Character.changeset(%Character{campaign_id: current.id}, attrs)))
+
+      fetch!(current.id, character.id)
     end)
   end
 
@@ -23,33 +27,36 @@ defmodule AsyncWorlds.Characters do
     manage(campaign, dm_id, fn current -> fetch!(current.id, character_id) end)
   end
 
-  def update_character(campaign, dm_id, character_id, attrs) do
+  def update_character(campaign, dm_id, character_id, attrs, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
       character = fetch!(current.id, character_id)
+      expect!(character, opts)
       updated = character |> Character.changeset(attrs) |> Repo.update() |> persist()
 
       if updated.discord_user_id != character.discord_user_id,
         do: AsyncWorlds.Quests.Submissions.invalidate_open(current.id, character.id)
 
-      updated
+      fetch!(current.id, updated.id)
     end)
   end
 
-  def set_flag(campaign, dm_id, character_id, key, flag) do
+  def set_flag(campaign, dm_id, character_id, key, flag, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
       unless Flags.valid_key?(key) and Flags.valid_flag?(flag), do: Repo.rollback(:invalid_flag)
       character = fetch!(current.id, character_id)
+      expect!(character, opts)
       save_flags(character, Map.put(character.flags, key, flag))
     end)
   end
 
-  def clear_flag(campaign, dm_id, character_id, key) do
+  def clear_flag(campaign, dm_id, character_id, key, opts \\ []) do
     manage(campaign, dm_id, fn current ->
       mutable!(current)
       unless Flags.valid_key?(key), do: Repo.rollback(:invalid_flag)
       character = fetch!(current.id, character_id)
+      expect!(character, opts)
       save_flags(character, Map.delete(character.flags, key))
     end)
   end
@@ -106,8 +113,27 @@ defmodule AsyncWorlds.Characters do
     if campaign.clock_mutations_locked, do: Repo.rollback(:tick_locked)
   end
 
-  defp save_flags(character, flags),
-    do: persist(Repo.update(Character.changeset(character, %{flags: flags})))
+  # A database-maintained generation detects ABA, including approved tick writes.
+  # Expected state comes from a server-loaded record, never a form token.
+  defp expect!(character, opts) do
+    case Keyword.fetch(opts, :expected_character) do
+      {:ok, %Character{} = expected} ->
+        unless expected.id == character.id and expected.campaign_id == character.campaign_id and
+                 expected.state_version == character.state_version,
+               do: Repo.rollback(:stale_character)
+
+      {:ok, _} ->
+        Repo.rollback(:stale_character)
+
+      :error ->
+        :ok
+    end
+  end
+
+  defp save_flags(character, flags) do
+    persist(Repo.update(Character.changeset(character, %{flags: flags})))
+    fetch!(character.campaign_id, character.id)
+  end
 
   defp persist({:ok, value}), do: value
   defp persist({:error, changeset}), do: Repo.rollback(changeset)

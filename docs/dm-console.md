@@ -71,6 +71,29 @@ by the shared domain, not just disabled controls. See
 Content authoring, player Discord choice controls and quest tick execution are
 separate milestones/issues; these controls do not run choices immediately.
 
+## Character operating checklist (ENG-35)
+
+1. Open **Characters**, select **Edit**, and inspect the Discord ID and connected
+   journey: active pinned revision, node/status, and recent DM-only interventions.
+   **Quest operations** opens this character; **Quest content** opens the library.
+   Returning from quest operations keeps the selected profile.
+2. Use **Edit** beside an existing fact; do not retype its key. Choose boolean,
+   integer or string and explicit visibility. Strings are ordinary text, including
+   quotes, not JSON. Hidden facts never appear in `/character`; visible facts are
+   shown only to their owner. Audit reasons never appear in player replies.
+3. Ownership changes (including unlinking to DM-controlled) require browser
+   confirmation and clear that character's open submission. They do not replace
+   its pinned quest or affect other players. A duplicate owner fails atomically.
+4. Assign/replace/end/move in quest operations requires a reason and confirmation.
+   Actual interventions clear only the selected character's open submission;
+   moving to the same node is a no-op, moving to an ending completes it. Assigning
+   the same released revision to two players creates independent assignments.
+5. If another tab or published tick changed a profile/fact, saving or clearing
+   is rejected, including changes away and back. Local inputs are not automatically
+   retried. Reopen **Edit**, inspect persisted state, then deliberately reapply.
+   Resolving/review locks still reject all character and quest mutations. Finish
+   review/publication before retrying; content release does not repin assignments.
+
 ## Delivery failures
 
 The overview shows the latest 50 outgoing delivery records and the latest eight
