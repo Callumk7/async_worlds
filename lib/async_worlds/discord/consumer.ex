@@ -11,9 +11,20 @@ defmodule AsyncWorlds.Discord.Consumer do
   # supervised and failures cannot dump token-bearing event payloads to logs.
   @impl GenServer
   def handle_info({:event, event}, state) do
+    deadline = AsyncWorlds.Discord.ModalDeadline.deadline()
+
     Dispatcher.safely(:consumer, fn ->
       Task.Supervisor.start_child(AsyncWorlds.Discord.Tasks, fn ->
-        Dispatcher.safely(:consumer, fn -> handle_event(event) end)
+        Dispatcher.safely(:consumer, fn ->
+          case event do
+            {:INTERACTION_CREATE, interaction, _} ->
+              opts = Application.fetch_env!(:async_worlds, :discord)
+              Dispatcher.handle(interaction, Keyword.put(opts, :modal_deadline, deadline))
+
+            _ ->
+              handle_event(event)
+          end
+        end)
       end)
     end)
 

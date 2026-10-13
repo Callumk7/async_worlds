@@ -98,6 +98,11 @@ The registered command set is:
 - `/submission` — private current tick choice with the same revise/clear controls.
   Both commands remain usable when proactive bot DMs are blocked; run them in the
   configured guild, not in a direct message.
+- `/journal new`, `/journal list`, `/journal open`, `/journal delete` — persistent
+  character-owned journals, default private, with campaign-public discovery,
+  paginated Open controls and confirmed hard deletion. DM-role `list scope:character`
+  inspects a selected campaign character without a linked DM character. All replies
+  are private; public visibility never posts automatically. See [journals.md](journals.md).
 - `/admin` — configured DM only; privately links to `/dashboard`. This is a
   normal URL, **not** a bearer login token; web Discord OAuth verifies the DM.
 
@@ -120,8 +125,9 @@ ambiguous sends require explicit confirmation. See [delivery semantics](durable-
 and [review/publication](tick-review-publication.md).
 Quest buttons use the same application/guild/member authorization as commands.
 Unknown components get a private unsupported reply; autocomplete and unrelated
-modals are ignored. The opt-in development-only [ENG-44 journal modal spike](journal-modal-spike.md)
-adds legacy modal input and private previews without saving any entries.
+modals are ignored. Journal modal submissions are handled through a namespaced
+production path. [ENG-44](journal-modal-spike.md) is historical compatibility evidence,
+not an opt-in feature; the spike flag is removed.
 
 ## Single-account player testing (including live campaigns)
 
@@ -138,7 +144,7 @@ characters retain their real owner and one-character-per-account uniqueness.
   DM as well as their real owners. Default off; `enabled:false` disables copies.
 
 Player mode uses ordinary player privacy, eligibility and lifecycle rules. `/character`,
-`/quest`, `/submission`, `/result` and `/clocks` work as player interactions; `/tick` and `/admin` deny
+`/quest`, `/submission`, `/result`, `/journal` and `/clocks` work as player interactions; `/tick` and `/admin` deny
 until you return to DM mode. `/debug` always remains available to the actual current DM.
 Testing responses identify the character and warn that **changes are real**. There is no
 sandbox, undo or resolution bypass. Accountless characters participate in readiness and
@@ -180,13 +186,16 @@ behind `AsyncWorlds.Discord.Adapter`. Guild interactions use the gateway's
 The dispatcher checks the application and configured guild, loads current
 campaign configuration, and uses `Campaigns.authorize_dm/2` for DM commands.
 
-Ordinary slash commands and quest components defer with response type 5 and ephemeral flag 64 **before**
+Ordinary slash commands, journal submits and components defer with response type 5 and ephemeral flag 64 **before**
 database work. Denials, unknown commands and failures edit that private original
 response. Edits and ephemeral followups suppress automatic mentions. Responses
 split at 1,900 Unicode codepoints, keeping every message within Discord's 2,000
 codepoint limit without splitting UTF-8 characters. If any reply fails, later
 chunks stop; no automatic response or command retry occurs. A failed/ambiguous initial response
 never executes a domain command. A final response failure does not rerun it.
+Journal modal opening is the exception: callback type 9 is the initial acknowledgment,
+never after a defer. Read-only preparation has a hard 1,500 ms local queue/DB/lock
+budget; ambiguous callback failure never sends a second acknowledgment.
 Application errors are logged by stage only; payloads, tokens, exceptions and
 API error bodies are never inspected. Nostrum rate-limiter logs are redacted
 because their route/bucket URLs can contain webhook tokens. Avoid enabling

@@ -6,7 +6,7 @@ defmodule AsyncWorlds.Discord.Commands do
   """
 
   alias AsyncWorlds.{Characters, Clocks, Ticks}
-  alias AsyncWorlds.Discord.{DebugInteractions, JournalModalSpike, QuestInteractions}
+  alias AsyncWorlds.Discord.{DebugInteractions, JournalInteractions, QuestInteractions}
 
   @doc "Discord registration definitions, stripped of internal routing metadata."
   def definitions, do: Enum.map(catalogue(), &discord_definition/1)
@@ -23,6 +23,7 @@ defmodule AsyncWorlds.Discord.Commands do
   def catalogue do
     [
       Map.put(DebugInteractions.definition(), :permission, :debug),
+      JournalInteractions.definition(),
       %{
         name: "clocks",
         description: "View the campaign's visible clocks",
@@ -99,13 +100,13 @@ defmodule AsyncWorlds.Discord.Commands do
         permission: :player,
         command: :help
       }
-    ] ++ if(JournalModalSpike.enabled?(), do: [JournalModalSpike.definition()], else: [])
+    ]
   end
 
   def route(%{name: name} = data) do
     case Enum.find(catalogue(), &(&1.name == name)) do
       %{name: "journal"} ->
-        JournalModalSpike.route(data)
+        JournalInteractions.route(data)
 
       %{name: "debug", permission: permission} ->
         with {:ok, command, _} <- DebugInteractions.route(data),
@@ -150,11 +151,17 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def execute({:debug, _} = command, context), do: DebugInteractions.execute(command, context)
 
-  def execute({:journal_spike_new, _} = command, context),
-    do: JournalModalSpike.execute(command, context)
-
-  def execute({:journal_spike_submit, _, _} = command, context),
-    do: JournalModalSpike.execute(command, context)
+  def execute(command, context)
+      when is_tuple(command) and
+             elem(command, 0) in [
+               :journal_new,
+               :journal_submit,
+               :journal_list,
+               :journal_open,
+               :journal_delete,
+               :journal_control
+             ],
+      do: JournalInteractions.execute(command, context)
 
   def execute(:help, context), do: {:ok, AsyncWorlds.Discord.Help.render(context)}
 
