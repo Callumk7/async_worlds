@@ -10,6 +10,7 @@ defmodule AsyncWorlds.Characters.Character do
     field :discord_user_id, Snowflake
     field :name, :string
     field :flags, :map, default: %{}
+    field :state_version, :integer, default: 1, read_after_writes: true
     timestamps(type: :utc_datetime)
   end
 

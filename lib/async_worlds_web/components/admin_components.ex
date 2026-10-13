@@ -45,6 +45,29 @@ defmodule AsyncWorldsWeb.AdminComponents do
 
   def error_message(%Ecto.Changeset{}), do: "Check the highlighted fields and try again."
 
+  def error_message(:stale_character),
+    do:
+      "Character changed in another tab or published tick. Reopen the character and inspect it before saving; your changes were not applied."
+
+  def error_message(:invalid_flag_key),
+    do:
+      "Use a lowercase key starting with a letter, with digits/underscores only (maximum 64 bytes)."
+
+  def error_message(:invalid_flag_integer),
+    do: "Enter a whole number between -9007199254740991 and 9007199254740991."
+
+  def error_message(:invalid_flag_string),
+    do: "String must be valid UTF-8, at most 2000 bytes, without NUL characters."
+
+  def error_message(:invalid_flag_visibility),
+    do: "Choose Hidden (DM only) or Visible to owner explicitly."
+
+  def error_message(:invalid_flag_value),
+    do: "Choose boolean true/false, a whole number, or an ordinary string."
+
+  def error_message(:invalid_flag),
+    do: "Fact not saved. Check key, type, value and explicit visibility (maximum 100 facts)."
+
   def error_message(:stale_draft),
     do:
       "This draft changed in another window. Reload the review, inspect the new revision, and try again."
