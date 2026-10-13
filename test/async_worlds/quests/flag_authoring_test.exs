@@ -60,7 +60,8 @@ defmodule AsyncWorlds.Quests.FlagAuthoringTest do
       "type" => "clock_threshold",
       "clock_id" => 1,
       "operator" => "gte",
-      "value" => 2
+      "value" => 2,
+      "future_configuration" => true
     }
 
     string = %{

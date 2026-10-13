@@ -199,33 +199,53 @@ defmodule AsyncWorlds.Quests.Definition do
           acc,
           cp,
           condition?(condition, clocks),
-          "Invalid condition; supported flag target is the acting character only"
+          "Invalid condition; use a campaign clock threshold or acting-character flag equality"
         )
 
-      if field(condition, "type") == "character_flag" do
-        acc
-        |> issue(
-          cp <> ".key",
-          Flags.valid_key?(field(condition, "key")),
-          "Enter a valid flag key"
-        )
-        |> issue(
-          cp <> ".value",
-          Flags.valid_flag?(%{
-            "type" => field(condition, "flag_type"),
-            "value" => field(condition, "value"),
-            "player_visible" => false
-          }),
-          "Value must match the explicit boolean, integer or string type"
-        )
-      else
-        acc
-      end
+      condition_field_errors(acc, condition, cp, clocks)
     end)
   end
 
   defp condition_errors(errors, _, path, _),
     do: issue(errors, path, false, "Provide an AND condition list")
+
+  defp condition_field_errors(acc, %{"type" => "clock_threshold"} = condition, cp, clocks) do
+    clock = Map.get(clocks, field(condition, "clock_id"))
+    value = field(condition, "value")
+
+    acc
+    |> issue(cp <> ".clock_id", clock != nil, "Choose a clock from this campaign")
+    |> issue(
+      cp <> ".operator",
+      field(condition, "operator") in ~w(gte lte),
+      "Use at least (gte) or at most (lte)"
+    )
+    |> issue(
+      cp <> ".value",
+      is_integer(value) and value >= 0 and (is_nil(clock) or value <= clock.segments),
+      "Threshold must be an integer from 0 through the current clock size"
+    )
+  end
+
+  defp condition_field_errors(acc, %{"type" => "character_flag"} = condition, cp, _) do
+    acc
+    |> issue(
+      cp <> ".key",
+      Flags.valid_key?(field(condition, "key")),
+      "Enter a valid flag key"
+    )
+    |> issue(
+      cp <> ".value",
+      Flags.valid_flag?(%{
+        "type" => field(condition, "flag_type"),
+        "value" => field(condition, "value"),
+        "player_visible" => false
+      }),
+      "Value must match the explicit boolean, integer or string type"
+    )
+  end
+
+  defp condition_field_errors(acc, _, _, _), do: acc
 
   defp effect_errors(errors, effects, path, clocks) when is_list(effects) do
     Enum.with_index(effects)

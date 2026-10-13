@@ -465,6 +465,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                   else: "none (new quest)"}
               </p>
               <p id="unsupported-policy" class="rounded-xl bg-sky-300/5 p-4 text-sm text-slate-300">
+                Clock gates compare fill with an integer threshold; release checks the current size. Resizing never rewrites pinned or frozen thresholds. Ordered clock deltas clamp after each effect to 0–size, not just after summing. Clock triggers run in a later phase; next-node eligibility uses the final resolved state. Public clocks show identity and fill; known clocks keep fill private; hidden clocks keep both private. Player hints never explain gates.
                 Fixed or 1–3 d6 rolled choices. Highest 6: success; 4–5: partial; 1–3: failure. Two sixes: success plus ordered critical bonus effects, after success effects. Flag equality conditions use AND. Ordered flag effects target only the acting character; visibility is explicit. Resources are deferred. Conversion is explicit and confirmed.
               </p>
               <QuestGraph.graph graph={@graph} definition={@work.definition} />
@@ -709,6 +710,17 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                               disabled={length(choice["conditions"]) >= 100}
                               class="admin-button admin-secondary"
                             >Add flag equality</button>
+                            <button
+                              id={"condition-#{i}-#{j}-add-clock"}
+                              type="button"
+                              phx-click="choice-list"
+                              phx-value-node={node["id"]}
+                              phx-value-choice={choice["id"]}
+                              phx-value-list="conditions"
+                              phx-value-action="clock_threshold"
+                              disabled={length(choice["conditions"]) >= 100}
+                              class="admin-button admin-secondary"
+                            >Add clock gate</button>
                           </section>
                           <%= for kind <- Authoring.outcome_kinds(choice) do %>
                             <% op = Authoring.outcome_prefix("node_#{i}_choice_#{j}", kind) %>
