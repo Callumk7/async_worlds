@@ -2,6 +2,48 @@ defmodule AsyncWorldsWeb.AdminComponents do
   @moduledoc false
   use AsyncWorldsWeb, :html
 
+  attr :form, :any, required: true
+
+  def flag_inputs(assigns) do
+    ~H"""
+    <.input
+      field={@form[:type]}
+      type="select"
+      label="Type"
+      options={["boolean", "integer", "string"]}
+      class="admin-input"
+    />
+    <%= if @form[:type].value == "boolean" do %>
+      <.input
+        field={@form[:value]}
+        type="select"
+        label="Boolean value"
+        options={[True: "true", False: "false"]}
+        class="admin-input"
+      />
+    <% else %>
+      <.input
+        field={@form[:value]}
+        type={if @form[:type].value == "integer", do: "number", else: "textarea"}
+        step="1"
+        label={
+          if @form[:type].value == "integer",
+            do: "Whole number",
+            else: "String value (no JSON quoting)"
+        }
+        class="admin-input"
+      />
+    <% end %>
+    <.input
+      field={@form[:player_visible]}
+      type="select"
+      label="Player visibility"
+      options={["Hidden (DM only)": "false", "Visible to owner": "true"]}
+      class="admin-input"
+    />
+    """
+  end
+
   attr :active, :string, required: true
 
   def navigation(assigns) do

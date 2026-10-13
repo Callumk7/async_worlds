@@ -22,6 +22,13 @@ defmodule AsyncWorlds.Quests do
 
   alias AsyncWorlds.Quests.{Authoring, WorkingCopy}
 
+  @doc "Released campaign quests for clock availability triggers (not assignments)."
+  def trigger_targets(campaign, dm_id) do
+    manage(campaign, dm_id, fn current ->
+      Repo.all(from q in Quest, where: q.campaign_id == ^current.id, order_by: [q.name, q.id])
+    end)
+  end
+
   @doc "Campaign-scoped library, including incomplete, unassignable working copies."
   def library(campaign, dm_id) do
     manage(campaign, dm_id, fn current ->

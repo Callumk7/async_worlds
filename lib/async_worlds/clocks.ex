@@ -196,8 +196,11 @@ defmodule AsyncWorlds.Clocks do
 
           if is_nil(target) or trigger.clock_id == changeset.data.id,
             do:
-              Repo.rollback(
-                add_error(changeset, :triggers, "must reference another clock in this campaign")
+              reference_error!(
+                changeset,
+                trigger,
+                :clock_id,
+                "must reference another clock in this campaign"
               )
         end
 
@@ -217,18 +220,38 @@ defmodule AsyncWorlds.Clocks do
                 ),
               else: true
 
-          if is_nil(character) or is_nil(quest),
+          if is_nil(character),
             do:
-              Repo.rollback(
-                add_error(
-                  changeset,
-                  :triggers,
-                  "must reference character and quest in this campaign"
-                )
+              reference_error!(
+                changeset,
+                trigger,
+                :character_id,
+                "must reference a character in this campaign"
+              )
+
+          if is_nil(quest),
+            do:
+              reference_error!(
+                changeset,
+                trigger,
+                :quest_id,
+                "must reference a quest in this campaign"
               )
         end
       end)
     end
+  end
+
+  defp reference_error!(changeset, trigger, field, message) do
+    triggers =
+      Enum.map(get_change(changeset, :triggers, []), fn child ->
+        if apply_changes(child) == trigger, do: add_error(child, field, message), else: child
+      end)
+
+    changeset
+    |> put_embed(:triggers, triggers)
+    |> add_error(:triggers, message)
+    |> Repo.rollback()
   end
 
   defp persist({:ok, value}), do: value

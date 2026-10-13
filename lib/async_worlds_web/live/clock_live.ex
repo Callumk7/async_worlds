@@ -1,9 +1,9 @@
 defmodule AsyncWorldsWeb.ClockLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
-  alias AsyncWorlds.{Clocks, Ticks}
-  alias AsyncWorlds.Clocks.{Clock, Trigger}
-  import Ecto.Changeset, only: [get_field: 2, put_embed: 3]
+  alias AsyncWorlds.{Characters, Clocks, Quests, Ticks}
+  alias AsyncWorlds.Clocks.{Clock, Trigger, TriggerForm}
+  import Ecto.Changeset, only: [get_field: 2, get_change: 3, put_embed: 3]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,21 +24,47 @@ defmodule AsyncWorldsWeb.ClockLive do
     end
   end
 
-  def handle_event("validate", %{"clock" => params}, socket) do
+  def handle_event("validate", %{"clock" => params} = event, socket) do
+    changed_type =
+      case event["_target"] do
+        ["clock", "triggers", index, "type"] -> index
+        _ -> nil
+      end
+
+    params =
+      TriggerForm.params(params, get_field(socket.assigns.form.source, :triggers), changed_type)
+
     changeset = Clock.changeset(socket.assigns.editing || %Clock{}, params)
     {:noreply, assign(socket, :form, to_form(%{changeset | action: :validate}))}
   end
 
   def handle_event("add_trigger", _, socket) do
     changeset = socket.assigns.form.source
-    triggers = get_field(changeset, :triggers) ++ [%Trigger{type: :world_news}]
+    triggers = trigger_changes(changeset) ++ [%Trigger{type: :world_news}]
     {:noreply, assign(socket, :form, to_form(put_embed(changeset, :triggers, triggers)))}
   end
 
   def handle_event("remove_trigger", %{"index" => index}, socket) do
-    with {:ok, index} <- integer(index) do
+    with {:ok, index} <- integer(index), true <- index >= 0 do
       changeset = socket.assigns.form.source
-      triggers = get_field(changeset, :triggers) |> List.delete_at(index)
+      triggers = trigger_changes(changeset) |> List.delete_at(index)
+      {:noreply, assign(socket, :form, to_form(put_embed(changeset, :triggers, triggers)))}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Invalid trigger selection.")}
+    end
+  end
+
+  def handle_event("move_trigger", %{"index" => index, "direction" => direction}, socket)
+      when direction in ["up", "down"] do
+    changeset = socket.assigns.form.source
+    triggers = trigger_changes(changeset)
+
+    with {:ok, index} <- integer(index),
+         true <- index >= 0 and index < length(triggers),
+         target = index + if(direction == "up", do: -1, else: 1),
+         true <- target >= 0 and target < length(triggers) do
+      trigger = Enum.at(triggers, index)
+      triggers = triggers |> List.delete_at(index) |> List.insert_at(target, trigger)
       {:noreply, assign(socket, :form, to_form(put_embed(changeset, :triggers, triggers)))}
     else
       _ -> {:noreply, put_flash(socket, :error, "Invalid trigger selection.")}
@@ -47,7 +73,7 @@ defmodule AsyncWorldsWeb.ClockLive do
 
   def handle_event("save", %{"clock" => params}, socket) do
     # An empty trigger editor must explicitly replace the stored embeds.
-    params = Map.put_new(params, "triggers", [])
+    params = TriggerForm.params(params, get_field(socket.assigns.form.source, :triggers))
 
     result =
       if clock = socket.assigns.editing do
@@ -69,7 +95,7 @@ defmodule AsyncWorldsWeb.ClockLive do
               put_flash(
                 socket,
                 :error,
-                "Trigger targets must reference another clock in this campaign."
+                "Trigger targets must reference a character, quest or another clock in this campaign."
               ),
             else: socket
 
@@ -140,6 +166,29 @@ defmodule AsyncWorldsWeb.ClockLive do
   defp complete(socket, {:error, reason}, _),
     do: socket |> refresh() |> put_flash(:error, error_message(reason))
 
+  defp trigger_changes(changeset),
+    do: get_change(changeset, :triggers, get_field(changeset, :triggers))
+
+  defp flag_form(trigger_form) do
+    flag =
+      trigger_form[:flag].value ||
+        %{"type" => "boolean", "value" => true, "player_visible" => false}
+
+    flag =
+      Map.new(flag, fn {key, value} ->
+        {key, if(is_binary(value) or is_integer(value) or is_boolean(value), do: value, else: "")}
+      end)
+
+    errors =
+      Enum.map(trigger_form[:flag].errors, fn {message, opts} -> {:value, {message, opts}} end)
+
+    to_form(flag,
+      as: trigger_form.name <> "[flag]",
+      id: trigger_form.id <> "_flag",
+      errors: errors
+    )
+  end
+
   defp campaign_id(socket), do: socket.assigns.current_scope.campaign.id
   defp source(socket), do: "dm:web:#{socket.assigns.current_scope.discord_user_id}"
 
@@ -160,6 +209,9 @@ defmodule AsyncWorldsWeb.ClockLive do
     id = campaign_id(socket)
     tick = Ticks.active_tick(id)
     clocks = Clocks.list_clocks(id)
+    scope = socket.assigns.current_scope
+    {:ok, characters} = Characters.list_characters(scope.campaign, scope.discord_user_id)
+    {:ok, quests} = Quests.trigger_targets(scope.campaign, scope.discord_user_id)
 
     items =
       Enum.map(clocks, fn clock ->
@@ -177,6 +229,8 @@ defmodule AsyncWorldsWeb.ClockLive do
         (tick && tick.status in [:resolving, :in_review]) ||
           socket.assigns.current_scope.campaign.clock_mutations_locked,
       clock_options: Enum.map(clocks, &{&1.name, &1.id}),
+      character_options: Enum.map(characters, &{&1.name, &1.id}),
+      quest_options: Enum.map(quests, &{&1.name, &1.id}),
       race_options:
         clocks |> Enum.reject(&(&1.completed || &1.racing_group)) |> Enum.map(&{&1.name, &1.id}),
       race_form:
@@ -314,35 +368,88 @@ defmodule AsyncWorldsWeb.ClockLive do
                       options={[
                         "World news": :world_news,
                         "Notify DM": :notify_dm,
-                        "Start clock": :start_clock
+                        "Start clock": :start_clock,
+                        "Set character flag": :set_flag,
+                        "Unlock quest": :unlock_quest
                       ]}
                       class="admin-input"
                       error_class="admin-input-error"
                     />
-                    <%= if to_string(trigger_form[:type].value) == "start_clock" do %>
-                      <.input
-                        field={trigger_form[:clock_id]}
-                        type="select"
-                        label="Target clock"
-                        prompt="Choose a target"
-                        options={
-                          Enum.reject(@clock_options, fn {_, id} -> @editing && @editing.id == id end)
-                        }
-                        class="admin-input"
-                        error_class="admin-input-error"
-                      />
-                      <.input field={trigger_form[:text]} type="hidden" value="" />
-                    <% else %>
-                      <.input
-                        field={trigger_form[:text]}
-                        type="textarea"
-                        label="Notification / public news text"
-                        maxlength="2000"
-                        class="admin-input"
-                        error_class="admin-input-error"
-                      />
-                      <.input field={trigger_form[:clock_id]} type="hidden" value="" />
+                    <%= cond do %>
+                      <% to_string(trigger_form[:type].value) in ["set_flag", "unlock_quest"] -> %>
+                        <.input
+                          field={trigger_form[:character_id]}
+                          type="select"
+                          label="Target character"
+                          prompt="Choose a character"
+                          options={@character_options}
+                          class="admin-input"
+                          error_class="admin-input-error"
+                        />
+                        <%= if to_string(trigger_form[:type].value) == "unlock_quest" do %>
+                          <.input
+                            field={trigger_form[:quest_id]}
+                            type="select"
+                            label="Quest to make available"
+                            prompt="Choose a released quest"
+                            options={@quest_options}
+                            class="admin-input"
+                            error_class="admin-input-error"
+                          />
+                          <p
+                            id={"unlock-explanation-#{trigger_form.index}"}
+                            class="text-xs text-slate-400"
+                          >
+                            Unlocking grants availability, not assignment. The character's active quest is not interrupted or replaced.
+                          </p>
+                        <% else %>
+                          <.input
+                            field={trigger_form[:key]}
+                            label="Flag key"
+                            class="admin-input"
+                            error_class="admin-input-error"
+                          />
+                          <.flag_inputs form={flag_form(trigger_form)} />
+                        <% end %>
+                      <% to_string(trigger_form[:type].value) == "start_clock" -> %>
+                        <.input
+                          field={trigger_form[:clock_id]}
+                          type="select"
+                          label="Target clock"
+                          prompt="Choose a target"
+                          options={
+                            Enum.reject(@clock_options, fn {_, id} ->
+                              @editing && @editing.id == id
+                            end)
+                          }
+                          class="admin-input"
+                          error_class="admin-input-error"
+                        />
+                        <.input field={trigger_form[:text]} type="hidden" value="" />
+                      <% true -> %>
+                        <.input
+                          field={trigger_form[:text]}
+                          type="textarea"
+                          label="Notification / public news text"
+                          maxlength="2000"
+                          class="admin-input"
+                          error_class="admin-input-error"
+                        />
+                        <.input field={trigger_form[:clock_id]} type="hidden" value="" />
                     <% end %>
+                    <div class="flex gap-3">
+                      <button
+                        :for={direction <- ["up", "down"]}
+                        id={"move-trigger-#{trigger_form.index}-#{direction}"}
+                        type="button"
+                        phx-click="move_trigger"
+                        phx-value-index={trigger_form.index}
+                        phx-value-direction={direction}
+                        class="text-xs text-amber-300 transition hover:text-amber-100"
+                      >
+                        Move {direction}
+                      </button>
+                    </div>
                     <button
                       id={"remove-trigger-#{trigger_form.index}"}
                       type="button"
