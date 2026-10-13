@@ -39,6 +39,14 @@ defmodule AsyncWorldsWeb.AdminComponents do
       >
         <.icon name="hero-map" class="size-4" /> Quests
       </.link>
+      <.link
+        id="nav-history"
+        navigate={~p"/ticks/history"}
+        aria-current={@active == "history" && "page"}
+        class={["admin-tab", @active == "history" && "admin-tab-active"]}
+      >
+        <.icon name="hero-archive-box" class="size-4" /> History
+      </.link>
     </nav>
     """
   end
