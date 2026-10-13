@@ -1,8 +1,10 @@
 defmodule Mix.Tasks.Discord.RegisterCommands do
   @shortdoc "Replaces campaign slash commands in the configured guild"
   @moduledoc """
-  Registers `/clocks`, `/tick`, `/admin`, `/character`, `/quest`, `/submission`
-  and `/debug`, plus `/result`, in the configured guild.
+  Registers the shared campaign command catalogue in the configured guild,
+  including `/help`, `/clocks`, `/tick`, `/admin`, `/character`, `/quest`,
+  `/submission`, `/debug` and `/result`. Delegated commands added to the catalogue
+  are registered automatically as well.
 
       DISCORD_ENABLED=true mix discord.register_commands
 

@@ -131,7 +131,7 @@ defmodule AsyncWorldsWeb.QuestGraph do
 
   def target("start_node", _definition), do: "quest-start-node"
   def target("name", _definition), do: "quest-name"
-  def target("content_id", _definition), do: "quest-content-id"
+  def target("content_id", _definition), do: "quest-identity"
 
   def target(path, definition) do
     case Regex.run(~r/nodes\[(\d+)\](?:\.choices\[(\d+)\])?(.*)/, path) do

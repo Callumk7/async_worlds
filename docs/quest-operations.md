@@ -26,8 +26,10 @@ Open **Quest library & editor** from `/quests` (`/quests/library`). Empty librar
 offer **New quest**; existing imported/released revisions offer **Edit a working
 copy**. Working copies are persistent but never appear in assignment controls.
 
-1. Give the quest a name and a stable **Content identity** (letters, numbers,
-   hyphens/underscores). After release that identity cannot change.
+1. Give the quest a name. A stable **Content identity** is generated automatically
+   and shown read-only; there is no identity field to fill in. Older unreleased drafts
+   with blank or invalid identities receive one when saved or released. After release
+   the identity cannot change. Imports retain their supplied valid identities.
 2. Write the entry node's narrative. Add ordered fixed choices with labels,
    outcome text and destinations selected by human-readable node descriptions.
    Add a node for each destination, choose a **Start node**, and explicitly mark

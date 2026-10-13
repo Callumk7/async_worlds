@@ -31,6 +31,68 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
   defp release(view),
     do: view |> form("#quest-editor-form") |> render_submit(%{"operation" => "release"})
 
+  test "legacy drafts save and release generated read-only identities without a manual field",
+       c do
+    for identity <- ["", "invalid identity!"], operation <- ["save", "release"] do
+      {:ok, work} = Quests.create_working_copy(c.campaign, "456")
+      [node] = work.definition["nodes"]
+
+      definition = %{
+        work.definition
+        | "nodes" => [%{node | "text" => "Legacy story", "ending" => true}]
+      }
+
+      work =
+        work
+        |> Ecto.Changeset.change(
+          name: "Legacy quest",
+          content_id: identity,
+          definition: definition
+        )
+        |> Repo.update!()
+
+      {:ok, view, _} = live(c.conn, ~p"/quests/library?draft_id=#{work.id}")
+      assert has_element?(view, "#quest-identity[tabindex='-1']")
+      refute has_element?(view, "input[name='quest[content_id]']")
+      render_change(view, "change", %{"quest" => %{"content_id" => "forged"}})
+
+      if operation == "release" do
+        release(view)
+        assert has_element?(view, "#flash-info", "Released revision 1")
+      else
+        view |> form("#quest-editor-form") |> render_submit()
+        assert has_element?(view, "#flash-info", "saved")
+      end
+
+      {:ok, saved} = Quests.get_working_copy(c.campaign, "456", work.id)
+      assert Quests.Definition.id?(saved.content_id)
+      assert saved.content_id != "forged"
+      assert has_element?(view, "#quest-identity", saved.content_id)
+      {:ok, resumed, _} = live(c.conn, ~p"/quests/library?draft_id=#{work.id}")
+      assert has_element?(resumed, "#quest-identity", saved.content_id)
+      refute has_element?(view, "#draft-errors")
+    end
+  end
+
+  test "content identity release diagnostics focus the existing read-only display", c do
+    {:ok, revision} =
+      Quests.create_quest(
+        c.campaign,
+        "456",
+        %{name: "Released", content_id: "released"},
+        definition()
+      )
+
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456", revision.id)
+    work |> Ecto.Changeset.change(content_id: "invalid identity!") |> Repo.update!()
+    {:ok, view, _} = live(c.conn, ~p"/quests/library?draft_id=#{work.id}")
+    release(view)
+    assert has_element?(view, "#draft-errors a[href='#quest-identity']")
+    assert has_element?(view, "#quest-identity[tabindex='-1']")
+    refute has_element?(view, "#quest-content-id")
+    assert Repo.get!(AsyncWorlds.Quests.Quest, revision.quest_id).content_id == "released"
+  end
+
   test "complete harbourmaster form flow saves resumes repairs releases assigns and preserves pins",
        c do
     {:ok, view, _} = live(c.conn, ~p"/quests/library")

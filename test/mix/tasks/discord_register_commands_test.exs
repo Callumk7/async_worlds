@@ -27,6 +27,12 @@ defmodule Mix.Tasks.Discord.RegisterCommandsTest do
     :ok
   end
 
+  test "task documentation includes help and catalogue-driven registration" do
+    {:docs_v1, _, _, _, %{"en" => documentation}, _, _} = Code.fetch_docs(RegisterCommands)
+    assert documentation =~ "`/help`"
+    assert documentation =~ "shared campaign command catalogue"
+  end
+
   test "task registers repeatably with no gateway" do
     Campaigns.setup_campaign(%{
       discord_guild_id: "123",
