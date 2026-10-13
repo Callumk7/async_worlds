@@ -37,12 +37,13 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     assert has_element?(view, "#library-drafts-empty")
     assert has_element?(view, "#library-revisions-empty")
     work = new_work(view, c.campaign)
+    assert Quests.Definition.id?(work.content_id)
+    refute has_element?(view, "#quest-content-id")
 
     view
     |> form("#quest-editor-form",
       quest: %{
         name: "Meet the harbourmaster",
-        content_id: "harbourmaster",
         node_0_text: "Meet the harbourmaster"
       }
     )
@@ -82,6 +83,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     assert has_element?(resumed, "#flash-info", "Released revision 1")
     {:ok, %{revisions: [r1]}} = Quests.library(c.campaign, "456")
     {:ok, first} = Quests.get_revision(c.campaign, "456", r1.id)
+    assert r1.content_id == work.content_id
     assert first.definition["start_node"] == entry_id
     choice_id = hd(hd(first.definition["nodes"])["choices"])["id"]
 

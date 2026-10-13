@@ -77,6 +77,26 @@ defmodule AsyncWorlds.QuestAuthoringTest do
     end
   end
 
+  test "new drafts receive unique stable identities without manual input", c do
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456")
+    {:ok, other} = Quests.create_working_copy(c.campaign, "456")
+    assert Definition.id?(work.content_id)
+    assert Definition.id?(other.content_id)
+    assert work.content_id != other.content_id
+
+    edited = Authoring.apply_form(work, %{"name" => "Renamed", "content_id" => "forged"})
+    assert edited.content_id == work.content_id
+    assert {:ok, saved} = save(c.campaign, edited)
+    assert saved.content_id == work.content_id
+
+    complete = %{complete(saved) | content_id: saved.content_id}
+    assert {:ok, %{draft: released, revision: revision}} = release(c.campaign, complete)
+    assert released.content_id == work.content_id
+    assert Repo.get!(Quest, revision.quest_id).content_id == work.content_id
+    assert {:ok, next} = Quests.create_working_copy(c.campaign, "456", revision.id)
+    assert next.content_id == work.content_id
+  end
+
   test "persistent incomplete copies are unassignable; invalid release rolls back every write; repair appends",
        c do
     {:ok, work} = Quests.create_working_copy(c.campaign, "456")

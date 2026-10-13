@@ -542,13 +542,6 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
               >
                 <.input field={@form[:name]} id="quest-name" label="Quest name" class="admin-input" />
                 <.input
-                  field={@form[:content_id]}
-                  id="quest-content-id"
-                  label="Content identity (stable library key)"
-                  readonly={@work.quest_id != nil}
-                  class="admin-input"
-                />
-                <.input
                   field={@form[:start_node]}
                   id="quest-start-node"
                   type="select"

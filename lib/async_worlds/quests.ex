@@ -68,7 +68,11 @@ defmodule AsyncWorlds.Quests do
             definition: revision.definition
           }
         else
-          %{name: "", content_id: "", definition: Authoring.new_definition()}
+          %{
+            name: "",
+            content_id: "quest_" <> Ecto.UUID.generate(),
+            definition: Authoring.new_definition()
+          }
         end
 
       attrs =
