@@ -119,45 +119,111 @@ defmodule AsyncWorlds.Quests.Authoring do
     )
   end
 
-  @doc "Existing IDs/order and unmodeled fields cannot change, even through forged form payloads."
+  @doc "Match by stable identity, permitting removal/reordering while preserving retained opaque fields."
   def safe_edit?(old, new) do
     is_map(new) and bounded_definition?(new) and
-      Map.keys(new) |> Enum.sort() == Enum.sort(Map.keys(old)) and
-      is_list(new["nodes"]) and length(new["nodes"]) >= length(old["nodes"]) and
-      Enum.zip(old["nodes"], new["nodes"]) |> Enum.all?(fn {a, b} -> safe_node?(a, b) end) and
-      Enum.drop(new["nodes"], length(old["nodes"])) |> Enum.all?(&fresh_node?/1)
+      Map.drop(new, ["start_node", "nodes"]) == Map.drop(old, ["start_node", "nodes"]) and
+      unique_ids?(new["nodes"]) and unique_ids?(Enum.flat_map(new["nodes"], & &1["choices"])) and
+      retained_parents?(old["nodes"], new["nodes"]) and
+      safe_collection?(old["nodes"], new["nodes"], &safe_node?/2, &fresh_node?/1)
   rescue
     _ -> false
   end
 
   defp safe_node?(a, b) do
     Map.drop(a, ["text", "ending", "choices"]) == Map.drop(b, ["text", "ending", "choices"]) and
-      (Enum.all?(a["choices"], &editable?/1) or a["ending"] == b["ending"]) and
-      length(b["choices"]) >= length(a["choices"]) and
-      Enum.zip(a["choices"], b["choices"])
-      |> Enum.all?(fn {x, y} ->
-        if editable?(x) do
-          Map.drop(x, ["label", "outcomes"]) == Map.drop(y, ["label", "outcomes"]) and
-            Map.keys(y["outcomes"]) == ["fixed"] and
-            Map.drop(x["outcomes"]["fixed"], ["text", "next_node"]) ==
-              Map.drop(y["outcomes"]["fixed"], ["text", "next_node"])
-        else
-          x == y
-        end
-      end) and Enum.drop(b["choices"], length(a["choices"])) |> Enum.all?(&fresh_choice?/1)
+      (Enum.all?(b["choices"], &editable?/1) or a["ending"] == b["ending"]) and
+      safe_collection?(
+        a["choices"],
+        b["choices"],
+        fn x, y ->
+          if editable?(x) do
+            Map.drop(x, ["label", "outcomes"]) == Map.drop(y, ["label", "outcomes"]) and
+              Map.keys(y["outcomes"]) == ["fixed"] and
+              Map.drop(x["outcomes"]["fixed"], ["text", "next_node"]) ==
+                Map.drop(y["outcomes"]["fixed"], ["text", "next_node"])
+          else
+            x == y
+          end
+        end,
+        &fresh_choice?/1
+      )
   end
+
+  defp retained_parents?(old, new) do
+    owners = for node <- old, choice <- node["choices"], into: %{}, do: {choice["id"], node["id"]}
+
+    Enum.all?(new, fn node ->
+      Enum.all?(node["choices"], fn choice ->
+        not Map.has_key?(owners, choice["id"]) or
+          owners[choice["id"]] == node["id"]
+      end)
+    end)
+  end
+
+  defp unique_ids?(items) do
+    ids = Enum.map(items, & &1["id"])
+    Enum.all?(ids, &AsyncWorlds.Quests.Definition.id?/1) and length(ids) == length(Enum.uniq(ids))
+  end
+
+  defp safe_collection?(old, new, retained?, fresh?) do
+    existing = Map.new(old, &{&1["id"], &1})
+
+    Enum.all?(new, fn item ->
+      case Map.fetch(existing, item["id"]) do
+        {:ok, previous} -> retained?.(previous, item)
+        :error -> fresh?.(item)
+      end
+    end)
+  end
+
+  @doc "Local structural operations use stable IDs, never browser list offsets."
+  def restructure(definition, action, node_id, choice_id \\ nil) do
+    nodes = definition["nodes"]
+
+    nodes =
+      if choice_id do
+        Enum.map(nodes, fn node ->
+          if node["id"] == node_id,
+            do: Map.update!(node, "choices", &reorder(&1, action, choice_id)),
+            else: node
+        end)
+      else
+        if action == "remove" and length(nodes) == 1,
+          do: nodes,
+          else: reorder(nodes, action, node_id)
+      end
+
+    Map.put(definition, "nodes", nodes)
+  end
+
+  defp reorder(items, "remove", id), do: Enum.reject(items, &(&1["id"] == id))
+
+  defp reorder(items, action, id) when action in ["up", "down"] do
+    index = Enum.find_index(items, &(&1["id"] == id))
+    target = if index, do: index + if(action == "up", do: -1, else: 1)
+
+    if index && target >= 0 && target < length(items) do
+      item = Enum.at(items, index)
+      items |> List.delete_at(index) |> List.insert_at(target, item)
+    else
+      items
+    end
+  end
+
+  defp reorder(items, _, _), do: items
 
   defp fresh_node?(node),
     do:
       Map.keys(node) |> Enum.sort() == Enum.sort(~w(id text ending choices)) and
-        AsyncWorlds.Quests.Definition.id?(node["id"]) and is_list(node["choices"]) and
+        allocated_id?(node["id"], "node") and is_list(node["choices"]) and
         Enum.all?(node["choices"], &fresh_choice?/1)
 
   defp fresh_choice?(choice),
     do:
       Map.drop(choice, ["id", "label", "outcomes"]) ==
         Map.drop(new_choice(), ["id", "label", "outcomes"]) and
-        AsyncWorlds.Quests.Definition.id?(choice["id"]) and
+        allocated_id?(choice["id"], "choice") and
         Map.keys(choice["outcomes"]) == ["fixed"] and
         Map.drop(choice["outcomes"]["fixed"], ["text", "next_node"]) == %{"effects" => []}
 
@@ -260,6 +326,15 @@ defmodule AsyncWorlds.Quests.Authoring do
       _ -> default
     end
   end
+
+  defp allocated_id?(id, prefix) when is_binary(id) do
+    case String.split(id, prefix <> "_", parts: 2) do
+      ["", uuid] -> match?({:ok, _}, Ecto.UUID.cast(uuid))
+      _ -> false
+    end
+  end
+
+  defp allocated_id?(_, _), do: false
 
   defp id(prefix), do: prefix <> "_" <> Ecto.UUID.generate()
 end

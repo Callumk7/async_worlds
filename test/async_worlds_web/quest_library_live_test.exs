@@ -172,6 +172,315 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     assert progression.node_id == ending_id
   end
 
+  test "graph navigation, diagnostics, reordering and confirmed removal keep broken links repairable",
+       c do
+    {:ok, revision} =
+      Quests.create_quest(
+        c.campaign,
+        "456",
+        %{name: "Graph", content_id: "graph"},
+        replace_choice(definition(), choice("finish", "end"))
+      )
+
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456", revision.id)
+    {:ok, view, _} = live(c.conn, ~p"/quests/library?draft_id=#{work.id}")
+    assert has_element?(view, "#quest-graph svg")
+    assert has_element?(view, "#quest-library > .grid > section.min-w-0")
+    assert has_element?(view, "#quest-graph > div.overflow-auto")
+    assert has_element?(view, "#graph-node-0[href='#node-0-text'][phx-click*='focus']")
+    assert has_element?(view, "#graph-node-text-1[href='#node-1-text'][phx-click*='focus']")
+    assert has_element?(view, "#graph-edge-0 a[href='#editor-choice-0-0'][phx-click*='focus']")
+    assert has_element?(view, "#graph-connections")
+    view |> element("#move-node-1-up") |> render_click()
+    assert has_element?(view, "#node-0-text", "Ending")
+    view |> element("#remove-node-0") |> render_click()
+    assert has_element?(view, "#node-removal-warning", "inbound")
+    assert has_element?(view, "#editor-node-1")
+    view |> element("#confirm-remove-node") |> render_click()
+    refute has_element?(view, "#editor-node-1")
+    assert has_element?(view, "#graph-diagnostics a.break-all[href='#choice-0-0-destination']")
+    assert has_element?(view, "#choice-0-0-destination option[value='end']", "Missing")
+    view |> form("#quest-editor-form") |> render_submit()
+    assert has_element?(view, "#flash-info", "saved")
+    release(view)
+    assert has_element?(view, "#draft-errors", "next_node")
+    assert {:ok, ^revision} = Quests.get_revision(c.campaign, "456", revision.id)
+  end
+
+  test "release diagnostics point to exact editable fields and node-type controls", c do
+    {:ok, view, _} = live(c.conn, ~p"/quests/library")
+    new_work(view, c.campaign)
+    release(view)
+    assert has_element?(view, "#draft-errors a[href='#node-0-ending'][phx-click*='focus']")
+    view |> element("#add-choice-0") |> render_click()
+    release(view)
+    assert has_element?(view, "#draft-errors a[href='#choice-0-0-label'][phx-click*='focus']")
+    assert has_element?(view, "#draft-errors a[href='#choice-0-0-text'][phx-click*='focus']")
+
+    assert has_element?(
+             view,
+             "#draft-errors a[href='#choice-0-0-destination'][phx-click*='focus']"
+           )
+  end
+
+  test "author branching cycles self loops endings and disconnected content through forms", c do
+    {:ok, view, _} = live(c.conn, ~p"/quests/library")
+    work = new_work(view, c.campaign)
+    for _ <- 1..3, do: view |> element("#add-quest-node") |> render_click()
+    for i <- [0, 0, 1, 1], do: view |> element("#add-choice-#{i}") |> render_click()
+    view |> form("#quest-editor-form") |> render_submit()
+    {:ok, saved} = Quests.get_working_copy(c.campaign, "456", work.id)
+    [entry, branch, ending, disconnected] = saved.definition["nodes"]
+
+    fill(view, %{
+      name: "Branching rehearsal",
+      content_id: "branching_rehearsal",
+      node_0_text: "Choose a route",
+      node_1_text: "Return or finish",
+      node_2_text: "Safe harbour",
+      node_2_ending: "true",
+      node_3_text: "Optional epilogue",
+      node_3_ending: "true",
+      node_0_choice_0_label: "Loop here",
+      node_0_choice_0_text: "Still here",
+      node_0_choice_0_destination: entry["id"],
+      node_0_choice_1_label: "Take branch",
+      node_0_choice_1_text: "On the branch",
+      node_0_choice_1_destination: branch["id"],
+      node_1_choice_0_label: "Return",
+      node_1_choice_0_text: "Back again",
+      node_1_choice_0_destination: entry["id"],
+      node_1_choice_1_label: "Finish",
+      node_1_choice_1_text: "Arrived",
+      node_1_choice_1_destination: ending["id"]
+    })
+
+    assert has_element?(view, "#graph-diagnostics", "nonblocking")
+    assert has_element?(view, "#graph-node-0", "Start")
+    assert has_element?(view, "#graph-node-2", "Ending")
+    assert has_element?(view, "#graph-edge-3")
+    view |> element("#choice-0-1-up") |> render_click()
+    assert has_element?(view, "#choice-0-0-label[value='Take branch']")
+    release(view)
+    assert has_element?(view, "#flash-info", "Released revision 1")
+    {:ok, %{revisions: [r]}} = Quests.library(c.campaign, "456")
+    {:ok, r} = Quests.get_revision(c.campaign, "456", r.id)
+
+    assert Enum.map(r.definition["nodes"], & &1["id"]) ==
+             Enum.map(saved.definition["nodes"], & &1["id"])
+
+    assert disconnected["id"] in Enum.map(r.definition["nodes"], & &1["id"])
+
+    {:ok, character} =
+      Characters.create_character(c.campaign, "456", %{name: "Rook", discord_user_id: "991"})
+
+    {:ok, ops, _} = live(c.conn, ~p"/quests?character_id=#{character.id}")
+
+    ops
+    |> form("#quest-assignment-form",
+      intervention: %{revision_id: to_string(r.id), reason: "Rehearse branches"}
+    )
+    |> render_submit()
+
+    start_supervised!({FakeAdapter, owner: self()})
+    opts = [adapter: FakeAdapter, guild_id: "123", application_id: "111"]
+    {:ok, tick} = Ticks.open_tick(c.campaign.id)
+
+    interaction = %{
+      type: 2,
+      id: 910,
+      application_id: 111,
+      guild_id: 123,
+      member: %{user_id: 991},
+      token: "offline-only",
+      data: %{name: "quest"}
+    }
+
+    assert {:ok, payload} = Dispatcher.handle(interaction, opts)
+    assert payload.content =~ "Choose a route"
+
+    button =
+      payload.components
+      |> Enum.flat_map(& &1.components)
+      |> Enum.find(&(&1.label =~ "Take branch"))
+
+    assert button
+
+    assert {:ok, _} =
+             Dispatcher.handle(
+               %{
+                 interaction
+                 | type: 3,
+                   id: 911,
+                   data: %{custom_id: button.custom_id, component_type: 2}
+               },
+               opts
+             )
+
+    {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, tick.id)
+
+    assert {:ok, []} =
+             Ticks.record_quest_rolls(c.campaign.id, tick.id, snapshot.revision, fn ->
+               flunk("fixed choices do not roll")
+             end)
+
+    assert :ok =
+             perform_job(AsyncWorlds.Workers.ResolveTick, %{
+               campaign_id: c.campaign.id,
+               tick_id: tick.id,
+               input_revision: snapshot.revision
+             })
+
+    {:ok, review, _} = live(c.conn, ~p"/ticks/#{tick.id}/review")
+    assert has_element?(review, "#private-preview", "On the branch")
+    review |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
+    assert_redirect(review, ~p"/dashboard")
+    assert {:ok, after_branch} = Dispatcher.handle(%{interaction | id: 912}, opts)
+    assert after_branch.content =~ "Return or finish"
+
+    {:ok, return_tick} = Ticks.open_tick(c.campaign.id)
+    {:ok, return_payload} = Dispatcher.handle(%{interaction | id: 913}, opts)
+
+    return_button =
+      return_payload.components
+      |> Enum.flat_map(& &1.components)
+      |> Enum.find(&(&1.label =~ "Return"))
+
+    assert return_button
+
+    assert {:ok, _} =
+             Dispatcher.handle(
+               %{
+                 interaction
+                 | type: 3,
+                   id: 914,
+                   data: %{custom_id: return_button.custom_id, component_type: 2}
+               },
+               opts
+             )
+
+    {:ok, %{snapshot: return_snapshot}} = Ticks.close_tick(c.campaign.id, return_tick.id)
+
+    assert {:ok, []} =
+             Ticks.record_quest_rolls(
+               c.campaign.id,
+               return_tick.id,
+               return_snapshot.revision,
+               fn ->
+                 flunk("fixed return choices do not roll")
+               end
+             )
+
+    assert :ok =
+             perform_job(AsyncWorlds.Workers.ResolveTick, %{
+               campaign_id: c.campaign.id,
+               tick_id: return_tick.id,
+               input_revision: return_snapshot.revision
+             })
+
+    {:ok, return_review, _} = live(c.conn, ~p"/ticks/#{return_tick.id}/review")
+    assert has_element?(return_review, "#private-preview", "Back again")
+    return_review |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
+    assert_redirect(return_review, ~p"/dashboard")
+    assert {:ok, after_return} = Dispatcher.handle(%{interaction | id: 915}, opts)
+    assert after_return.content =~ "Choose a route"
+
+    view |> element("#choice-0-1-remove") |> render_click()
+    release(view)
+    assert has_element?(view, "#flash-info", "Released revision 2")
+    assert {:ok, ^r} = Quests.get_revision(c.campaign, "456", r.id)
+
+    assert {:ok, %{selected: %{progression: %{revision_id: pinned}}}} =
+             Quests.management_state(c.campaign, "456", character.id)
+
+    assert pinned == r.id
+  end
+
+  test "imported rolled graph release assign and offline Discord tick use controlled dice", c do
+    {:ok, original} =
+      Quests.create_quest(
+        c.campaign,
+        "456",
+        %{name: "Rolled paths", content_id: "rolled_paths"},
+        replace_choice(definition(), rolled())
+      )
+
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456", original.id)
+    {:ok, view, _} = live(c.conn, ~p"/quests/library?draft_id=#{work.id}")
+    for i <- 0..2, do: assert(has_element?(view, "#graph-edge-#{i}"))
+
+    for kind <- ["failure", "partial", "success"],
+        do: assert(has_element?(view, "#graph-connections", kind))
+
+    refute has_element?(view, "#choice-0-0-destination select")
+    fill(view, %{node_0_text: "Inspect rolled branches"})
+    release(view)
+    {:ok, %{revisions: [released, _]}} = Quests.library(c.campaign, "456")
+    {:ok, released} = Quests.get_revision(c.campaign, "456", released.id)
+
+    assert hd(released.definition["nodes"])["choices"] ==
+             hd(original.definition["nodes"])["choices"]
+
+    {:ok, character} =
+      Characters.create_character(c.campaign, "456", %{
+        name: "Dice tester",
+        discord_user_id: "991"
+      })
+
+    {:ok, _} = Quests.assign(c.campaign, "456", character.id, released.id)
+    start_supervised!({FakeAdapter, owner: self()})
+    {:ok, tick} = Ticks.open_tick(c.campaign.id)
+
+    interaction = %{
+      type: 2,
+      id: 920,
+      application_id: 111,
+      guild_id: 123,
+      member: %{user_id: 991},
+      token: "offline-only",
+      data: %{name: "quest"}
+    }
+
+    opts = [adapter: FakeAdapter, guild_id: "123", application_id: "111"]
+    {:ok, payload} = Dispatcher.handle(interaction, opts)
+    assert payload.content =~ "Inspect rolled branches"
+
+    button =
+      payload.components |> Enum.flat_map(& &1.components) |> Enum.find(&(&1.label =~ "roll"))
+
+    assert {:ok, _} =
+             Dispatcher.handle(
+               %{
+                 interaction
+                 | type: 3,
+                   id: 921,
+                   data: %{custom_id: button.custom_id, component_type: 2}
+               },
+               opts
+             )
+
+    {:ok, %{snapshot: snapshot}} = Ticks.close_tick(c.campaign.id, tick.id)
+
+    assert {:ok, dice} =
+             Ticks.record_quest_rolls(c.campaign.id, tick.id, snapshot.revision, fn -> 6 end)
+
+    assert Enum.all?(dice, &(&1["value"] == 6))
+
+    assert :ok =
+             perform_job(AsyncWorlds.Workers.ResolveTick, %{
+               campaign_id: c.campaign.id,
+               tick_id: tick.id,
+               input_revision: snapshot.revision
+             })
+
+    {:ok, review, _} = live(c.conn, ~p"/ticks/#{tick.id}/review")
+    assert has_element?(review, "#private-preview", "Result")
+    review |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
+    assert_redirect(review, ~p"/dashboard")
+    assert {:ok, ending} = Dispatcher.handle(%{interaction | id: 922}, opts)
+    assert ending.content =~ "Ending"
+  end
+
   test "local edits never fetch revisions or lock campaigns and loaded bases refresh", c do
     {:ok, r1} =
       Quests.create_quest(c.campaign, "456", %{name: "Base", content_id: "base"}, definition())
@@ -203,6 +512,11 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     fill(view, %{name: "Typing", node_0_text: "Local narrative"})
     view |> element("#add-quest-node") |> render_click()
     view |> element("#add-choice-2") |> render_click()
+    view |> element("#move-node-2-up") |> render_click()
+    view |> element("#choice-0-1-up") |> render_click()
+    view |> element("#remove-node-2") |> render_click()
+    assert has_element?(view, "#node-removal-warning")
+    view |> element("#confirm-remove-node") |> render_click()
     refute_receive {:authoring_query, _}, 0
     assert has_element?(view, "#draft-identity", "Base revision v1")
     :telemetry.detach(handler)
@@ -412,7 +726,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     assert has_element?(view, "#editor-choice-0-99")
 
     for _ <- 1..2 do
-      render_click(view, "add-choice", %{"index" => "0"})
+      render_click(view, "add-choice", %{"node" => hd(seeded.definition["nodes"])["id"]})
       refute has_element?(view, "#editor-choice-0-100")
     end
 
@@ -515,6 +829,15 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     })
 
     assert has_element?(view, "#quest-name[value='']")
+
+    for node <- [nil, [], %{}, "foreign"], choice <- [nil, [], %{}, "foreign"] do
+      render_click(view, "structure", %{"action" => "remove", "node" => node, "choice" => choice})
+      render_click(view, "structure", %{"action" => "up", "node" => node, "choice" => choice})
+      render_click(view, "add-choice", %{"node" => node})
+    end
+
+    assert has_element?(view, "#editor-node-0")
+    refute has_element?(view, "#editor-node-1")
     assert {:ok, ^work} = Quests.get_working_copy(c.campaign, "456", work.id)
   end
 

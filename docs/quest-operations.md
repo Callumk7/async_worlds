@@ -1,4 +1,4 @@
-# DM quest library and operations (ENG-17 / ENG-30)
+# DM quest library and operations (ENG-17 / ENG-30 / ENG-31)
 
 ## Operator workflow
 
@@ -20,7 +20,7 @@ Alternatively, use a character's **Quests** link on `/characters`.
 5. **End quest** stops an active assignment without marking it completed.
    The character can then receive a new assignment.
 
-## Fixed quest authoring (no JSON required)
+## Branching/cyclic quest authoring (no JSON required)
 
 Open **Quest library & editor** from `/quests` (`/quests/library`). Empty libraries
 offer **New quest**; existing imported/released revisions offer **Edit a working
@@ -33,12 +33,29 @@ copy**. Working copies are persistent but never appear in assignment controls.
    Add a node for each destination, choose a **Start node**, and explicitly mark
    terminal nodes as endings. Endings must have no choices; continuing nodes need
    at least one choice. IDs are allocated once and preserved behind the forms.
+   Destinations may return to the same node, branch, or form cycles. A reachable
+   ending is not required. Use **Move up/down** to reorder nodes or choices;
+   order does not change identities, the start, or destinations.
+   **Remove node** warns about inbound links before confirmation. Links from
+   retained nodes (and a removed start) stay broken, not silently redirected.
+   Save them for later repair using the destination/start selectors. Remove
+   choices explicitly before changing a node to an ending; the last node cannot
+   be removed.
 3. **Save working copy** accepts incomplete text and references. Refresh or reopen
    its library link to resume. Unsaved typing remains only in the current tab.
 4. **Validate & release revision** checks all text, unique IDs, references,
    conditions/effects and ending/choice consistency using the shared definition
    validator. Errors identify field paths (node/choice indices start at zero).
    Failed releases write nothing, including no partial draft/name changes.
+   The read-only directed graph updates on every local edit without loading
+   revisions or locking the campaign. Start/ending markers and arrows show all
+   outcomes, including imported rolled branches, self-loops and multiple inbound
+   links. Textual node/connection lists support keyboard navigation. Select a
+   graph node, connection or diagnostic to focus the matching form.
+   Broken start/destination references are release blockers with exact source
+   node/choice/outcome paths. Unreachable nodes are **nonblocking warnings**:
+   reachability considers every outcome, regardless of conditions or runtime
+   eligibility. Cycles and quests with no reachable ending are valid.
 5. Return to **Assign released revisions** and select the released revision using
    the existing audited assignment controls. Releasing again appends a revision;
    existing assignments and frozen tick inputs still use their original revision.
@@ -59,9 +76,13 @@ a new working copy. Editing an older revision cannot replace a newer base.
 
 Imported rolled, conditional and effect-bearing choices are explicitly read-only,
 including destinations, and roundtrip intact. Node narrative and quest name remain
-editable. This slice does not expose dice, conditions, effects, resources, graph,
-AI or API editors. No deletion/reordering or automatic choice-to-ending conversion;
-node/choice IDs and order stay stable. Forms support up to 100 nodes and 100 choices
+editable. Every imported outcome is visible in the graph without normalization.
+Retained unsupported fields cannot be changed; explicit removal can delete the
+whole choice/node, but there are no rolled, condition or effect editing controls.
+Repair a broken opaque imported destination through corrected re-import (or remove
+that whole choice), not a lossy conversion. There are no graph mutation, drag-drop,
+resources, rollback, AI or new API editors. No automatic choice-to-ending conversion;
+retained node/choice IDs stay stable. Forms support up to 100 nodes and 100 choices
 per node, with text at most 8000 bytes (quest names at release: 200 bytes).
 Authoring/releasing may continue during review because they append content only;
 assignment/intervention locks and the publication guard remain unchanged.
