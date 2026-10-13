@@ -2,7 +2,8 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
   alias AsyncWorlds.Quests
-  alias AsyncWorlds.Quests.{Authoring, Graph}
+  alias AsyncWorlds.Quests.{Authoring, Graph, EffectAuthoring}
+  import AsyncWorldsWeb.EffectControls
   alias AsyncWorldsWeb.QuestGraph
   alias Phoenix.LiveView.JS
 
@@ -16,6 +17,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
        recoveries: %{},
        errors: [],
        conflict: false,
+       conversion: nil,
        removal: nil
      )}
   end
@@ -27,6 +29,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
     with {:ok, library} <- Quests.library(scope.campaign, scope.discord_user_id) do
       socket =
         socket
+        |> assign(:clocks, library.clocks)
         |> stream(:drafts, library.drafts, reset: true)
         |> stream(:revisions, library.revisions, reset: true)
 
@@ -113,6 +116,60 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
   end
 
   def handle_event("cancel-remove", _, socket), do: {:noreply, assign(socket, :removal, nil)}
+
+  def handle_event(
+        "convert-choice",
+        %{"node" => node, "choice" => choice, "mode" => mode},
+        socket
+      )
+      when is_binary(node) and is_binary(choice) and mode in ["fixed", "rolled"] do
+    {:noreply, assign(socket, :conversion, %{node: node, choice: choice, mode: mode})}
+  end
+
+  def handle_event("confirm-conversion", _, %{assigns: %{conversion: conversion}} = socket)
+      when not is_nil(conversion) do
+    work = socket.assigns.work
+
+    definition =
+      Authoring.update_choice(
+        work.definition,
+        conversion.node,
+        conversion.choice,
+        &Authoring.convert(&1, conversion.mode)
+      )
+
+    {:noreply, set_work(socket, %{work | definition: definition})}
+  end
+
+  def handle_event("cancel-conversion", _, socket),
+    do: {:noreply, assign(socket, :conversion, nil)}
+
+  def handle_event(
+        "critical-effect",
+        %{"node" => node, "choice" => choice, "action" => action} = params,
+        socket
+      )
+      when is_binary(node) and is_binary(choice) do
+    work = socket.assigns.work
+
+    definition =
+      Authoring.update_choice(work.definition, node, choice, fn choice ->
+        if Authoring.editable?(choice) and choice["mode"] == "rolled" do
+          effects =
+            EffectAuthoring.restructure(
+              choice["critical_effects"],
+              action,
+              EffectAuthoring.integer(params["index"])
+            )
+
+          Map.put(choice, "critical_effects", effects)
+        else
+          choice
+        end
+      end)
+
+    {:noreply, set_work(socket, %{work | definition: definition})}
+  end
 
   def handle_event("save", %{"operation" => "release", "quest" => params}, socket)
       when is_map(params),
@@ -270,6 +327,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
       node_options: options,
       graph: Graph.analyze(work.definition),
       removal: nil,
+      conversion: nil,
       errors: []
     )
   end
@@ -282,7 +340,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
 
   defp library_error(:unsupported_edit),
     do:
-      "Unsupported imported fields cannot be changed. Rolled, conditional and effect-bearing choices are read-only."
+      "Unsupported imported fields cannot be changed. Conditions and outcome effects are preserved read-only."
 
   defp library_error(:immutable_content_id),
     do: "Released content identity cannot change. Recover as a separate quest instead."
@@ -367,9 +425,29 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                   else: "none (new quest)"}
               </p>
               <p id="unsupported-policy" class="rounded-xl bg-sky-300/5 p-4 text-sm text-slate-300">
-                Fixed choices only. Imported rolled choices, conditions and effects are preserved intact and read-only. IDs remain stable when reordered. Removing nodes retains inbound references for repair; endings are never converted automatically.
+                Fixed or 1–3 d6 rolled choices. Highest 6: success; 4–5: partial; 1–3: failure. Two sixes: success plus ordered critical bonus effects, after success effects. Imported conditions and outcome effects stay intact. Resources are deferred. Conversion is explicit and confirmed.
               </p>
               <QuestGraph.graph graph={@graph} definition={@work.definition} />
+              <div
+                :if={@conversion}
+                id="choice-conversion-warning"
+                role="alert"
+                class="rounded-xl border border-amber-300/30 p-4 space-y-3"
+              >
+                <p>
+                  Fixed → rolled keeps the fixed outcome as success; partial and failure start blank. Rolled → fixed keeps success and drops the pool, partial, failure and critical bonuses. Conditions and retained outcome effects are preserved. Cancel to keep all work.
+                </p>
+                <button
+                  id="confirm-choice-conversion"
+                  phx-click="confirm-conversion"
+                  class="admin-button"
+                >Confirm conversion to {@conversion.mode}</button>
+                <button
+                  id="cancel-choice-conversion"
+                  phx-click="cancel-conversion"
+                  class="admin-button admin-secondary"
+                >Cancel</button>
+              </div>
               <div
                 :if={@removal}
                 id="node-removal-warning"
@@ -504,34 +582,107 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                           >{action} choice</button>
                         </div>
                         <%= if Authoring.editable?(choice) do %>
-                          <p class="text-xs text-slate-500">Choice {j + 1} · fixed outcome</p>
+                          <p class="text-xs text-slate-500">
+                            Choice {j + 1} · {choice["mode"]} outcome
+                          </p>
+                          <button
+                            :if={Authoring.convertible?(choice)}
+                            id={"choice-#{i}-#{j}-convert"}
+                            type="button"
+                            phx-click="convert-choice"
+                            phx-value-node={node["id"]}
+                            phx-value-choice={choice["id"]}
+                            phx-value-mode={
+                              if(choice["mode"] == "fixed", do: "rolled", else: "fixed")
+                            }
+                            class="admin-button admin-secondary"
+                          >Convert to {if choice["mode"] == "fixed", do: "rolled", else: "fixed"}</button>
+                          <.input
+                            :if={choice["mode"] == "rolled"}
+                            field={@form["node_#{i}_choice_#{j}_dice"]}
+                            id={"choice-#{i}-#{j}-dice"}
+                            type="number"
+                            min="1"
+                            max="3"
+                            step="1"
+                            label="d6 pool (integer 1–3)"
+                            class="admin-input"
+                          />
                           <.input
                             field={@form["node_#{i}_choice_#{j}_label"]}
                             id={"choice-#{i}-#{j}-label"}
                             label="Choice label"
                             class="admin-input"
                           />
-                          <.input
-                            field={@form["node_#{i}_choice_#{j}_text"]}
-                            id={"choice-#{i}-#{j}-text"}
-                            type="textarea"
-                            label="Outcome text"
-                            class="admin-input"
-                          />
-                          <.input
-                            field={@form["node_#{i}_choice_#{j}_destination"]}
-                            id={"choice-#{i}-#{j}-destination"}
-                            type="select"
-                            prompt="Choose a destination"
-                            label="Destination"
-                            options={
-                              destination_options(
-                                @node_options,
-                                choice["outcomes"]["fixed"]["next_node"]
-                              )
-                            }
-                            class="admin-input"
-                          />
+                          <%= for kind <- Authoring.outcome_kinds(choice) do %>
+                            <% op = Authoring.outcome_prefix("node_#{i}_choice_#{j}", kind) %>
+                            <% oid = Authoring.outcome_prefix("choice-#{i}-#{j}", kind) %>
+                            <p class="text-sm font-semibold">{kind}</p>
+                            <.input
+                              field={@form[op <> "_text"]}
+                              id={oid <> "-text"}
+                              type="textarea"
+                              label="Outcome text"
+                              class="admin-input"
+                            />
+                            <.input
+                              field={@form[op <> "_destination"]}
+                              id={oid <> "-destination"}
+                              type="select"
+                              prompt="Choose a destination"
+                              label="Destination"
+                              options={
+                                destination_options(
+                                  @node_options,
+                                  choice["outcomes"][kind]["next_node"]
+                                )
+                              }
+                              class="admin-input"
+                            />
+                            <p
+                              :if={choice["outcomes"][kind]["effects"] != []}
+                              class="text-xs text-sky-200"
+                            >
+                              Imported outcome effects preserved read-only.
+                            </p>
+                          <% end %>
+                          <%= if choice["mode"] == "rolled" do %>
+                            <section id={"choice-#{i}-#{j}-critical"} class="space-y-3">
+                              <h4 class="font-semibold">Ordered critical bonus effects</h4>
+                              <%= for {effect, k} <- Enum.with_index(choice["critical_effects"]) do %>
+                                <.effect_controls
+                                  effect={effect}
+                                  form={@form}
+                                  prefix={"node_#{i}_choice_#{j}_critical_#{k}"}
+                                  id={"choice-#{i}-#{j}-critical-#{k}"}
+                                  clocks={@clocks}
+                                />
+                                <button
+                                  :for={action <- ~w(up down remove)}
+                                  :if={EffectAuthoring.editable?(effect)}
+                                  id={"critical-#{i}-#{j}-#{k}-#{action}"}
+                                  type="button"
+                                  phx-click="critical-effect"
+                                  phx-value-node={node["id"]}
+                                  phx-value-choice={choice["id"]}
+                                  phx-value-index={k}
+                                  phx-value-action={action}
+                                  class="admin-button admin-secondary"
+                                >{action} bonus</button>
+                              <% end %>
+                              <button
+                                :for={type <- ~w(clock_delta set_flag clear_flag)}
+                                id={"critical-#{i}-#{j}-add-#{type}"}
+                                type="button"
+                                phx-click="critical-effect"
+                                phx-value-node={node["id"]}
+                                phx-value-choice={choice["id"]}
+                                phx-value-action={type}
+                                disabled={length(choice["critical_effects"]) >= 100}
+                                class="admin-button admin-secondary"
+                              >Add {type}</button>
+                            </section>
+                          <% end %>
                         <% else %>
                           <span
                             id={"choice-#{i}-#{j}-destination"}
@@ -553,7 +704,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                       phx-value-node={node["id"]}
                       disabled={node["ending"] || length(node["choices"]) >= 100}
                       class="admin-button admin-secondary"
-                    >Add ordered fixed choice</button>
+                    >Add ordered choice</button>
                   </section>
                 <% end %>
                 <button

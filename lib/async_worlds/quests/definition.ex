@@ -86,12 +86,15 @@ defmodule AsyncWorlds.Quests.Definition do
               )
               |> issue(cp <> ".label", text?(field(choice, "label")), "Choice label is required")
 
+            acc = choice_config_errors(acc, choice, cp, clocks)
             outcomes = field(choice, "outcomes")
 
             acc =
               if is_map(outcomes) do
                 Enum.reduce(outcomes, acc, fn {key, outcome}, acc ->
                   op = cp <> ".outcomes." <> key
+
+                  acc = effect_errors(acc, field(outcome, "effects"), op <> ".effects", clocks)
 
                   acc
                   |> issue(
@@ -134,6 +137,112 @@ defmodule AsyncWorlds.Quests.Definition do
   end
 
   defp diagnose(_, _), do: [{"definition", "A definition with nodes is required"}]
+
+  defp choice_config_errors(errors, choice, path, clocks) do
+    mode = field(choice, "mode")
+    kinds = if mode == "rolled", do: ~w(success partial failure), else: ["fixed"]
+
+    errors =
+      errors
+      |> issue(path <> ".mode", mode in ~w(fixed rolled), "Choose fixed or rolled mode")
+      |> issue(
+        path <> ".outcomes",
+        keys?(field(choice, "outcomes"), kinds),
+        "Provide exactly #{Enum.join(kinds, ", ")} outcomes"
+      )
+
+    case mode do
+      "rolled" ->
+        errors
+        |> issue(
+          path <> ".dice",
+          is_integer(field(choice, "dice")) and field(choice, "dice") in 1..3,
+          "Pool must be an integer from 1 to 3 d6"
+        )
+        |> effect_errors(field(choice, "critical_effects"), path <> ".critical_effects", clocks)
+
+      "fixed" ->
+        errors
+        |> issue(
+          path <> ".dice",
+          not Map.has_key?(choice, "dice"),
+          "Fixed choices cannot contain a dice pool; use explicit conversion"
+        )
+        |> issue(
+          path <> ".critical_effects",
+          not Map.has_key?(choice, "critical_effects"),
+          "Fixed choices cannot contain critical bonuses; use explicit conversion"
+        )
+
+      _ ->
+        errors
+    end
+  end
+
+  defp effect_errors(errors, effects, path, clocks) when is_list(effects) do
+    Enum.with_index(effects)
+    |> Enum.reduce(errors, fn {effect, index}, acc ->
+      ep = "#{path}[#{index}]"
+
+      acc =
+        issue(
+          acc,
+          ep,
+          effect?(effect, clocks),
+          "Invalid typed effect; check fields and campaign references"
+        )
+
+      case field(effect, "type") do
+        "clock_delta" ->
+          acc
+          |> issue(
+            ep <> ".clock_id",
+            is_integer(field(effect, "clock_id")) and
+              Map.has_key?(clocks, field(effect, "clock_id")),
+            "Choose a clock from this campaign"
+          )
+          |> issue(
+            ep <> ".delta",
+            is_integer(field(effect, "delta")) and
+              field(effect, "delta") in -1_000_000..1_000_000,
+            "Delta must be an integer from -1000000 to 1000000"
+          )
+
+        "set_flag" ->
+          acc
+          |> issue(
+            ep <> ".key",
+            Flags.valid_key?(field(effect, "key")),
+            "Flag key must begin with a lowercase letter; use lowercase letters, digits or underscores (maximum 64 bytes)"
+          )
+          |> issue(
+            ep <> ".flag",
+            Flags.valid_flag?(field(effect, "flag")),
+            "Flag needs a typed boolean, integer or string value and boolean visibility"
+          )
+
+        "clear_flag" ->
+          issue(
+            acc,
+            ep <> ".key",
+            Flags.valid_key?(field(effect, "key")),
+            "Enter a valid flag key"
+          )
+
+        _ ->
+          issue(
+            acc,
+            ep <> ".type",
+            false,
+            "Supported effects: clock_delta, set_flag, clear_flag (resources deferred)"
+          )
+      end
+    end)
+  end
+
+  defp effect_errors(errors, _, path, _),
+    do: issue(errors, path, false, "Provide an ordered effect list")
+
   defp field(map, key) when is_map(map), do: Map.get(map, key)
   defp field(_, _), do: nil
   defp issue(errors, _, true, _), do: errors

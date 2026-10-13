@@ -745,7 +745,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     assert List.last(saved_choices)["label"] == "Last permitted choice"
   end
 
-  test "imported revisions have explicit read-only unsupported controls and release intact", c do
+  test "imported rolled revisions expose typed controls and release untouched fields intact", c do
     {:ok, revision} =
       Quests.create_quest(
         c.campaign,
@@ -757,9 +757,9 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     {:ok, view, _} = live(c.conn, ~p"/quests/library")
     view |> element("#edit-revision-#{revision.id}") |> render_click()
     assert has_element?(view, "#draft-identity", "Base revision v1")
-    assert has_element?(view, "#protected-choice-0-0")
-    refute has_element?(view, "#choice-0-0-label")
-    assert has_element?(view, "#node-0-ending[disabled]")
+    assert has_element?(view, "#choice-0-0-dice[value='3']")
+    assert has_element?(view, "#choice-0-0-label")
+    assert has_element?(view, "#choice-0-0-critical-0-key[value='bonus']")
     fill(view, %{name: "Edited imported story", node_0_text: "Revised narrative"})
     release(view)
     {:ok, %{revisions: [next, _]}} = Quests.library(c.campaign, "456")
@@ -846,6 +846,11 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
       conn = log_in_dm(c.conn, c.campaign)
       {:ok, view, _} = live(conn, ~p"/quests/library")
       view |> element("#new-quest") |> render_click()
+      view |> element("#add-choice-0") |> render_click()
+      view |> element("#choice-0-0-convert") |> render_click()
+      view |> element("#confirm-choice-conversion") |> render_click()
+      view |> form("#quest-editor-form", quest: %{node_0_choice_0_dice: "2"}) |> render_submit()
+      {:ok, %{drafts: before}} = Quests.library(c.campaign, "456")
       token = get_session(get(conn, ~p"/dashboard"), :web_session_token)
       {:ok, scope} = WebAuth.authorize_session(token)
 
@@ -870,6 +875,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
       end
 
       refute Repo.exists?(from d in Quests.WorkingCopy, where: d.name == "Forbidden")
+      for saved <- before, do: assert(Repo.get!(Quests.WorkingCopy, saved.id) == saved)
     end
   end
 end

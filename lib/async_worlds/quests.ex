@@ -26,6 +26,7 @@ defmodule AsyncWorlds.Quests do
   def library(campaign, dm_id) do
     manage(campaign, dm_id, fn current ->
       %{
+        clocks: Clocks.list_clocks(current.id),
         drafts:
           Repo.all(
             from d in WorkingCopy,

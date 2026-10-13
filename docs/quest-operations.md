@@ -1,4 +1,4 @@
-# DM quest library and operations (ENG-17 / ENG-30 / ENG-31)
+# DM quest library and operations (ENG-17 / ENG-30 / ENG-31 / ENG-32)
 
 ## Operator workflow
 
@@ -74,16 +74,43 @@ with a new content identity. It does not overwrite/rebase the changed quest.
 To edit that quest's latest revision, select its latest released revision and start
 a new working copy. Editing an older revision cannot replace a newer base.
 
-Imported rolled, conditional and effect-bearing choices are explicitly read-only,
-including destinations, and roundtrip intact. Node narrative and quest name remain
-editable. Every imported outcome is visible in the graph without normalization.
-Retained unsupported fields cannot be changed; explicit removal can delete the
-whole choice/node, but there are no rolled, condition or effect editing controls.
-Repair a broken opaque imported destination through corrected re-import (or remove
-that whole choice), not a lossy conversion. There are no graph mutation, drag-drop,
-resources, rollback, AI or new API editors. No automatic choice-to-ending conversion;
-retained node/choice IDs stay stable. Forms support up to 100 nodes and 100 choices
-per node, with text at most 8000 bytes (quest names at release: 200 bytes).
+## Rolled choices and critical bonuses
+
+Use **Convert to rolled** on a fixed choice, inspect the warning, then confirm.
+Conversion keeps the identity, label, conditions and fixed outcome as **success**.
+Partial/failure start blank: supply each branch's text and destination. Choose an
+integer **1–3 d6** pool. Highest die **6 = success**, **4–5 = partial**, **1–3 =
+failure**. At least two sixes still use success, then apply the ordered critical
+bonus effects **after** the ordinary success effects.
+
+Add **clock_delta** (campaign clock + signed integer), **set_flag** (key, boolean /
+integer / string value, player visibility), or **clear_flag** (key). Move bonuses
+up/down to choose execution order; remove them explicitly. Boolean values are
+`true` or `false`. Resources are deferred. Save incomplete work and reopen its
+working-copy link; pools, branches and bonus order persist before release.
+
+**Convert to fixed** requires confirmation: it keeps success as the fixed outcome
+and drops the pool, partial/failure and critical bonuses. Cancel preserves all work.
+There is no automatic mode change when editing a pool or submitting a mode field.
+Unsupported imported fields, conditions and ordinary outcome effects remain intact
+and read-only; supported rolled text/destinations and critical effects are editable.
+Opaque effects cannot be edited/removed through bonus controls. Conversions that
+would discard opaque imported data are unavailable; use corrected re-import or
+explicitly remove the whole choice instead. Every outcome remains visible in the
+graph without normalization. There are no drag-drop, resources, rollback, AI or
+new API editors, and no automatic choice-to-ending conversion. Retained IDs stay
+stable. Forms support up to 100 nodes, 100 choices per node and 100 critical bonuses,
+with text at most 8000 bytes (quest names at release: 200 bytes).
+
+After assignment and player submission, close the tick and open its **private
+review**. Use the selected die's reason form to reroll only that die; unrelated dice
+remain unchanged. Use the character's outcome selector with a reason to override
+success/partial/failure, or its blank option to restore the recorded dice. A forced
+success does not invent a two-six bonus. Inspect narration and proposed effects,
+then confirm publication once: only publication applies progression, flags and
+clocks atomically. Stale review controls require refresh, not an overwrite. See
+[quest review](quest-review.md) for the audit and publication details. Rehearse
+with offline controlled tests, not random critical hunting in a real campaign.
 Authoring/releasing may continue during review because they append content only;
 assignment/intervention locks and the publication guard remain unchanged.
 

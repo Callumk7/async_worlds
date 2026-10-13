@@ -138,7 +138,7 @@ defmodule AsyncWorlds.Quests.AuthoringTest do
         assert Authoring.safe_edit?(bounded, bounded)
         oversized = put_in(old, path, String.duplicate("a", limit + 1))
         refute Authoring.safe_edit?(oversized, oversized)
-        refute Authoring.safe_edit?(old, bounded)
+        assert Authoring.safe_edit?(old, bounded)
       end
 
       for invalid <- [nil, [], "outcome", %{}] do
@@ -152,7 +152,7 @@ defmodule AsyncWorlds.Quests.AuthoringTest do
         refute Authoring.safe_edit?(malformed, malformed)
       end
 
-      refute Authoring.safe_edit?(old, put_in(old, ["nodes", Access.at(0), "ending"], true))
+      assert Authoring.safe_edit?(old, put_in(old, ["nodes", Access.at(0), "ending"], true))
     end
   end
 

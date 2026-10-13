@@ -23,8 +23,19 @@ defmodule AsyncWorldsWeb.QuestGraphTest do
     assert QuestGraph.target("nodes[0].ending", definition()) == "node-0-ending"
   end
 
-  test "opaque diagnostics retain focusable read-only fallbacks" do
+  test "rolled diagnostics target each branch and pool" do
     imported = replace_choice(definition(), rolled())
+    assert QuestGraph.target("nodes[0].choices[0].dice", imported) == "choice-0-0-dice"
+
+    assert QuestGraph.target("nodes[0].choices[0].outcomes.partial.text", imported) ==
+             "choice-0-0_partial-text"
+
+    assert QuestGraph.target("nodes[0].choices[0].outcomes.failure.next_node", imported) ==
+             "choice-0-0_failure-destination"
+  end
+
+  test "opaque diagnostics retain focusable read-only fallbacks" do
+    imported = replace_choice(definition(), Map.put(rolled(), "mode", "unsupported"))
     assert QuestGraph.target("nodes[0].choices[0].label", imported) == "editor-choice-0-0"
 
     assert QuestGraph.target("nodes[0].choices[0].outcomes.partial.text", imported) ==
