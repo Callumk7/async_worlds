@@ -20,6 +20,169 @@ defmodule AsyncWorlds.Quests do
 
   alias AsyncWorlds.Ticks.Tick
 
+  alias AsyncWorlds.Quests.{Authoring, WorkingCopy}
+
+  @doc "Campaign-scoped library, including incomplete, unassignable working copies."
+  def library(campaign, dm_id) do
+    manage(campaign, dm_id, fn current ->
+      %{
+        drafts:
+          Repo.all(
+            from d in WorkingCopy,
+              where: d.campaign_id == ^current.id,
+              order_by: [desc: d.updated_at, desc: d.id]
+          ),
+        revisions:
+          Repo.all(
+            from r in Revision,
+              join: q in Quest,
+              on: q.id == r.quest_id,
+              where: r.campaign_id == ^current.id,
+              order_by: [q.name, desc: r.number],
+              select: %{id: r.id, name: q.name, content_id: q.content_id, number: r.number}
+          )
+      }
+    end)
+  end
+
+  def create_working_copy(campaign, dm_id, revision_id \\ nil) do
+    manage(campaign, dm_id, fn current ->
+      attrs =
+        if revision_id do
+          revision = fetch!(Revision, current.id, revision_id)
+          quest = fetch!(Quest, current.id, revision.quest_id)
+
+          %{
+            quest_id: quest.id,
+            base_revision_id: revision.id,
+            name: quest.name,
+            content_id: quest.content_id,
+            definition: revision.definition
+          }
+        else
+          %{name: "", content_id: "", definition: Authoring.new_definition()}
+        end
+
+      attrs =
+        attrs
+        |> Map.put(:campaign_id, current.id)
+        |> Map.put(:source_definition, attrs.definition)
+
+      Repo.insert!(struct(WorkingCopy, attrs))
+    end)
+  end
+
+  def get_working_copy(campaign, dm_id, id),
+    do: manage(campaign, dm_id, fn current -> fetch!(WorkingCopy, current.id, id) end)
+
+  @doc "Save incomplete content. Version and latest base are checked under the same campaign lock as imports."
+  def save_working_copy(campaign, dm_id, id, version, attrs) do
+    manage(campaign, dm_id, fn current ->
+      draft = editable_work!(current, id, version)
+      update_work!(draft, attrs)
+    end)
+  end
+
+  @doc "Validate and append atomically; failure leaves both draft and released library unchanged."
+  def release_working_copy(campaign, dm_id, id, version, attrs) do
+    manage(campaign, dm_id, fn current ->
+      draft = editable_work!(current, id, version)
+      draft = update_work!(draft, attrs)
+      errors = Definition.errors(draft.definition, clock_map(current.id))
+
+      errors =
+        if Definition.text?(draft.name) and byte_size(draft.name) <= 200,
+          do: errors,
+          else: [{"name", "Name is required (maximum 200 bytes)"} | errors]
+
+      errors =
+        if Definition.id?(draft.content_id),
+          do: errors,
+          else: [
+            {"content_id",
+             "Content identity is required; use letters, numbers, underscores or hyphens"}
+            | errors
+          ]
+
+      if errors != [], do: Repo.rollback({:validation, errors})
+
+      quest =
+        if draft.quest_id do
+          fetch!(Quest, current.id, draft.quest_id) |> change(name: draft.name) |> Repo.update!()
+        else
+          %Quest{campaign_id: current.id, name: draft.name, content_id: draft.content_id}
+          |> change()
+          |> unique_constraint([:campaign_id, :content_id])
+          |> Repo.insert()
+          |> persist()
+        end
+
+      revision = append!(current.id, quest.id, draft.definition)
+      draft = Repo.update!(change(draft, quest_id: quest.id, base_revision_id: revision.id))
+      %{draft: draft, revision: revision}
+    end)
+  end
+
+  @doc "Explicit conflict recovery: fork preserved work, never overwrite a changed base or repin assignments."
+  def recover_working_copy(campaign, dm_id, id, attrs) do
+    manage(campaign, dm_id, fn current ->
+      original = fetch!(WorkingCopy, current.id, id)
+      # The creation snapshot is retained even when another tab adds nodes or releases.
+      # Recovery must not require the stale tab to include those later edits.
+      unless is_map(attrs) and is_binary(attrs[:name]) and byte_size(attrs[:name]) <= 8000 and
+               Authoring.persistence_safe?(attrs[:name]) and
+               Authoring.persistence_safe?(attrs[:content_id]) and
+               Authoring.safe_edit?(original.source_definition, attrs[:definition]),
+             do: Repo.rollback(:unsupported_edit)
+
+      Repo.insert!(%WorkingCopy{
+        campaign_id: current.id,
+        name: attrs[:name] <> " (recovered)",
+        content_id: "recovered_" <> Ecto.UUID.generate(),
+        definition: attrs[:definition],
+        source_definition: attrs[:definition]
+      })
+    end)
+  end
+
+  defp editable_work!(current, id, version) do
+    draft = fetch!(WorkingCopy, current.id, id)
+    if draft.version != version, do: Repo.rollback(:stale_working_copy)
+
+    if draft.quest_id do
+      latest =
+        Repo.one(
+          from r in Revision,
+            where: r.quest_id == ^draft.quest_id,
+            order_by: [desc: r.number],
+            limit: 1
+        )
+
+      if latest.id != draft.base_revision_id, do: Repo.rollback(:stale_base_revision)
+    end
+
+    draft
+  end
+
+  defp update_work!(draft, attrs) do
+    unless is_map(attrs) and is_binary(attrs[:name]) and is_binary(attrs[:content_id]) and
+             byte_size(attrs[:name]) <= 8000 and byte_size(attrs[:content_id]) <= 8000 and
+             Authoring.persistence_safe?(attrs[:name]) and
+             Authoring.persistence_safe?(attrs[:content_id]) and
+             Authoring.safe_edit?(draft.definition, attrs[:definition]),
+           do: Repo.rollback(:unsupported_edit)
+
+    if draft.quest_id != nil and draft.content_id != attrs[:content_id],
+      do: Repo.rollback(:immutable_content_id)
+
+    draft
+    |> change(
+      Map.take(attrs, [:name, :content_id, :definition])
+      |> Map.put(:version, draft.version + 1)
+    )
+    |> Repo.update!()
+  end
+
   @doc "Atomically imports versioned JSON. Exact latest definition/name repeats reuse revisions."
   def import_json(campaign, dm_id, json, opts \\ []) do
     manage(campaign, dm_id, fn current ->
