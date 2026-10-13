@@ -252,7 +252,7 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
                 <%= if key == :messages do %>
                   <p class="text-xs uppercase tracking-wide text-amber-200">
                     {item.data.audience}{if item.data.route, do: " · #{item.data.route}"} · recipient {item.data.recipient} · chunk {item.data.chunk}
-                    <span :if={item.data.character_id}>· character #{item.data.character_id}</span>
+                    <span :if={item.data.character_id}>· character {item.data.character_id}</span>
                   </p>
                   <pre class="mt-3 whitespace-pre-wrap break-words font-sans text-sm">{item.data.content}</pre>
                   <div
@@ -261,7 +261,7 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
                   >
                     Current delivery status:
                     <%= if item.data.delivery do %>
-                      {item.data.delivery.status} · attempts {item.data.delivery.attempts} · delivery #{item.data.delivery.id}
+                      {item.data.delivery.status} · attempts {item.data.delivery.attempts} · delivery {item.data.delivery.id}
                       <span :if={item.data.delivery.error_class}>· {item.data.delivery.error_class}</span>
                     <% else %>
                       No associated delivery record

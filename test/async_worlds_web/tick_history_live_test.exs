@@ -90,6 +90,10 @@ defmodule AsyncWorldsWeb.TickHistoryLiveTest do
     assert after_history == before
 
     message = Enum.find(before.sections["messages"].items, &(&1.audience == "players"))
+    assert has_element?(view, "#history-messages span", "character #{c.character.id}")
+    assert has_element?(view, "#history-messages", "delivery #{message.delivery.id}")
+    refute has_element?(view, "#history-messages", ~S(#{item.data.character_id}))
+    refute has_element?(view, "#history-messages", ~S(#{item.data.delivery.id}))
 
     Repo.update!(
       Ecto.Changeset.change(message.delivery, status: :failed, last_error: "RAW_SECRET_EXCEPTION")
