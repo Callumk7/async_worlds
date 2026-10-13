@@ -175,23 +175,35 @@ defmodule AsyncWorlds.Quests.Authoring do
 
   def persistence_safe?(_), do: false
 
-  defp bounded_definition?(definition) do
-    persistence_safe?(definition) and is_binary(definition["start_node"]) and
-      byte_size(definition["start_node"]) <= 100 and
-      is_list(definition["nodes"]) and length(definition["nodes"]) in 1..100 and
-      Enum.all?(definition["nodes"], fn node ->
-        is_binary(node["text"]) and byte_size(node["text"]) <= 8000 and is_boolean(node["ending"]) and
-          is_list(node["choices"]) and length(node["choices"]) <= 100 and
-          Enum.all?(node["choices"], fn choice ->
-            is_binary(choice["label"]) and byte_size(choice["label"]) <= 8000 and
-              is_map(choice["outcomes"]) and
-              Enum.all?(choice["outcomes"], fn {_, outcome} ->
-                is_binary(outcome["text"]) and byte_size(outcome["text"]) <= 8000 and
-                  is_binary(outcome["next_node"]) and byte_size(outcome["next_node"]) <= 100
-              end)
-          end)
-      end)
+  defp bounded_definition?(%{"start_node" => start_node, "nodes" => nodes} = definition)
+       when is_binary(start_node) and byte_size(start_node) <= 100 and is_list(nodes) and
+              length(nodes) in 1..100 do
+    persistence_safe?(definition) and Enum.all?(nodes, &bounded_node?/1)
   end
+
+  defp bounded_definition?(_), do: false
+
+  defp bounded_node?(%{"text" => text, "ending" => ending, "choices" => choices})
+       when is_binary(text) and byte_size(text) <= 8000 and is_boolean(ending) and
+              is_list(choices) and length(choices) <= 100 do
+    Enum.all?(choices, &bounded_choice?/1)
+  end
+
+  defp bounded_node?(_), do: false
+
+  defp bounded_choice?(%{"label" => label, "outcomes" => outcomes})
+       when is_binary(label) and byte_size(label) <= 8000 and is_map(outcomes) do
+    Enum.all?(outcomes, fn {_, outcome} -> bounded_outcome?(outcome) end)
+  end
+
+  defp bounded_choice?(_), do: false
+
+  defp bounded_outcome?(%{"text" => text, "next_node" => next_node})
+       when is_binary(text) and byte_size(text) <= 8000 and is_binary(next_node) and
+              byte_size(next_node) <= 100,
+       do: true
+
+  defp bounded_outcome?(_), do: false
 
   defp binary_param(params, key, default) do
     case Map.get(params, key, default) do
