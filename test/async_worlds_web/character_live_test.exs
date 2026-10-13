@@ -15,6 +15,43 @@ defmodule AsyncWorldsWeb.CharacterLiveTest do
     %{campaign: campaign, conn: log_in_dm(conn, campaign)}
   end
 
+  test "authorization revoked after the event hook clears private state and redirects", c do
+    {:ok, character} =
+      Characters.create_character(c.campaign, "456", %{name: "Private", discord_user_id: "999"})
+
+    socket =
+      %Phoenix.LiveView.Socket{private: %{lifecycle: %Phoenix.LiveView.Lifecycle{}}}
+      |> Phoenix.Component.assign(:current_scope, %{
+        campaign: c.campaign,
+        discord_user_id: "456"
+      })
+
+    {:ok, socket} = AsyncWorldsWeb.CharacterLive.mount(%{}, %{}, socket)
+
+    {:noreply, socket} =
+      AsyncWorldsWeb.CharacterLive.handle_event("edit", %{"id" => character.id}, socket)
+
+    assert socket.assigns.editing.name == "Private"
+
+    # Simulates revocation between LiveAuth's event check and the domain read.
+    {:ok, _} =
+      Campaigns.setup_campaign(%{
+        discord_guild_id: "123",
+        dm_user_id: "555",
+        public_channel_id: "789"
+      })
+
+    for event <- ["new_flag", "save"] do
+      params = if event == "save", do: %{"character" => %{"name" => "Forged"}}, else: %{}
+      {:noreply, rejected} = AsyncWorldsWeb.CharacterLive.handle_event(event, params, socket)
+      assert {:redirect, %{to: "/login"}} = rejected.redirected
+      assert rejected.assigns.editing == nil
+      assert rejected.assigns.connected == nil
+      assert rejected.assigns.form[:name].value == nil
+      assert Repo.get!(Character, character.id).name == "Private"
+    end
+  end
+
   test "DM bootstraps, edits and manages typed flag visibility through shared APIs", c do
     {:ok, view, _} = live(c.conn, ~p"/characters")
     assert has_element?(view, "#characters-empty")
@@ -203,6 +240,9 @@ defmodule AsyncWorldsWeb.CharacterLiveTest do
     assert {:ok, %{flags: %{"title" => %{"value" => ~s(A "new" title)}}}} =
              Characters.player_character("123", "999")
 
+    value_element = view |> element("#flag-value-title") |> render()
+    assert value_element =~ "whitespace-pre-wrap"
+    assert value_element |> LazyHTML.from_fragment() |> LazyHTML.text() == ~s(A "new" title)
     refute Map.has_key?(Repo.get!(Character, character.id).flags, "forged")
   end
 

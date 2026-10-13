@@ -135,6 +135,15 @@ defmodule AsyncWorldsWeb.CharacterLive do
 
   defp campaign(socket), do: socket.assigns.current_scope.campaign
   defp actor(socket), do: socket.assigns.current_scope.discord_user_id
+
+  defp failure(socket, reason)
+       when reason in [:unauthorized, :stale_campaign, :invalid_campaign] do
+    socket
+    |> new_form()
+    |> stream(:characters, [], reset: true)
+    |> redirect(to: ~p"/login")
+  end
+
   defp failure(socket, reason), do: put_flash(socket, :error, error_message(reason))
 
   defp refresh(socket) do
@@ -152,12 +161,13 @@ defmodule AsyncWorldsWeb.CharacterLive do
         do: Quests.management_state(campaign(socket), actor(socket), character.id),
         else: {:ok, %{selected: nil, audits: []}}
 
-    {connected, audits} =
-      case state do
-        {:ok, state} -> {state.selected, state.audits}
-        _ -> {nil, []}
-      end
+    case state do
+      {:ok, state} -> apply_form(socket, character, state.selected, state.audits)
+      {:error, reason} -> socket |> new_form() |> failure(reason)
+    end
+  end
 
+  defp apply_form(socket, character, connected, audits) do
     socket = stream(socket, :interventions, audits, reset: true)
 
     assign(socket,
@@ -342,13 +352,14 @@ defmodule AsyncWorldsWeb.CharacterLive do
                 >
                   <p class="text-sm">
                     <strong>{key}</strong>
-                    · {flag["type"]} · {Jason.encode!(flag["value"])}<span class="block text-xs text-slate-400">{if flag[
-                                                                                                                      "player_visible"
-                                                                                                                    ],
-                                                                                                                    do:
-                                                                                                                      "Visible to owner",
-                                                                                                                    else:
-                                                                                                                      "Hidden"}</span>
+                    · {flag["type"]} ·
+                    <span id={"flag-value-#{key}"} class="whitespace-pre-wrap">{to_string(
+                      flag["value"]
+                    )}</span><span class="block text-xs text-slate-400">{if flag[
+                                                                              "player_visible"
+                                                                            ],
+                                                                            do: "Visible to owner",
+                                                                            else: "Hidden"}</span>
                   </p>
                   <button
                     id={"edit-flag-#{key}"}

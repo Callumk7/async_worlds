@@ -128,7 +128,7 @@ defmodule AsyncWorlds.Discord.Commands do
       facts =
         payload.flags
         |> Enum.sort()
-        |> Enum.map(fn {key, flag} -> "#{key}: #{Jason.encode!(flag["value"])}" end)
+        |> Enum.map(fn {key, flag} -> "#{key}: #{to_string(flag["value"])}" end)
 
       {:ok, Enum.join([payload.name | facts], "\n")}
     end

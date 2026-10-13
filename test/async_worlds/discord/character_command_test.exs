@@ -64,6 +64,30 @@ defmodule AsyncWorlds.Discord.CharacterCommandTest do
     }
   end
 
+  test "visible ordinary strings display literal quotes and whitespace without JSON encoding",
+       c do
+    text = ~s(  The "Captain"  )
+
+    {:ok, _} =
+      Characters.set_flag(c.campaign, "456", c.character.id, "title", %{
+        "type" => "string",
+        "value" => text,
+        "player_visible" => true
+      })
+
+    {:ok, _} =
+      Characters.set_flag(c.campaign, "456", c.character.id, "ready", %{
+        "type" => "boolean",
+        "value" => false,
+        "player_visible" => true
+      })
+
+    expected = "Rook\ndebt: 2\nready: false\ntitle: " <> text
+    assert {:ok, ^expected} = Dispatcher.handle(interaction(), c.opts)
+    assert_receive {:discord, :defer, _}
+    assert_receive {:discord, :edit_response, {_, ^expected}}
+  end
+
   test "character uses authenticated member only and replies privately with visible facts", c do
     assert {:ok, "Rook\ndebt: 2" = content} = Dispatcher.handle(interaction(), c.opts)
     assert_receive {:discord, :defer, _}
