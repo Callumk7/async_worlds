@@ -222,7 +222,7 @@ defmodule AsyncWorlds.Quests.Definition do
     )
     |> issue(
       cp <> ".value",
-      is_integer(value) and value >= 0 and clock != nil and value <= clock.segments,
+      is_integer(value) and value >= 0 and (is_nil(clock) or value <= clock.segments),
       "Threshold must be an integer from 0 through the current clock size"
     )
   end

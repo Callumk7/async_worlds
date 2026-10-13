@@ -116,6 +116,28 @@ defmodule AsyncWorlds.Quests.ClockAuthoringDomainTest do
     end
   end
 
+  test "missing and foreign clocks report clock errors without blaming legal thresholds", c do
+    for id <- [0, 999_999, c.foreign_clock.id], value <- [0, 8] do
+      work = draft(c, [gate(id, "gte", value)])
+
+      assert {:error, {:validation, errors}} =
+               Quests.release_working_copy(c.campaign, "456", work.id, work.version, attrs(work))
+
+      assert Enum.any?(errors, fn {path, _} -> String.ends_with?(path, ".clock_id") end)
+      refute Enum.any?(errors, fn {path, _} -> String.ends_with?(path, ".value") end)
+      assert Repo.get!(WorkingCopy, work.id).version == work.version
+    end
+
+    for value <- [-1, "1.5"] do
+      work = draft(c, [gate(0, "gte", value)])
+
+      assert {:error, {:validation, errors}} =
+               Quests.release_working_copy(c.campaign, "456", work.id, work.version, attrs(work))
+
+      assert Enum.any?(errors, fn {path, _} -> String.ends_with?(path, ".value") end)
+    end
+  end
+
   test "resizing revalidates working copies but does not rewrite pinned definitions or frozen thresholds",
        c do
     work =
