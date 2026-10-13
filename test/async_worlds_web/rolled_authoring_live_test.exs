@@ -72,6 +72,11 @@ defmodule AsyncWorldsWeb.RolledAuthoringLiveTest do
         do: v |> element("#critical-0-0-add-#{type}") |> render_click()
 
     fill(v, %{
+      node_0_choice_0_critical_0_flag_type: "string",
+      node_0_choice_0_critical_2_flag_type: "integer"
+    })
+
+    fill(v, %{
       node_0_choice_0_critical_0_key: "reward",
       node_0_choice_0_critical_0_flag_type: "string",
       node_0_choice_0_critical_0_value: "first",

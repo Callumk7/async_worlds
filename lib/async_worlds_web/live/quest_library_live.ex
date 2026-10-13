@@ -2,7 +2,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
   alias AsyncWorlds.Quests
-  alias AsyncWorlds.Quests.{Authoring, Graph, EffectAuthoring}
+  alias AsyncWorlds.Quests.{Authoring, Graph, EffectAuthoring, ConditionAuthoring}
   import AsyncWorldsWeb.EffectControls
   alias AsyncWorldsWeb.QuestGraph
   alias Phoenix.LiveView.JS
@@ -171,6 +171,26 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
     {:noreply, set_work(socket, %{work | definition: definition})}
   end
 
+  def handle_event(
+        "choice-list",
+        %{"node" => node, "choice" => id, "list" => list, "action" => action} = params,
+        socket
+      )
+      when is_binary(node) and is_binary(id) and is_binary(list) and is_binary(action) do
+    work = socket.assigns.work
+    index = EffectAuthoring.integer(params["index"])
+
+    definition =
+      Authoring.update_choice(
+        work.definition,
+        node,
+        id,
+        &restructure_choice_list(&1, list, action, index)
+      )
+
+    {:noreply, set_work(socket, %{work | definition: definition})}
+  end
+
   def handle_event("save", %{"operation" => "release", "quest" => params}, socket)
       when is_map(params),
       do: handle_event("release", %{"quest" => params}, socket)
@@ -283,6 +303,26 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
 
   def handle_event(_, _, socket), do: {:noreply, socket}
 
+  defp restructure_choice_list(choice, list, action, index) do
+    cond do
+      not Authoring.editable?(choice) ->
+        choice
+
+      list == "conditions" ->
+        Map.update!(choice, "conditions", &ConditionAuthoring.restructure(&1, action, index))
+
+      list in Authoring.outcome_kinds(choice) ->
+        update_in(
+          choice,
+          ["outcomes", list, "effects"],
+          &EffectAuthoring.restructure(&1, action, index)
+        )
+
+      true ->
+        choice
+    end
+  end
+
   defp create(socket, revision_id) do
     scope = socket.assigns.current_scope
 
@@ -340,7 +380,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
 
   defp library_error(:unsupported_edit),
     do:
-      "Unsupported imported fields cannot be changed. Conditions and outcome effects are preserved read-only."
+      "Unsupported imported fields cannot be changed. Opaque imported conditions and effects are preserved read-only."
 
   defp library_error(:immutable_content_id),
     do: "Released content identity cannot change. Recover as a separate quest instead."
@@ -425,7 +465,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                   else: "none (new quest)"}
               </p>
               <p id="unsupported-policy" class="rounded-xl bg-sky-300/5 p-4 text-sm text-slate-300">
-                Fixed or 1–3 d6 rolled choices. Highest 6: success; 4–5: partial; 1–3: failure. Two sixes: success plus ordered critical bonus effects, after success effects. Imported conditions and outcome effects stay intact. Resources are deferred. Conversion is explicit and confirmed.
+                Fixed or 1–3 d6 rolled choices. Highest 6: success; 4–5: partial; 1–3: failure. Two sixes: success plus ordered critical bonus effects, after success effects. Flag equality conditions use AND. Ordered flag effects target only the acting character; visibility is explicit. Resources are deferred. Conversion is explicit and confirmed.
               </p>
               <QuestGraph.graph graph={@graph} definition={@work.definition} />
               <div
@@ -614,6 +654,62 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                             label="Choice label"
                             class="admin-input"
                           />
+                          <.input
+                            field={@form["node_#{i}_choice_#{j}_eligibility"]}
+                            id={"choice-#{i}-#{j}-eligibility"}
+                            type="select"
+                            label="When any condition is unmet"
+                            options={[
+                              {"Disabled with generic hint", "disabled"},
+                              {"Hidden entirely", "hidden"}
+                            ]}
+                            class="admin-input"
+                          />
+                          <section id={"choice-#{i}-#{j}-conditions"} class="space-y-3">
+                            <h4 class="font-semibold">All conditions must match (AND)</h4>
+                            <p class="text-xs text-slate-400">
+                              Absent flags never match, including false. Disabled choices show only “Not available right now.”
+                            </p>
+                            <%= for {condition, k} <- Enum.with_index(choice["conditions"]) do %>
+                              <%= if ConditionAuthoring.editable?(condition) do %>
+                                <.effect_controls
+                                  effect={ConditionAuthoring.effect(condition)}
+                                  condition={true}
+                                  form={@form}
+                                  prefix={"node_#{i}_choice_#{j}_condition_#{k}"}
+                                  id={"choice-#{i}-#{j}-condition-#{k}"}
+                                  clocks={@clocks}
+                                />
+                                <button
+                                  :for={action <- ~w(up down remove)}
+                                  id={"condition-#{i}-#{j}-#{k}-#{action}"}
+                                  type="button"
+                                  phx-click="choice-list"
+                                  phx-value-node={node["id"]}
+                                  phx-value-choice={choice["id"]}
+                                  phx-value-list="conditions"
+                                  phx-value-index={k}
+                                  phx-value-action={action}
+                                  class="admin-button admin-secondary"
+                                >{action} condition</button>
+                              <% else %>
+                                <p id={"choice-#{i}-#{j}-condition-#{k}"} class="text-xs text-sky-200">
+                                  Imported condition preserved read-only.
+                                </p>
+                              <% end %>
+                            <% end %>
+                            <button
+                              id={"condition-#{i}-#{j}-add"}
+                              type="button"
+                              phx-click="choice-list"
+                              phx-value-node={node["id"]}
+                              phx-value-choice={choice["id"]}
+                              phx-value-list="conditions"
+                              phx-value-action="add"
+                              disabled={length(choice["conditions"]) >= 100}
+                              class="admin-button admin-secondary"
+                            >Add flag equality</button>
+                          </section>
                           <%= for kind <- Authoring.outcome_kinds(choice) do %>
                             <% op = Authoring.outcome_prefix("node_#{i}_choice_#{j}", kind) %>
                             <% oid = Authoring.outcome_prefix("choice-#{i}-#{j}", kind) %>
@@ -639,12 +735,43 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                               }
                               class="admin-input"
                             />
-                            <p
-                              :if={choice["outcomes"][kind]["effects"] != []}
-                              class="text-xs text-sky-200"
-                            >
-                              Imported outcome effects preserved read-only.
-                            </p>
+                            <section id={oid <> "-effects"} class="space-y-3">
+                              <h4 class="font-semibold">Ordered effects · acting character only</h4>
+                              <%= for {effect, k} <- Enum.with_index(choice["outcomes"][kind]["effects"]) do %>
+                                <.effect_controls
+                                  effect={effect}
+                                  form={@form}
+                                  prefix={op <> "_effect_#{k}"}
+                                  id={oid <> "-effect-#{k}"}
+                                  clocks={@clocks}
+                                />
+                                <button
+                                  :for={action <- ~w(up down remove)}
+                                  :if={EffectAuthoring.editable?(effect)}
+                                  id={oid <> "-effect-#{k}-#{action}"}
+                                  type="button"
+                                  phx-click="choice-list"
+                                  phx-value-node={node["id"]}
+                                  phx-value-choice={choice["id"]}
+                                  phx-value-list={kind}
+                                  phx-value-index={k}
+                                  phx-value-action={action}
+                                  class="admin-button admin-secondary"
+                                >{action} effect</button>
+                              <% end %>
+                              <button
+                                :for={type <- ~w(clock_delta set_flag clear_flag)}
+                                id={oid <> "-effect-add-#{type}"}
+                                type="button"
+                                phx-click="choice-list"
+                                phx-value-node={node["id"]}
+                                phx-value-choice={choice["id"]}
+                                phx-value-list={kind}
+                                phx-value-action={type}
+                                disabled={length(choice["outcomes"][kind]["effects"]) >= 100}
+                                class="admin-button admin-secondary"
+                              >Add {type}</button>
+                            </section>
                           <% end %>
                           <%= if choice["mode"] == "rolled" do %>
                             <section id={"choice-#{i}-#{j}-critical"} class="space-y-3">

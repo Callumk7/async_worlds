@@ -159,11 +159,20 @@ defmodule AsyncWorldsWeb.QuestGraph do
       ])
 
     cond do
+      String.starts_with?(suffix, ".conditions") ->
+        list_target("choice-#{i}-#{j}", "condition", suffix)
+
+      suffix == ".eligibility" ->
+        "choice-#{i}-#{j}-eligibility"
+
       Authoring.editable?(choice) and String.starts_with?(suffix, ".outcomes.") ->
         case String.split(suffix, ".") do
           ["", "outcomes", kind, field] when field in ["text", "next_node"] ->
             Authoring.outcome_prefix("choice-#{i}-#{j}", kind) <>
               if(field == "text", do: "-text", else: "-destination")
+
+          ["", "outcomes", kind | _] ->
+            list_target(Authoring.outcome_prefix("choice-#{i}-#{j}", kind), "effect", suffix)
 
           _ ->
             "editor-choice-#{i}-#{j}"
@@ -186,6 +195,27 @@ defmodule AsyncWorldsWeb.QuestGraph do
 
       true ->
         "editor-choice-#{i}-#{j}"
+    end
+  end
+
+  defp list_target(prefix, kind, suffix) do
+    case Regex.run(~r/\[(\d+)\](.*)/, suffix) do
+      [_, index, field] ->
+        ending =
+          case field do
+            ".key" -> "-key"
+            ".value" -> "-value"
+            ".flag" -> "-value"
+            ".flag_type" -> "-type"
+            ".clock_id" -> "-clock"
+            ".delta" -> "-delta"
+            _ -> ""
+          end
+
+        prefix <> "-#{kind}-#{index}" <> ending
+
+      _ ->
+        prefix <> if(kind == "condition", do: "-conditions", else: "-effects")
     end
   end
 
