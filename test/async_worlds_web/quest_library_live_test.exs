@@ -172,6 +172,82 @@ defmodule AsyncWorldsWeb.QuestLibraryLiveTest do
     assert progression.node_id == ending_id
   end
 
+  test "local edits never fetch revisions or lock campaigns and loaded bases refresh", c do
+    {:ok, r1} =
+      Quests.create_quest(c.campaign, "456", %{name: "Base", content_id: "base"}, definition())
+
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456", r1.id)
+    {:ok, blank} = Quests.create_working_copy(c.campaign, "456")
+    {:ok, view, _} = live(c.conn, ~p"/quests/library?draft_id=#{work.id}")
+    assert has_element?(view, "#draft-identity", "Base revision v1")
+
+    owner = self()
+    handler = {__MODULE__, make_ref()}
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:async_worlds, :repo, :query],
+        fn _, _, metadata, _ ->
+          if self() == view.pid and
+               (String.contains?(metadata.query, "quest_revisions") or
+                  String.contains?(metadata.query, "FOR UPDATE")) do
+            send(owner, {:authoring_query, metadata.query})
+          end
+        end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    fill(view, %{name: "Typing", node_0_text: "Local narrative"})
+    view |> element("#add-quest-node") |> render_click()
+    view |> element("#add-choice-2") |> render_click()
+    refute_receive {:authoring_query, _}, 0
+    assert has_element?(view, "#draft-identity", "Base revision v1")
+    :telemetry.detach(handler)
+
+    {:ok, %{revision: r2}} =
+      Quests.release_working_copy(
+        c.campaign,
+        "456",
+        work.id,
+        work.version,
+        Map.take(work, [:name, :content_id, :definition])
+      )
+
+    render_click(view, "reload", %{})
+    assert has_element?(view, "#draft-identity", "Base revision v2")
+    release(view)
+    assert has_element?(view, "#draft-identity", "Base revision v3")
+
+    view |> element("#drafts-#{blank.id}") |> render_click()
+    assert_patch(view, "/quests/library?draft_id=#{blank.id}")
+    refute has_element?(view, "#draft-identity", "Base revision v")
+    view |> element("#drafts-#{work.id}") |> render_click()
+    assert_patch(view, "/quests/library?draft_id=#{work.id}")
+    assert has_element?(view, "#draft-identity", "Base revision v3")
+    assert r2.number == 2
+  end
+
+  test "save release and recovery show actionable persistence paths", c do
+    {:ok, view, _} = live(c.conn, ~p"/quests/library")
+    work = new_work(view, c.campaign)
+    invalid = String.duplicate("x", 8001)
+    fill(view, %{node_0_text: invalid})
+    view |> form("#quest-editor-form") |> render_submit()
+    assert has_element?(view, "#draft-errors", "nodes[0].text")
+    refute has_element?(view, "#flash-error", "read-only")
+    release(view)
+    assert has_element?(view, "#draft-errors", "nodes[0].text")
+    render_click(view, "reload", %{})
+    view |> element("#recover-draft") |> render_click()
+    assert has_element?(view, "#draft-errors", "nodes[0].text")
+    assert {:ok, ^work} = Quests.get_working_copy(c.campaign, "456", work.id)
+    assert Repo.aggregate(Quests.WorkingCopy, :count) == 1
+    assert Repo.aggregate(Quests.Revision, :count) == 0
+  end
+
   test "stale tabs retain local work through refresh and recover separately without overwriting",
        c do
     {:ok, a, _} = live(c.conn, ~p"/quests/library")

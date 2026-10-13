@@ -129,15 +129,18 @@ defmodule AsyncWorlds.Quests do
       original = fetch!(WorkingCopy, current.id, id)
       # The creation snapshot is retained even when another tab adds nodes or releases.
       # Recovery must not require the stale tab to include those later edits.
-      unless is_map(attrs) and is_binary(attrs[:name]) and byte_size(attrs[:name]) <= 8000 and
-               Authoring.persistence_safe?(attrs[:name]) and
-               Authoring.persistence_safe?(attrs[:content_id]) and
+      validate_persistence_text!(attrs)
+
+      unless is_map(attrs) and is_binary(attrs[:name]) and is_binary(attrs[:content_id]) and
                Authoring.safe_edit?(original.source_definition, attrs[:definition]),
              do: Repo.rollback(:unsupported_edit)
 
+      recovered_name = attrs[:name] <> " (recovered)"
+      validate_persistence_text!(Map.put(attrs, :name, recovered_name))
+
       Repo.insert!(%WorkingCopy{
         campaign_id: current.id,
-        name: attrs[:name] <> " (recovered)",
+        name: recovered_name,
         content_id: "recovered_" <> Ecto.UUID.generate(),
         definition: attrs[:definition],
         source_definition: attrs[:definition]
@@ -164,11 +167,15 @@ defmodule AsyncWorlds.Quests do
     draft
   end
 
+  defp validate_persistence_text!(attrs) do
+    errors = Authoring.persistence_errors(attrs)
+    if errors != [], do: Repo.rollback({:validation, errors})
+  end
+
   defp update_work!(draft, attrs) do
+    validate_persistence_text!(attrs)
+
     unless is_map(attrs) and is_binary(attrs[:name]) and is_binary(attrs[:content_id]) and
-             byte_size(attrs[:name]) <= 8000 and byte_size(attrs[:content_id]) <= 8000 and
-             Authoring.persistence_safe?(attrs[:name]) and
-             Authoring.persistence_safe?(attrs[:content_id]) and
              Authoring.safe_edit?(draft.definition, attrs[:definition]),
            do: Repo.rollback(:unsupported_edit)
 

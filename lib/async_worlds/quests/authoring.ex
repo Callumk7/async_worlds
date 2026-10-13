@@ -161,6 +161,55 @@ defmodule AsyncWorlds.Quests.Authoring do
         Map.keys(choice["outcomes"]) == ["fixed"] and
         Map.drop(choice["outcomes"]["fixed"], ["text", "next_node"]) == %{"effects" => []}
 
+  @doc "Persistence text diagnostics, separate from structural edit and release validation."
+  def persistence_errors(attrs) when is_map(attrs) do
+    text_errors(attrs[:name], "name", 8000) ++
+      text_errors(attrs[:content_id], "content_id", 8000) ++
+      json_text_errors(attrs[:definition], "")
+  end
+
+  def persistence_errors(_), do: []
+
+  defp text_errors(value, path, limit) when is_binary(value) do
+    cond do
+      not String.valid?(value) -> [{path, "Must be valid UTF-8 text"}]
+      String.contains?(value, <<0>>) -> [{path, "Must not contain NUL characters"}]
+      limit != nil and byte_size(value) > limit -> [{path, "Maximum #{limit} bytes"}]
+      true -> []
+    end
+  end
+
+  defp text_errors(_, _, _), do: []
+
+  defp json_text_errors(value, path) when is_map(value) and not is_struct(value) do
+    Enum.flat_map(value, fn {key, item} ->
+      key_errors = text_errors(key, path <> ".<key>", nil)
+      field = if is_binary(key) and key_errors == [], do: key, else: "<key>"
+      child_path = if path == "", do: field, else: path <> "." <> field
+
+      limit =
+        case key do
+          key when key in ["text", "label"] -> 8000
+          key when key in ["start_node", "next_node"] -> 100
+          _ -> nil
+        end
+
+      key_errors ++
+        if is_binary(item),
+          do: text_errors(item, child_path, limit),
+          else: json_text_errors(item, child_path)
+    end)
+  end
+
+  defp json_text_errors(value, path) when is_list(value) do
+    value
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {item, index} -> json_text_errors(item, "#{path}[#{index}]") end)
+  end
+
+  defp json_text_errors(value, path) when is_binary(value), do: text_errors(value, path, nil)
+  defp json_text_errors(_, _), do: []
+
   @doc "Allow incomplete text, but reject values PostgreSQL text/JSONB cannot persist."
   def persistence_safe?(value) when is_binary(value),
     do: String.valid?(value) and not String.contains?(value, <<0>>)

@@ -237,10 +237,10 @@ defmodule AsyncWorlds.QuestAuthoringTest do
             },
             %{work | definition: Map.put(work.definition, "start_node", invalid)}
           ] do
-        assert {:error, :unsupported_edit} = save(c.campaign, edited)
-        assert {:error, :unsupported_edit} = release(c.campaign, edited)
+        assert {:error, {:validation, [_ | _]}} = save(c.campaign, edited)
+        assert {:error, {:validation, [_ | _]}} = release(c.campaign, edited)
 
-        assert {:error, :unsupported_edit} =
+        assert {:error, {:validation, [_ | _]}} =
                  Quests.recover_working_copy(c.campaign, "456", work.id, attrs(edited))
 
         assert Repo.get!(WorkingCopy, work.id) == work
@@ -248,6 +248,95 @@ defmodule AsyncWorlds.QuestAuthoringTest do
         assert Repo.aggregate(Revision, :count) == 0
       end
     end
+  end
+
+  test "persistence limits diagnose paths before structural rejection and never write", c do
+    {:ok, work} = Quests.create_working_copy(c.campaign, "456")
+    work = complete(work)
+    {:ok, work} = save(c.campaign, work)
+
+    for {path, edited} <- [
+          {"name", %{work | name: String.duplicate("n", 8001)}},
+          {"content_id", %{work | content_id: String.duplicate("i", 8001)}},
+          {"start_node",
+           %{
+             work
+             | definition: Map.put(work.definition, "start_node", String.duplicate("s", 101))
+           }},
+          {"nodes[0].text",
+           %{
+             work
+             | definition:
+                 put_in(
+                   work.definition,
+                   ["nodes", Access.at(0), "text"],
+                   String.duplicate("t", 8001)
+                 )
+           }},
+          {"nodes[0].choices[0].label",
+           %{
+             work
+             | definition:
+                 put_in(
+                   work.definition,
+                   ["nodes", Access.at(0), "choices", Access.at(0), "label"],
+                   String.duplicate("l", 8001)
+                 )
+           }},
+          {"nodes[0].choices[0].outcomes.fixed.text",
+           %{
+             work
+             | definition:
+                 put_in(
+                   work.definition,
+                   ["nodes", Access.at(0), "choices", Access.at(0), "outcomes", "fixed", "text"],
+                   String.duplicate("t", 8001)
+                 )
+           }},
+          {"nodes[0].choices[0].outcomes.fixed.next_node",
+           %{
+             work
+             | definition:
+                 put_in(
+                   work.definition,
+                   [
+                     "nodes",
+                     Access.at(0),
+                     "choices",
+                     Access.at(0),
+                     "outcomes",
+                     "fixed",
+                     "next_node"
+                   ],
+                   String.duplicate("d", 101)
+                 )
+           }},
+          {"extra.nested[0]",
+           %{work | definition: Map.put(work.definition, "extra", %{"nested" => [<<255>>]})}}
+        ] do
+      for result <- [
+            save(c.campaign, edited),
+            release(c.campaign, edited),
+            Quests.recover_working_copy(c.campaign, "456", work.id, attrs(edited))
+          ] do
+        assert {:error, {:validation, errors}} = result
+        assert Enum.any?(errors, fn {field, message} -> field == path and is_binary(message) end)
+      end
+
+      assert Repo.get!(WorkingCopy, work.id) == work
+      assert Repo.aggregate(WorkingCopy, :count) == 1
+      assert Repo.aggregate(Quest, :count) == 0
+      assert Repo.aggregate(Revision, :count) == 0
+    end
+
+    malformed = %{work | definition: Map.put(work.definition, "extra", "safe")}
+    assert {:error, :unsupported_edit} = save(c.campaign, malformed)
+    assert {:error, :unsupported_edit} = release(c.campaign, malformed)
+
+    assert {:error, :unsupported_edit} =
+             Quests.recover_working_copy(c.campaign, "456", work.id, attrs(malformed))
+
+    assert Repo.get!(WorkingCopy, work.id) == work
   end
 
   test "duplicate library identities and forged stable IDs roll back release", c do

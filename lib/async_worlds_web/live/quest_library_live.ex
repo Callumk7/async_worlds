@@ -31,7 +31,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
         if params["draft_id"] do
           case Quests.get_working_copy(scope.campaign, scope.discord_user_id, params["draft_id"]) do
             {:ok, work} ->
-              socket |> set_work(work) |> assign(:conflict, false)
+              socket |> set_loaded_work(work) |> assign(:conflict, false)
 
             {:error, reason} ->
               socket
@@ -120,7 +120,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
       case result do
         {:ok, %{draft: draft, revision: revision}} ->
           socket
-          |> set_work(draft)
+          |> set_loaded_work(draft)
           |> put_flash(
             :info,
             "Released revision #{revision.number}. Existing assignments remain pinned."
@@ -161,7 +161,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
         {:noreply,
          socket
          |> retain_recovery(socket.assigns.work)
-         |> set_work(work)
+         |> set_loaded_work(work)
          |> assign(:conflict, false)}
 
       {:error, reason} ->
@@ -189,6 +189,9 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
          )
          |> push_patch(to: ~p"/quests/library?draft_id=#{copy.id}")}
 
+      {:error, {:validation, errors}} ->
+        {:noreply, assign(socket, :errors, errors)}
+
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, library_error(reason))}
     end
@@ -210,15 +213,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
     assign(socket, recoveries: recoveries, recovery: Map.fetch!(recoveries, work.id))
   end
 
-  defp set_work(socket, work) do
-    options =
-      Enum.with_index(work.definition["nodes"])
-      |> Enum.map(fn {node, i} ->
-        {"Node #{i + 1}: " <>
-           String.slice(node["text"], 0, 45) <> if(node["ending"], do: " (ending)", else: ""),
-         node["id"]}
-      end)
-
+  defp set_loaded_work(socket, work) do
     scope = socket.assigns.current_scope
 
     base_number =
@@ -229,12 +224,23 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
         end
       end
 
+    socket |> assign(:base_number, base_number) |> set_work(work)
+  end
+
+  defp set_work(socket, work) do
+    options =
+      Enum.with_index(work.definition["nodes"])
+      |> Enum.map(fn {node, i} ->
+        {"Node #{i + 1}: " <>
+           String.slice(node["text"], 0, 45) <> if(node["ending"], do: " (ending)", else: ""),
+         node["id"]}
+      end)
+
     assign(socket,
       work: work,
       recovery: Map.get(socket.assigns.recoveries, work.id),
       form: to_form(Authoring.form_params(work), as: :quest),
       node_options: options,
-      base_number: base_number,
       errors: []
     )
   end
