@@ -46,11 +46,32 @@ changed. `recent_audits/2` provides bounded descending-ID dashboard history.
 
 Notification/news require non-blank text (maximum 2000 characters) and cannot have
 clock IDs. Start requires an existing other clock in this campaign and cannot have
-text. Flags/quest-unlocks are not supported. A start **unpauses** an incomplete
+text. Character flag and quest-availability actions are also supported (see below).
+A start **unpauses** an incomplete
 clock, preserving fill, rate and triggers; it never resets/resurrects a completed
 clock. Trigger execution/delivery belongs to draft resolution/publication, not
 management. Cyclic start references are harmless because start doesn't fill or
 fire a clock recursively.
+
+## Character and quest triggers (ENG-36)
+
+The authenticated **Clocks** form offers **Set character flag** and **Unlock quest**.
+Choose a same-campaign character, then either a lowercase flag key, boolean/integer/
+string value and explicit player visibility, or a released campaign quest. Strings
+are ordinary text, not JSON. Missing/foreign targets and invalid typed values show
+field errors; bypassing selectors cannot bypass domain validation.
+
+Add, edit, remove and move triggers up/down before saving. Their ordered payloads,
+including world-only actions, are preserved when reopened. Trigger configuration
+uses the normal optimistic clock comparison, `dm:web:<user ID>` audit snapshots,
+and resolving/review management locks.
+
+Unlock grants **availability, not assignment**: the target's active pinned quest
+is neither interrupted nor replaced. Configuration does not set live flags/unlocks.
+Closing freezes the target references and payloads; existing resolution computes
+DM-only draft consequences and existing atomic publication applies approved state.
+Only the racing winner fires; completed clocks do not fire again until reset.
+Duplicate publication never reapplies state.
 
 ## Frozen inputs and integration contract for ENG-2 / ENG-4
 

@@ -11,9 +11,10 @@ never form fields.
 ## Run a world-only turn
 
 1. **Clocks:** create clocks with 4/6/8 segments, signed background rates,
-   public/known/hidden visibility, and optional paused state. Add/remove typed
-   on-fill triggers: public world news, private DM notification, or start another
-   clock. Starting unpauses the target; it does not run another background rate.
+   public/known/hidden visibility, and optional paused state. Add/remove/reorder typed
+   on-fill triggers: public world news, private DM notification, start another
+   clock, set a character flag, or unlock a quest. Starting unpauses the target;
+   it does not run another background rate.
    Public trigger news must not contain secrets, even on hidden clocks.
 2. Edit or adjust live inputs before closing. Pause/resume, reset, and racing-pair
    controls call the shared clock context and write `dm:web:<user ID>` audits.
@@ -126,6 +127,26 @@ not by editing the graph or assigning a quest.
    retried. Reopen **Edit**, inspect persisted state, then deliberately reapply.
    Resolving/review locks still reject all character and quest mutations. Finish
    review/publication before retrying; content release does not repin assignments.
+
+## Targeted clock consequences (ENG-36)
+
+1. In a disposable campaign, link two characters and assign one an active quest.
+   Release another quest to make it available in the clock selector.
+2. In **Clocks**, edit a nearly full clock with rate 1. Add **Set character flag**,
+   choose the character, key/type/value and visibility. Add **Unlock quest** and
+   select the same character and released quest. Save and reopen to verify inputs.
+   Move actions up/down to control order; strings need no JSON quoting.
+3. Close a tick and inspect its DM-only draft character flags and quest unlocks.
+   Live flags/availability must remain unchanged before approved publication.
+4. Publish. Check the targeted character in **Characters** and availability in
+   **Quest operations**. The existing active assignment must remain untouched and
+   the second character must not inherit flags/unlocks. Hidden flags stay private.
+5. Repeat publication (it must be rejected) and verify no duplicate effects. Use
+   a racing pair to confirm only the winner fires; completed clocks require reset.
+   Try foreign target IDs, invalid integer values, a stale editor and a locked
+   tick: no rejected save should write state or an audit.
+
+See [clock-management.md](clock-management.md) for the shared operation contract.
 
 ## Delivery failures
 

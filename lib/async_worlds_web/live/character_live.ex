@@ -320,41 +320,7 @@ defmodule AsyncWorldsWeb.CharacterLive do
                   readonly={@editing_flag != nil}
                   class="admin-input"
                 />
-                <.input
-                  field={@flag_form[:type]}
-                  type="select"
-                  label="Type"
-                  options={["boolean", "integer", "string"]}
-                  class="admin-input"
-                />
-                <%= if @flag_form[:type].value == "boolean" do %>
-                  <.input
-                    field={@flag_form[:value]}
-                    type="select"
-                    label="Boolean value"
-                    options={[True: "true", False: "false"]}
-                    class="admin-input"
-                  />
-                <% else %>
-                  <.input
-                    field={@flag_form[:value]}
-                    type={if @flag_form[:type].value == "integer", do: "number", else: "textarea"}
-                    step="1"
-                    label={
-                      if @flag_form[:type].value == "integer",
-                        do: "Whole number",
-                        else: "String value (no JSON quoting)"
-                    }
-                    class="admin-input"
-                  />
-                <% end %>
-                <.input
-                  field={@flag_form[:player_visible]}
-                  type="select"
-                  label="Player visibility"
-                  options={["Hidden (DM only)": "false", "Visible to owner": "true"]}
-                  class="admin-input"
-                />
+                <.flag_inputs form={@flag_form} />
                 <button
                   id="new-flag"
                   type="button"

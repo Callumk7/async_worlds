@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.Clocks.Trigger do
-  @moduledoc "Typed on-fill actions. Dependent character/quest actions are modeled for the future quest executor."
+  @moduledoc "Typed on-fill actions frozen for shared world/quest resolution and approved publication."
   use Ecto.Schema
   import Ecto.Changeset
 
