@@ -207,6 +207,7 @@ defmodule AsyncWorldsWeb.QuestGraph do
             ".value" -> "-value"
             ".flag" -> "-value"
             ".flag_type" -> "-type"
+            ".operator" -> "-operator"
             ".clock_id" -> "-clock"
             ".delta" -> "-delta"
             _ -> ""

@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.Quests.ConditionAuthoring do
-  @moduledoc "Character flag equality form vocabulary. Other imported conditions remain opaque."
+  @moduledoc "Clock threshold and character flag equality forms; unsupported imports remain opaque."
   alias AsyncWorlds.Quests.EffectAuthoring
 
   def new,
@@ -10,7 +10,14 @@ defmodule AsyncWorlds.Quests.ConditionAuthoring do
       EffectAuthoring.editable?(effect(condition))
   end
 
+  def editable?(%{"type" => "clock_threshold"} = condition) do
+    AsyncWorlds.Quests.Definition.keys?(condition, ~w(type clock_id operator value)) and
+      Enum.all?(Map.values(condition), &(is_binary(&1) or is_integer(&1)))
+  end
+
   def editable?(_), do: false
+
+  def effect(%{"type" => "clock_threshold"} = condition), do: condition
 
   def effect(condition) do
     %{
@@ -24,10 +31,30 @@ defmodule AsyncWorlds.Quests.ConditionAuthoring do
     }
   end
 
+  def form_params(%{"type" => "clock_threshold"} = condition) do
+    if editable?(condition),
+      do:
+        Map.take(condition, ~w(clock_id operator value))
+        |> Map.new(fn {k, v} -> {k, to_string(v)} end),
+      else: %{}
+  end
+
   def form_params(condition) do
     if editable?(condition),
       do: EffectAuthoring.form_params(effect(condition)) |> Map.delete("visible"),
       else: %{}
+  end
+
+  def apply_form(%{"type" => "clock_threshold"} = condition, params, prefix) do
+    if editable?(condition) do
+      Enum.reduce(form_params(condition), condition, fn {key, default}, acc ->
+        value = Map.get(params, prefix <> "_" <> key, default)
+        value = if is_binary(value), do: value, else: default
+        Map.put(acc, key, if(key == "operator", do: value, else: EffectAuthoring.integer(value)))
+      end)
+    else
+      condition
+    end
   end
 
   def apply_form(condition, params, prefix) do
@@ -49,6 +76,14 @@ defmodule AsyncWorlds.Quests.ConditionAuthoring do
     do:
       is_list(new) and length(new) <= 100 and
         Enum.reject(old, &editable?/1) == Enum.reject(new, &editable?/1)
+
+  def restructure(items, "clock_threshold", _) do
+    if length(items) < 100,
+      do:
+        items ++
+          [%{"type" => "clock_threshold", "clock_id" => 0, "operator" => "gte", "value" => 0}],
+      else: items
+  end
 
   def restructure(items, "add", _), do: if(length(items) < 100, do: items ++ [new()], else: items)
 

@@ -1,4 +1,4 @@
-# DM quest library and operations (ENG-17 / ENG-30 / ENG-31 / ENG-32)
+# DM quest library and operations (ENG-17 / ENG-30 / ENG-31 / ENG-32 / ENG-34)
 
 ## Operator workflow
 
@@ -95,7 +95,7 @@ There is no automatic mode change when editing a pool or submitting a mode field
 Character flag equality conditions and ordinary outcome effects are now editable,
 using the same typed controls as critical bonuses. Choose hidden/disabled behavior
 for unmet AND conditions. See the [flag authoring checklist](dm-console.md#flag-authoring-checklist-eng-33).
-Unsupported imported fields, other conditions and opaque effects remain intact and
+Unsupported imported fields, other condition types and opaque effects remain intact and
 read-only; opaque effects cannot be edited/removed through list controls. Conversions that
 would discard opaque imported data are unavailable; use corrected re-import or
 explicitly remove the whole choice instead. Every outcome remains visible in the
@@ -116,6 +116,44 @@ clocks atomically. Stale review controls require refresh, not an overwrite. See
 with offline controlled tests, not random critical hunting in a real campaign.
 Authoring/releasing may continue during review because they append content only;
 assignment/intervention locks and the publication guard remain unchanged.
+
+## Clock gate and effect operating guide (ENG-34)
+
+1. Create/configure clocks in **Clocks**, then use **Add clock gate** in a choice.
+   The campaign-only selector displays name, segment count and privacy. **Public**
+   reveals identity and fill; **known** reveals identity only (fill private);
+   **hidden** keeps both identity and fill private. These are DM controls, not
+   player hints. Choose **at least (gte)** or **at most (lte)** and an integer
+   threshold from **0 through the current size**, inclusive. Gates combine with
+   other gates/flag equalities using AND. Unmet disabled choices say only “Not
+   available right now.”; hidden choices disappear.
+2. Add **clock_delta** to any fixed/rolled outcome or critical bonus. Select a
+   clock and a signed integer (negative drains; zero is valid). Use up/down/remove
+   on the existing ordered effect list. Mixed flag/clock effects stay in that
+   order. Each delta clamps to **0–size immediately**: on a four-segment clock,
+   `+9, -3` from zero yields **1**, not 4. Already completed clocks ignore deltas.
+   Reaching full latches completion even if a later delta drains it. Background
+   rates and clock triggers run later; inspect their source-labelled consequences.
+   Next-node eligibility uses the **final resolved state**, including later triggers,
+   not the state immediately after a choice.
+3. Save, reopen and inspect readable summaries; release validates current campaign
+   clock IDs, operators, thresholds and integer deltas. A resize never silently
+   adjusts a threshold. A working copy whose threshold exceeds the new size must
+   be explicitly repaired before release. Released/pinned and frozen definitions
+   retain their original thresholds; new releases do not repin players.
+4. Assign the released revision, rehearse a submission/close, and inspect review's
+   source labels, final next choices and **exact** previews before approving.
+   Public output and `/clocks` show known identities without fill and omit hidden
+   clocks. Player quest/result/private notifications contain safe choice projections,
+   not clock gate details or hidden flag keys. The DM private preview intentionally
+   contains every clock's identity/fill. Publication commits state and those exact
+   outgoing messages together. Do not place secrets in authored narration, labels,
+   or world-news triggers: those are explicit outgoing text, not automatically redacted.
+
+Unsupported imported clock fields remain read-only and preserved. Missing clock
+selections remain visibly broken until repaired, rather than selecting a different
+clock. Stale tabs must inspect/recover work explicitly; expired/revoked sessions
+cannot save or release it.
 
 ## Authorization, invalidation and locking
 
