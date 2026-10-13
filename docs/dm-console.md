@@ -1,7 +1,8 @@
 # Minimal DM console (ENG-9)
 
 Sign in through Discord OAuth as the configured campaign DM. The console's
-`/dashboard`, `/clocks`, `/characters`, `/quests`, and `/ticks/:id/review` routes share the authenticated
+`/dashboard`, `/clocks`, `/characters`, `/quests`, `/ticks/:id/review`,
+`/ticks/history`, and `/ticks/:id/history` routes share the authenticated
 LiveView session. HTTP/mounts, navigation parameters, and every event recheck the
 server session and current DM configuration. Session revocation/expiry redirects
 all console views to login. Campaign and actor IDs come from authenticated scope,
@@ -109,7 +110,46 @@ optimistic generation check. Retrying one record never republishes state.
 Ambiguous retry requires explicit confirmation that Discord was checked and that
 a duplicate is acceptable. Sent/pending/sending records have no retry control.
 
-These screens are the minimal playable administrator, not an advanced authoring
-or full historical browser. Gameplay Discord commands remain ENG-10. The console
+## Published tick history (ENG-39)
+
+Open **History** from the overview or review navigation. The list contains only
+published ticks, newest first, in pages of 20. Open a publication to inspect its
+publication time, selected draft/revision, frozen input identity, approved world
+news, player results, recorded dice, and source-labelled before/after consequences.
+Each detail section has independent pagination, also in pages of 20.
+
+Review overrides show actor, reason, operation and previous/new draft IDs. Quest
+interventions associated with that tick and publication clock audits have separate
+sections: this is not a complete audit of every character or administrative edit.
+Historical names come only from saved payloads; absent names use stable IDs or an
+explicit missing-label fallback. Later content releases, character edits and live
+clock changes cannot change the displayed approved content.
+
+**Stored outgoing messages** shows the exact saved publication content, audience,
+recipient, character/route when recorded, and chunk order. Opening prompts and
+manual reminders are not publication messages. Delivery status is labelled as
+**current**, not immutable history; raw exceptions and delivery guard data are not
+shown. Follow **Existing delivery retry controls** to the overview for authorized,
+generation-checked retries and explicit ambiguous-send confirmation. History
+itself has no mutation, republish, delete or rollback controls. Reopen history to
+refresh delivery status without rewriting approved content.
+
+### Disposable-campaign verification checklist
+
+1. Publish two development ticks; include a quest narration override and an
+   assignment/move while a tick is open. Open each history entry and trace review
+   revisions, intervention reasons and clock-effect sources independently.
+2. Change live character names/flags, clock names/fills and released quest content.
+   Reopen the first publication; saved results, names, IDs and messages must stay
+   unchanged. Check a legacy world-only entry and missing-label fallbacks.
+3. Fail a private delivery using a fake adapter (or disposable Discord account),
+   inspect the current status, retry only that record through overview controls,
+   then reopen history. Only delivery status/attempts should change.
+4. Verify list/detail pagination and reject foreign/nonpublished tick IDs. Sign
+   out, revoke/expire the session, or change the configured DM; history must no
+   longer be accessible. Never use production credentials for this checklist.
+
+These screens are the playable administrator, not an advanced graph editor or
+complete administration audit. Gameplay Discord commands remain ENG-10. The console
 uses streams for displayed collections, shared core input/icon components,
 accessible labelled forms, keyboard focus styles, and reduced-motion-aware UI.
