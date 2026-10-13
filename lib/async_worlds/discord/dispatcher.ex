@@ -2,18 +2,36 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   @moduledoc """
   Handles trusted gateway interactions through an injectable transport.
 
-  Defers privately before database work, then checks application, configured
+  Ordinary interactions defer privately before database work, then check application, configured
   guild and verified guild-member identity. Unknown commands and denied requests
   receive private replies. No domain action runs after a failed acknowledgment.
   """
   require Logger
 
   alias AsyncWorlds.Campaigns
-  alias AsyncWorlds.Discord.{Commands, DebugInteractions, QuestInteractions, Snowflake}
+
+  alias AsyncWorlds.Discord.{
+    Commands,
+    DebugInteractions,
+    JournalModalSpike,
+    QuestInteractions,
+    Snowflake
+  }
 
   def handle(interaction, opts \\ Application.fetch_env!(:async_worlds, :discord))
 
-  def handle(%{type: type} = interaction, opts) when type in [2, 3] do
+  def handle(%{type: 5} = interaction, opts) do
+    if JournalModalSpike.modal_submit?(interaction),
+      do: handle_supported(interaction, opts),
+      else: :ignored
+  end
+
+  def handle(%{type: type} = interaction, opts) when type in [2, 3],
+    do: handle_supported(interaction, opts)
+
+  def handle(_, _), do: :ignored
+
+  defp handle_supported(interaction, opts) do
     adapter = Keyword.fetch!(opts, :adapter)
 
     with {:ok, id} <- Snowflake.cast(Map.get(interaction, :id)),
@@ -23,16 +41,46 @@ defmodule AsyncWorlds.Discord.Dispatcher do
          token when is_binary(token) and byte_size(token) > 0 <- Map.get(interaction, :token) do
       envelope = %{id: id, application_id: application_id, token: token}
 
-      case safely(:acknowledgment, fn -> adapter.defer(envelope) end) do
-        :ok -> dispatch(interaction, envelope, opts)
-        _ -> {:error, :acknowledgment_failed}
+      if JournalModalSpike.modal_open?(interaction) do
+        open_journal_modal(interaction, envelope, opts)
+      else
+        case safely(:acknowledgment, fn -> adapter.defer(envelope) end) do
+          :ok -> dispatch(interaction, envelope, opts)
+          _ -> {:error, :acknowledgment_failed}
+        end
       end
     else
       _ -> :ignored
     end
   end
 
-  def handle(_, _), do: :ignored
+  # Opening a modal is itself the initial acknowledgment. Never defer first,
+  # and never send another acknowledgment after an ambiguous modal response.
+  defp open_journal_modal(interaction, envelope, opts) do
+    result =
+      safely(:command, fn ->
+        with {:ok, campaign, actor} <- authorize(interaction, :player, opts),
+             {:ok, context} <- command_context(:player, campaign, actor) do
+          JournalModalSpike.open(interaction.data.custom_id, context)
+        end
+      end)
+
+    adapter = Keyword.fetch!(opts, :adapter)
+
+    case result do
+      {:ok, modal} ->
+        case safely(:acknowledgment, fn -> adapter.open_modal(envelope, modal) end) do
+          :ok -> {:ok, :modal_opened}
+          _ -> {:error, :acknowledgment_failed}
+        end
+
+      error ->
+        case safely(:acknowledgment, fn -> adapter.defer(envelope) end) do
+          :ok -> respond(error, envelope, opts, true)
+          _ -> {:error, :acknowledgment_failed}
+        end
+    end
+  end
 
   defp dispatch(interaction, envelope, opts) do
     result =
@@ -50,6 +98,14 @@ defmodule AsyncWorlds.Discord.Dispatcher do
         end
       end)
 
+    journal? =
+      JournalModalSpike.modal_submit?(interaction) or
+        match?(%{data: %{name: "journal"}}, interaction)
+
+    respond(result, envelope, opts, journal?)
+  end
+
+  defp respond(result, envelope, opts, journal?) do
     content =
       case result do
         {:ok, content} when is_binary(content) and byte_size(content) > 0 ->
@@ -59,7 +115,14 @@ defmodule AsyncWorlds.Discord.Dispatcher do
           %{content: content, components: components}
 
         {:error, :stale_component} ->
-          "This control is no longer available. Use /quest or /submission to refresh your choices."
+          if journal?,
+            do:
+              "This journal preview has expired or changed. Run /journal new again; nothing was saved.",
+            else:
+              "This control is no longer available. Use /quest or /submission to refresh your choices."
+
+        {:error, :invalid_journal_input} ->
+          "Use a nonblank title (up to 100 characters) and entry (up to 4,000 characters). Nothing was saved; run /journal new to try again."
 
         {:error, :unknown_command} ->
           "This command is not supported."
@@ -89,6 +152,12 @@ defmodule AsyncWorlds.Discord.Dispatcher do
       :ok -> result
       _ -> {:error, :response_failed}
     end
+  end
+
+  defp route(%{type: 5, data: %{custom_id: id, components: components}}) do
+    if JournalModalSpike.enabled?(),
+      do: {:ok, {:journal_spike_submit, id, components}, :player},
+      else: {:error, :unknown_command}
   end
 
   defp route(%{type: 3, data: %{custom_id: "db:" <> _} = data}),

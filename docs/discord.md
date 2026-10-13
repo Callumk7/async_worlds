@@ -119,7 +119,9 @@ reapply world state. Inspect/retry individual outbox records in the console;
 ambiguous sends require explicit confirmation. See [delivery semantics](durable-work.md)
 and [review/publication](tick-review-publication.md).
 Quest buttons use the same application/guild/member authorization as commands.
-Unknown components get a private unsupported reply; autocomplete and modals are ignored.
+Unknown components get a private unsupported reply; autocomplete and unrelated
+modals are ignored. The opt-in development-only [ENG-44 journal modal spike](journal-modal-spike.md)
+adds legacy modal input and private previews without saving any entries.
 
 ## Single-account player testing (including live campaigns)
 
@@ -178,7 +180,7 @@ behind `AsyncWorlds.Discord.Adapter`. Guild interactions use the gateway's
 The dispatcher checks the application and configured guild, loads current
 campaign configuration, and uses `Campaigns.authorize_dm/2` for DM commands.
 
-All slash commands and quest components defer with response type 5 and ephemeral flag 64 **before**
+Ordinary slash commands and quest components defer with response type 5 and ephemeral flag 64 **before**
 database work. Denials, unknown commands and failures edit that private original
 response. Edits and ephemeral followups suppress automatic mentions. Responses
 split at 1,900 Unicode codepoints, keeping every message within Discord's 2,000

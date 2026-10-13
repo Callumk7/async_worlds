@@ -50,6 +50,11 @@ if config_env() != :test do
   end
 end
 
+# ENG-44 is an explicitly opt-in, development-only preview; no journal content is saved.
+config :async_worlds,
+       :journal_modal_spike,
+       config_env() == :dev and System.get_env("DISCORD_JOURNAL_SPIKE", "false") == "true"
+
 # Never connect to Discord in the normal test environment, even if the shell
 # contains production credentials. Local development is opt-in too.
 if config_env() != :test do
