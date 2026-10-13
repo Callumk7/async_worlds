@@ -155,9 +155,14 @@ defmodule AsyncWorldsWeb.QuestLive do
             <h1 class="mt-2 text-4xl font-semibold tracking-tight">Quest operations</h1>
             <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">
               Assign existing quest revisions and intervene in a character's journey.
-              Shared stories, independent positions. This is not a quest editor.
+              Shared stories, independent positions. Author and release content in the quest library.
             </p>
           </div>
+          <.link
+            id="open-quest-library"
+            navigate={~p"/quests/library"}
+            class="admin-button admin-secondary"
+          >Quest library & editor</.link>
           <button id="refresh-quests" phx-click="refresh" class="admin-button admin-secondary">
             <.icon name="hero-arrow-path" class="size-4" /> Refresh state
           </button>
@@ -297,7 +302,7 @@ defmodule AsyncWorldsWeb.QuestLive do
                   id="quest-content-empty"
                   class="text-sm text-slate-400"
                 >
-                  No quest content is available yet. Add validated content through the quest domain API; authoring forms are a later milestone.
+                  No quest content is available yet. Create or resume a working copy in the quest library, then release it for assignment.
                 </p>
                 <.form
                   for={@assignment_form}

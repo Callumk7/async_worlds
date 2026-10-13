@@ -18,6 +18,126 @@ defmodule AsyncWorlds.Quests.Definition do
     end
   end
 
+  @doc "Field-path diagnostics shared by imports and form releases; strict typed validation remains authoritative."
+  def errors(definition, clocks) do
+    if valid?(definition, clocks) do
+      []
+    else
+      diagnose(definition, clocks)
+    end
+  end
+
+  defp diagnose(%{"nodes" => nodes} = definition, clocks) when is_list(nodes) do
+    ids = Enum.map(nodes, &field(&1, "id"))
+
+    choices =
+      Enum.flat_map(nodes, fn n ->
+        case field(n, "choices") do
+          list when is_list(list) -> list
+          _ -> []
+        end
+      end)
+
+    choice_ids = Enum.map(choices, &field(&1, "id"))
+
+    errors =
+      issue([], "start_node", definition["start_node"] in ids, "Choose an existing start node")
+
+    errors = issue(errors, "nodes", nodes != [], "Add at least one node")
+
+    errors =
+      Enum.with_index(nodes)
+      |> Enum.reduce(errors, fn {node, i}, acc ->
+        path = "nodes[#{i}]"
+        id = field(node, "id")
+        cs = field(node, "choices")
+
+        acc =
+          acc
+          |> issue(
+            path <> ".id",
+            id?(id) and Enum.count(ids, &(&1 == id)) == 1,
+            "Node ID must be valid and unique"
+          )
+          |> issue(
+            path <> ".text",
+            text?(field(node, "text")),
+            "Narrative text is required (maximum 8000 bytes)"
+          )
+          |> issue(
+            path <> ".choices",
+            is_list(cs) and if(field(node, "ending") == true, do: cs == [], else: cs != []),
+            "Endings have no choices; other nodes need choices"
+          )
+
+        if is_list(cs) do
+          Enum.with_index(cs)
+          |> Enum.reduce(acc, fn {choice, j}, acc ->
+            cp = path <> ".choices[#{j}]"
+            cid = field(choice, "id")
+
+            acc =
+              acc
+              |> issue(
+                cp <> ".id",
+                id?(cid) and Enum.count(choice_ids, &(&1 == cid)) == 1,
+                "Choice ID must be valid and unique"
+              )
+              |> issue(cp <> ".label", text?(field(choice, "label")), "Choice label is required")
+
+            outcomes = field(choice, "outcomes")
+
+            acc =
+              if is_map(outcomes) do
+                Enum.reduce(outcomes, acc, fn {key, outcome}, acc ->
+                  op = cp <> ".outcomes." <> key
+
+                  acc
+                  |> issue(
+                    op <> ".text",
+                    text?(field(outcome, "text")),
+                    "Outcome text is required"
+                  )
+                  |> issue(
+                    op <> ".next_node",
+                    field(outcome, "next_node") in ids,
+                    "Choose an existing destination"
+                  )
+                end)
+              else
+                issue(acc, cp <> ".outcomes", false, "Outcomes are required")
+              end
+
+            issue(
+              acc,
+              cp,
+              is_map(choice) and choice?(choice, ids, clocks, :authoring),
+              "Invalid choice, condition, effect or outcome configuration"
+            )
+          end)
+        else
+          acc
+        end
+      end)
+
+    issue(
+      errors,
+      "definition",
+      keys?(definition, ~w(start_node nodes)) and Enum.all?(nodes, &node_shape?/1),
+      "Invalid node shape or ending configuration"
+    )
+    |> case do
+      [] -> [{"definition", "Invalid definition or campaign clock references"}]
+      errors -> Enum.reverse(errors)
+    end
+  end
+
+  defp diagnose(_, _), do: [{"definition", "A definition with nodes is required"}]
+  defp field(map, key) when is_map(map), do: Map.get(map, key)
+  defp field(_, _), do: nil
+  defp issue(errors, _, true, _), do: errors
+  defp issue(errors, path, _, message), do: [{path, message} | errors]
+
   defp valid_clocks?(clocks) when is_map(clocks) do
     Enum.all?(clocks, fn
       {id, %{segments: segments, filled: filled, completed: completed}}
@@ -37,7 +157,8 @@ defmodule AsyncWorlds.Quests.Definition do
 
   def text?(text),
     do:
-      is_binary(text) and String.valid?(text) and byte_size(text) in 1..8000 and
+      is_binary(text) and String.valid?(text) and String.trim(text) != "" and
+        byte_size(text) in 1..8000 and
         not String.contains?(text, <<0>>)
 
   def keys?(map, keys),

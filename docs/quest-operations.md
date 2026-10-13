@@ -1,4 +1,4 @@
-# Minimal DM quest operations (ENG-17)
+# DM quest library and operations (ENG-17 / ENG-30)
 
 ## Operator workflow
 
@@ -20,9 +20,51 @@ Alternatively, use a character's **Quests** link on `/characters`.
 5. **End quest** stops an active assignment without marking it completed.
    The character can then receive a new assignment.
 
-No content editor, graph view, resource administration or import workflow is
-introduced. Empty content explains that validated definitions must first be added
-through `Quests.create_quest/4` / `append_revision/4` (see quest-domain.md).
+## Fixed quest authoring (no JSON required)
+
+Open **Quest library & editor** from `/quests` (`/quests/library`). Empty libraries
+offer **New quest**; existing imported/released revisions offer **Edit a working
+copy**. Working copies are persistent but never appear in assignment controls.
+
+1. Give the quest a name and a stable **Content identity** (letters, numbers,
+   hyphens/underscores). After release that identity cannot change.
+2. Write the entry node's narrative. Add ordered fixed choices with labels,
+   outcome text and destinations selected by human-readable node descriptions.
+   Add a node for each destination, choose a **Start node**, and explicitly mark
+   terminal nodes as endings. Endings must have no choices; continuing nodes need
+   at least one choice. IDs are allocated once and preserved behind the forms.
+3. **Save working copy** accepts incomplete text and references. Refresh or reopen
+   its library link to resume. Unsaved typing remains only in the current tab.
+4. **Validate & release revision** checks all text, unique IDs, references,
+   conditions/effects and ending/choice consistency using the shared definition
+   validator. Errors identify field paths (node/choice indices start at zero).
+   Failed releases write nothing, including no partial draft/name changes.
+5. Return to **Assign released revisions** and select the released revision using
+   the existing audited assignment controls. Releasing again appends a revision;
+   existing assignments and frozen tick inputs still use their original revision.
+
+Example: **Meet the harbourmaster** entry narrative, **Introduce yourself** choice,
+**The harbourmaster smiles** outcome, destination **Welcome aboard** marked as an
+explicit ending. Save before completing the destination, refresh, repair it, then
+release and assign. `/quest` exposes the pinned entry and fixed choice; submission,
+close, private review and publication complete the ending through normal controls.
+
+The editor displays its working version and base revision. Saves/releases reject
+concurrent saves, releases, and imports that changed the latest base. A conflict
+retains local text: **Inspect saved copy** reloads persisted content without erasing
+the recovery snapshot; **Recover work as separate quest** persists that snapshot
+with a new content identity. It does not overwrite/rebase the changed quest.
+To edit that quest's latest revision, select its latest released revision and start
+a new working copy. Editing an older revision cannot replace a newer base.
+
+Imported rolled, conditional and effect-bearing choices are explicitly read-only,
+including destinations, and roundtrip intact. Node narrative and quest name remain
+editable. This slice does not expose dice, conditions, effects, resources, graph,
+AI or API editors. No deletion/reordering or automatic choice-to-ending conversion;
+node/choice IDs and order stay stable. Forms support up to 100 nodes and 100 choices
+per node, with text at most 8000 bytes (quest names at release: 200 bytes).
+Authoring/releasing may continue during review because they append content only;
+assignment/intervention locks and the publication guard remain unchanged.
 
 ## Authorization, invalidation and locking
 
