@@ -71,7 +71,9 @@ defmodule AsyncWorlds.Quests.AuthoringTest do
       ["nodes", Access.at(0), "choices", Access.at(0), "outcomes", "fixed", "next_node"]
     ]
 
-    for path <- paths, invalid <- [nil, 123, :invalid, [], %{}] do
+    for path <- paths,
+        invalid <- [nil, 123, :invalid, [], %{}],
+        not (length(path) == 3 and List.last(path) == "choices" and invalid == []) do
       refute Authoring.safe_edit?(old, put_in(old, path, invalid))
     end
 
@@ -154,7 +156,50 @@ defmodule AsyncWorlds.Quests.AuthoringTest do
     end
   end
 
-  test "stable IDs, order, deletions and unmodeled fields remain protected" do
+  test "structural operations match stable IDs and preserve opaque data and broken references" do
+    old = definition()
+    moved = Authoring.restructure(old, "up", "end")
+    assert Enum.map(moved["nodes"], & &1["id"]) == ["end", "hub"]
+    assert moved["start_node"] == "hub"
+    assert Authoring.safe_edit?(old, moved)
+    removed = Authoring.restructure(moved, "remove", "end")
+    assert Authoring.safe_edit?(old, removed)
+
+    assert get_in(hd(removed["nodes"]), [
+             "choices",
+             Access.at(1),
+             "outcomes",
+             "fixed",
+             "next_node"
+           ]) == "end"
+
+    assert Authoring.restructure(removed, "remove", "hub") == removed
+    assert Authoring.restructure(old, "down", "foreign") == old
+    reordered = Authoring.restructure(old, "up", "hub", "finish")
+    assert hd(hd(reordered["nodes"])["choices"])["id"] == "finish"
+    assert Authoring.safe_edit?(old, reordered)
+    assert Authoring.safe_edit?(old, Authoring.restructure(old, "remove", "hub", "loop"))
+
+    emptied =
+      old
+      |> Authoring.restructure("remove", "hub", "loop")
+      |> Authoring.restructure("remove", "hub", "finish")
+
+    explicit_ending = put_in(emptied, ["nodes", Access.at(0), "ending"], true)
+    assert Authoring.safe_edit?(old, explicit_ending)
+    refute Authoring.safe_edit?(Map.put(old, "opaque", 1), Map.put(old, "opaque", 2))
+    choice = Authoring.new_choice()
+    node = Authoring.new_node() |> Map.put("choices", [choice])
+    other = Authoring.new_node()
+    d = %{"start_node" => node["id"], "nodes" => [node, other]}
+
+    reparented =
+      Map.put(d, "nodes", [Map.put(node, "choices", []), Map.put(other, "choices", [choice])])
+
+    refute Authoring.safe_edit?(d, reparented)
+  end
+
+  test "stable IDs and unmodeled fields protected; deletion and ordering now supported" do
     old = draft()
     path = ["nodes", Access.at(0), "choices", Access.at(0)]
 
@@ -162,16 +207,17 @@ defmodule AsyncWorlds.Quests.AuthoringTest do
     refute Authoring.safe_edit?(old, put_in(old, path ++ ["conditions"], [%{"type" => "custom"}]))
     refute Authoring.safe_edit?(old, put_in(old, path ++ ["outcomes", "fixed", "effects"], [1]))
     refute Authoring.safe_edit?(old, put_in(old, ["nodes", Access.at(0), "id"], "forged"))
-    refute Authoring.safe_edit?(old, put_in(old, ["nodes", Access.at(0), "choices"], []))
+    assert Authoring.safe_edit?(old, put_in(old, ["nodes", Access.at(0), "choices"], []))
     refute Authoring.safe_edit?(old, Map.put(old, "extra", true))
 
     imported = definition()
-    refute Authoring.safe_edit?(imported, Map.update!(imported, "nodes", &Enum.reverse/1))
-    refute Authoring.safe_edit?(imported, Map.update!(imported, "nodes", &Enum.take(&1, 1)))
+    assert Authoring.safe_edit?(imported, Map.update!(imported, "nodes", &Enum.reverse/1))
+    assert Authoring.safe_edit?(imported, Map.update!(imported, "nodes", &Enum.take(&1, 1)))
 
     reversed =
       update_in(imported, ["nodes", Access.at(0), "choices"], &Enum.reverse/1)
 
-    refute Authoring.safe_edit?(imported, reversed)
+    assert Authoring.safe_edit?(imported, reversed)
+    refute Authoring.safe_edit?(imported, Map.update!(imported, "nodes", &(&1 ++ &1)))
   end
 end

@@ -20,11 +20,12 @@ defmodule AsyncWorlds.Quests.Definition do
 
   @doc "Field-path diagnostics shared by imports and form releases; strict typed validation remains authoritative."
   def errors(definition, clocks) do
-    if valid?(definition, clocks) do
-      []
-    else
-      diagnose(definition, clocks)
-    end
+    structural = if valid?(definition, clocks), do: [], else: diagnose(definition, clocks)
+    references = AsyncWorlds.Quests.Graph.analyze(definition).errors
+    paths = MapSet.new(references, & &1.path)
+
+    Enum.reject(structural, fn {path, _} -> MapSet.member?(paths, path) end) ++
+      Enum.map(references, &{&1.path, &1.message})
   end
 
   defp diagnose(%{"nodes" => nodes} = definition, clocks) when is_list(nodes) do

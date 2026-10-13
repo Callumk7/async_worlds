@@ -68,8 +68,15 @@ the pinned revision. Each actual quest intervention is audited and clears that
 character's open choice. Stale editors and resolving/review locks are enforced
 by the shared domain, not just disabled controls. See
 [quest-operations.md](quest-operations.md) for the full operational checklist.
-Content authoring, player Discord choice controls and quest tick execution are
-separate milestones/issues; these controls do not run choices immediately.
+Use **Quest library & editor** to author fixed branching or cyclic quests. Save
+incomplete copies, inspect the read-only directed graph, and select diagnostics
+to repair broken start/destination links. Removing a referenced node asks for
+confirmation and keeps broken references for repair; unreachable warnings do not
+block release. Release appends immutable content; existing assignments stay pinned.
+Imported rolled/conditional/effect-bearing choices remain opaque but all outcomes
+are visible in the graph. See [quest-operations.md](quest-operations.md) for the
+short authoring/recovery guide. Players run choices through normal Discord ticks,
+not by editing the graph or assigning a quest.
 
 ## Delivery failures
 

@@ -2,7 +2,9 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
   alias AsyncWorlds.Quests
-  alias AsyncWorlds.Quests.Authoring
+  alias AsyncWorlds.Quests.{Authoring, Graph}
+  alias AsyncWorldsWeb.QuestGraph
+  alias Phoenix.LiveView.JS
 
   @impl true
   def mount(_, _, socket) do
@@ -13,7 +15,8 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
        recovery: nil,
        recoveries: %{},
        errors: [],
-       conflict: false
+       conflict: false,
+       removal: nil
      )}
   end
 
@@ -70,12 +73,14 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
     end
   end
 
-  def handle_event("add-choice", %{"index" => index}, socket) when is_binary(index) do
+  def handle_event("add-choice", %{"node" => node_id}, socket) when is_binary(node_id) do
     work = socket.assigns.work
 
-    with {i, ""} <- Integer.parse(index),
-         true <- i >= 0 and i < length(work.definition["nodes"]),
-         true <- length(Enum.at(work.definition["nodes"], i)["choices"]) < 100 do
+    with i when is_integer(i) <-
+           Enum.find_index(work.definition["nodes"], &(&1["id"] == node_id)),
+         node = Enum.at(work.definition["nodes"], i),
+         false <- node["ending"],
+         true <- length(node["choices"]) < 100 do
       nodes =
         List.update_at(work.definition["nodes"], i, fn node ->
           Map.update!(node, "choices", &(&1 ++ [Authoring.new_choice()]))
@@ -86,6 +91,28 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
       _ -> {:noreply, socket}
     end
   end
+
+  def handle_event("structure", %{"action" => action, "node" => node_id} = params, socket)
+      when action in ["up", "down", "remove"] do
+    work = socket.assigns.work
+    choice_id = params["choice"]
+    inbound = Graph.inbound(work.definition, node_id)
+
+    if action == "remove" and is_nil(choice_id) and inbound != [] do
+      {:noreply, assign(socket, removal: %{node: node_id, inbound: inbound})}
+    else
+      definition = Authoring.restructure(work.definition, action, node_id, choice_id)
+      {:noreply, set_work(socket, %{work | definition: definition})}
+    end
+  end
+
+  def handle_event("confirm-remove", _, %{assigns: %{removal: %{node: id}}} = socket) do
+    work = socket.assigns.work
+    definition = Authoring.restructure(work.definition, "remove", id)
+    {:noreply, set_work(socket, %{work | definition: definition})}
+  end
+
+  def handle_event("cancel-remove", _, socket), do: {:noreply, assign(socket, :removal, nil)}
 
   def handle_event("save", %{"operation" => "release", "quest" => params}, socket)
       when is_map(params),
@@ -241,8 +268,16 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
       recovery: Map.get(socket.assigns.recoveries, work.id),
       form: to_form(Authoring.form_params(work), as: :quest),
       node_options: options,
+      graph: Graph.analyze(work.definition),
+      removal: nil,
       errors: []
     )
+  end
+
+  defp destination_options(options, current) do
+    if current in Enum.map(options, &elem(&1, 1)) or current in [nil, ""],
+      do: options,
+      else: [{"Missing: #{current} (repair this link)", current} | options]
   end
 
   defp library_error(:unsupported_edit),
@@ -321,7 +356,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
               </article>
             </div>
           </aside>
-          <section class="admin-panel space-y-5">
+          <section class="admin-panel min-w-0 space-y-5">
             <p :if={!@work} id="library-editor-empty" class="text-slate-400 py-12 text-center">
               Create or resume a working copy to begin.
             </p>
@@ -332,8 +367,28 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                   else: "none (new quest)"}
               </p>
               <p id="unsupported-policy" class="rounded-xl bg-sky-300/5 p-4 text-sm text-slate-300">
-                Fixed choices only. Imported rolled choices, conditions and effects are preserved intact and read-only. IDs and order remain stable. No deletion, reordering or automatic ending conversion.
+                Fixed choices only. Imported rolled choices, conditions and effects are preserved intact and read-only. IDs remain stable when reordered. Removing nodes retains inbound references for repair; endings are never converted automatically.
               </p>
+              <QuestGraph.graph graph={@graph} definition={@work.definition} />
+              <div
+                :if={@removal}
+                id="node-removal-warning"
+                role="alert"
+                class="rounded-xl border border-amber-300/30 p-4 space-y-3"
+              >
+                <p>
+                  This node has {length(@removal.inbound)} inbound links. References from retained nodes stay broken for repair and block release.
+                </p>
+                <ul>
+                  <li :for={edge <- @removal.inbound}>{edge.path} → {@removal.node}</li>
+                </ul>
+                <button id="confirm-remove-node" phx-click="confirm-remove" class="admin-button">Remove and retain broken references</button>
+                <button
+                  id="cancel-remove-node"
+                  phx-click="cancel-remove"
+                  class="admin-button admin-secondary"
+                >Cancel</button>
+              </div>
               <div
                 :if={@conflict || @recovery}
                 id="draft-conflict"
@@ -351,7 +406,13 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                 role="alert"
                 class="text-sm text-rose-300 space-y-2"
               >
-                <li :for={{path, message} <- @errors}><strong>{path}</strong>: {message}</li>
+                <li :for={{path, message} <- @errors}>
+                  <a
+                    href={"##{QuestGraph.target(path, @work.definition)}"}
+                    phx-click={JS.focus(to: "##{QuestGraph.target(path, @work.definition)}")}
+                    class="underline break-all"
+                  ><strong>{path}</strong>: {message}</a>
+                </li>
               </ul>
               <.form
                 for={@form}
@@ -373,7 +434,10 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                   id="quest-start-node"
                   type="select"
                   label="Start node"
-                  options={@node_options}
+                  prompt={
+                    if(@work.definition["start_node"] == "", do: "Choose a start node", else: nil)
+                  }
+                  options={destination_options(@node_options, @work.definition["start_node"])}
                   class="admin-input"
                 />
                 <%= for {node, i} <- Enum.with_index(@work.definition["nodes"]) do %>
@@ -382,6 +446,26 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                     class="rounded-xl border border-white/10 p-4 space-y-4"
                   >
                     <h3 class="font-semibold">Node {i + 1}</h3>
+                    <div class="flex gap-3 text-xs">
+                      <button
+                        :for={action <- ["up", "down"]}
+                        id={"move-node-#{i}-#{action}"}
+                        type="button"
+                        phx-click="structure"
+                        phx-value-action={action}
+                        phx-value-node={node["id"]}
+                        class="admin-button admin-secondary"
+                      >Move {action}</button>
+                      <button
+                        id={"remove-node-#{i}"}
+                        type="button"
+                        phx-click="structure"
+                        phx-value-action="remove"
+                        phx-value-node={node["id"]}
+                        disabled={length(@work.definition["nodes"]) == 1}
+                        class="admin-button admin-secondary"
+                      >Remove node</button>
+                    </div>
                     <.input
                       field={@form["node_#{i}_text"]}
                       id={"node-#{i}-text"}
@@ -404,8 +488,21 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                     <%= for {choice, j} <- Enum.with_index(node["choices"]) do %>
                       <div
                         id={"editor-choice-#{i}-#{j}"}
+                        tabindex="-1"
                         class="border-t border-white/10 pt-4 space-y-3"
                       >
+                        <div class="flex gap-3 text-xs">
+                          <button
+                            :for={action <- ["up", "down", "remove"]}
+                            id={"choice-#{i}-#{j}-#{action}"}
+                            type="button"
+                            phx-click="structure"
+                            phx-value-action={action}
+                            phx-value-node={node["id"]}
+                            phx-value-choice={choice["id"]}
+                            class="admin-button admin-secondary"
+                          >{action} choice</button>
+                        </div>
                         <%= if Authoring.editable?(choice) do %>
                           <p class="text-xs text-slate-500">Choice {j + 1} · fixed outcome</p>
                           <.input
@@ -427,10 +524,22 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                             type="select"
                             prompt="Choose a destination"
                             label="Destination"
-                            options={@node_options}
+                            options={
+                              destination_options(
+                                @node_options,
+                                choice["outcomes"]["fixed"]["next_node"]
+                              )
+                            }
                             class="admin-input"
                           />
                         <% else %>
+                          <span
+                            id={"choice-#{i}-#{j}-destination"}
+                            tabindex="-1"
+                            class="block text-xs text-slate-400"
+                          >Destinations: {Enum.map_join(choice["outcomes"], ", ", fn {kind, outcome} ->
+                            "#{kind} → #{outcome["next_node"]}"
+                          end)}</span>
                           <p id={"protected-choice-#{i}-#{j}"} class="text-sm text-sky-200">
                             {choice["label"]} · {choice["mode"]} · read-only imported configuration (conditions/effects preserved)
                           </p>
@@ -441,7 +550,7 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                       id={"add-choice-#{i}"}
                       type="button"
                       phx-click="add-choice"
-                      phx-value-index={i}
+                      phx-value-node={node["id"]}
                       disabled={node["ending"] || length(node["choices"]) >= 100}
                       class="admin-button admin-secondary"
                     >Add ordered fixed choice</button>
