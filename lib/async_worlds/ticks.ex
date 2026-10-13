@@ -23,6 +23,16 @@ defmodule AsyncWorlds.Ticks do
     end
   end
 
+  @doc "Numbered lookup for DM-facing filters; numbers are assigned on open."
+  def fetch_tick_by_number(campaign_id, number) when is_integer(number) and number > 0 do
+    case Repo.get_by(Tick, campaign_id: campaign_id, number: number) do
+      nil -> {:error, :not_found}
+      tick -> {:ok, tick}
+    end
+  end
+
+  def fetch_tick_by_number(_, _), do: {:error, :not_found}
+
   def active_tick(campaign_id) do
     Repo.one(from t in Tick, where: t.campaign_id == ^campaign_id and t.status != :published)
   end
@@ -34,6 +44,11 @@ defmodule AsyncWorlds.Ticks do
         order_by: [desc: t.number],
         limit: 1
     )
+  end
+
+  @doc "Batch read for DM views attributing records to ticks; never returns drafts."
+  def fetch_ticks(campaign_id, ids) when is_list(ids) do
+    Repo.all(from t in Tick, where: t.campaign_id == ^campaign_id and t.id in ^ids)
   end
 
   def fetch_snapshot(campaign_id, tick_id) do
@@ -386,6 +401,7 @@ defmodule AsyncWorlds.Ticks do
         Repo.insert!(%Audit{
           campaign_id: campaign_id,
           clock_id: clock.id,
+          tick_id: tick.id,
           operation: "publish",
           source: effect["source"],
           before: before,

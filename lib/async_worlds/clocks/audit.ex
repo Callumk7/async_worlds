@@ -5,6 +5,7 @@ defmodule AsyncWorlds.Clocks.Audit do
   schema "clock_audits" do
     belongs_to :campaign, AsyncWorlds.Campaigns.Campaign
     belongs_to :clock, AsyncWorlds.Clocks.Clock
+    belongs_to :tick, AsyncWorlds.Ticks.Tick
     field :source, :string
     field :operation, :string
     field :before, :map

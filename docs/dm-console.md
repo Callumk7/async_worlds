@@ -28,6 +28,29 @@ never form fields.
    polling. Retryable jobs automatically retry under Oban; discarded/cancelled
    processing requires diagnosed, authorized operator intervention (see
    [durable work](durable-work.md)). Raw worker exception payloads are not shown.
+
+## Operational readiness and delivery status (ENG-37)
+
+The overview answers who is missing, what changed and which message failed.
+Everything refreshes together through **Refresh status**; the header shows the
+last refresh time and nothing updates live, so frozen and live data never mix.
+
+- **Readiness roster** lists every character with its owner, active quest and
+  node, and a submitted/missing/no-active-quest state. Unassigned (DM-controlled)
+  characters and invalidated earlier choices are flagged separately from
+  genuinely missing player choices. Counts match the informational readiness
+  totals exactly and never block closing the tick. While the tick is closed the
+  roster is the frozen snapshot and says so. Rows link to character and quest
+  administration.
+- **Recent clock changes** name the affected clock, the tick active when the
+  change was recorded, the source, and the fill transition. Hidden clocks stay
+  visible here and in the clock list; the dashboard is DM-only.
+- **Outgoing deliveries** filter by tick number, recipient, kind and status.
+  Unknown ticks narrow to nothing rather than widening the search. Each record
+  links to its published history or in-review page where available. Retrying a
+  failed or explicitly confirmed ambiguous delivery requeues only that record
+  with a generation check; it never republishes the tick or resends unrelated
+  records. Error summaries show classified reasons only, never raw exceptions.
 5. **Review:** inspect every frozen/resulting clock and source-labelled downstream
    consequence. A signed delta override replaces the clock's background delta
    for this tick; blank restores frozen behavior. Each edit requires an audit

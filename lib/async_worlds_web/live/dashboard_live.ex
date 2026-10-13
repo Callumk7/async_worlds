@@ -2,14 +2,43 @@ defmodule AsyncWorldsWeb.DashboardLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
   alias AsyncWorlds.{Campaigns, Clocks, Deliveries, Ticks}
+  alias AsyncWorlds.Quests.Submissions
+
+  @filter_fields [:status, :kind, :tick, :recipient]
+
+  @status_filters %{
+    "pending" => :pending,
+    "sending" => :sending,
+    "sent" => :sent,
+    "failed" => :failed,
+    "ambiguous" => :ambiguous
+  }
+
+  @kind_filters %{"public" => :public, "private" => :private}
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket |> assign(page_title: "Campaign command center") |> refresh()}
+    {:ok,
+     socket
+     |> assign(
+       page_title: "Campaign command center",
+       delivery_filters: %{},
+       delivery_filter_form: filter_form(%{})
+     )
+     |> refresh()}
   end
 
   @impl true
   def handle_event("refresh_authorization", _params, socket), do: {:noreply, refresh(socket)}
+
+  def handle_event("filter_deliveries", %{"filter" => params}, socket) do
+    filters = parse_filters(campaign_id(socket), params)
+
+    {:noreply,
+     socket
+     |> assign(delivery_filters: filters, delivery_filter_form: filter_form(params))
+     |> refresh()}
+  end
 
   def handle_event("open_tick", _params, socket) do
     {:noreply,
@@ -60,20 +89,30 @@ defmodule AsyncWorldsWeb.DashboardLive do
     clocks = Clocks.list_clocks(id)
     jobs = if tick, do: elem(Ticks.resolution_jobs(id, tick.id), 1), else: []
 
-    readiness =
-      if tick,
-        do:
-          elem(
-            AsyncWorlds.Quests.Submissions.readiness(campaign, scope.discord_user_id, tick.id),
-            1
-          ),
-        else: nil
+    roster =
+      if tick do
+        case Submissions.readiness_roster(campaign, scope.discord_user_id, tick.id) do
+          {:ok, roster} -> roster
+          {:error, _} -> nil
+        end
+      end
+
+    audits =
+      Enum.map(Clocks.recent_audits(id), fn audit ->
+        %{id: audit.id, audit: audit}
+      end)
+
+    records = deliveries_raw(socket, id)
+
+    ticks =
+      tick_map(id, Enum.map(records, & &1.tick_id) ++ Enum.map(audits, & &1.audit.tick_id))
 
     deliveries =
-      Enum.map(Deliveries.recent_deliveries(id), fn delivery ->
+      Enum.map(records, fn delivery ->
         %{
           id: delivery.id,
           delivery: delivery,
+          tick: ticks[delivery.tick_id],
           form:
             params_form(
               %{"generation" => to_string(delivery.generation), "confirm" => "false"},
@@ -84,12 +123,90 @@ defmodule AsyncWorldsWeb.DashboardLive do
         }
       end)
 
+    audits = Enum.map(audits, fn item -> Map.put(item, :tick, ticks[item.audit.tick_id]) end)
+
     socket
-    |> assign(tick: tick, clock_count: length(clocks), readiness: readiness)
+    |> assign(
+      tick: tick,
+      clock_count: length(clocks),
+      readiness: roster && roster.counts,
+      roster: roster,
+      refreshed_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    )
     |> stream(:clocks, clocks, reset: true)
-    |> stream(:audits, Clocks.recent_audits(id), reset: true)
+    |> stream(:audits, audits, reset: true)
     |> stream(:jobs, jobs, reset: true)
     |> stream(:deliveries, deliveries, reset: true)
+    |> stream(:roster, (roster && roster.rows) || [], reset: true)
+  end
+
+  defp deliveries_raw(socket, campaign_id) do
+    filters = socket.assigns.delivery_filters
+
+    case filters do
+      %{tick_id: :unknown} ->
+        []
+
+      filters ->
+        case Deliveries.search_deliveries(campaign_id, filters) do
+          {:ok, deliveries} -> deliveries
+          {:error, :invalid_filter} -> []
+        end
+    end
+  end
+
+  defp tick_map(_campaign_id, []), do: %{}
+
+  defp tick_map(campaign_id, tick_ids) do
+    ids = tick_ids |> Enum.reject(&is_nil/1) |> Enum.uniq()
+    Map.new(Ticks.fetch_ticks(campaign_id, ids), &{&1.id, &1})
+  end
+
+  defp filter_form(params),
+    do:
+      params_form(Map.new(@filter_fields, &{&1, params[to_string(&1)] || ""}), @filter_fields,
+        as: :filter,
+        id: "delivery-filters"
+      )
+
+  # Parses the DM-facing filter form into whitelisted domain filters. A tick
+  # number that does not resolve in this campaign yields the `:unknown` marker,
+  # which shows an empty result instead of widening the search.
+  defp parse_filters(campaign_id, params) do
+    %{}
+    |> put_filter(:status, @status_filters[params["status"] || ""])
+    |> put_filter(:kind, @kind_filters[params["kind"] || ""])
+    |> put_tick_filter(campaign_id, params["tick"])
+    |> put_recipient_filter(params["recipient"])
+  end
+
+  defp put_filter(filters, _key, nil), do: filters
+  defp put_filter(filters, key, value), do: Map.put(filters, key, value)
+
+  defp put_tick_filter(filters, campaign_id, value) do
+    case String.trim(value || "") do
+      "" ->
+        filters
+
+      trimmed ->
+        case Integer.parse(trimmed) do
+          {number, ""} when number > 0 ->
+            case Ticks.fetch_tick_by_number(campaign_id, number) do
+              {:ok, tick} -> Map.put(filters, :tick_id, tick.id)
+              {:error, _} -> Map.put(filters, :tick_id, :unknown)
+            end
+
+          _ ->
+            Map.put(filters, :tick_id, :unknown)
+        end
+    end
+  end
+
+  defp put_recipient_filter(filters, value) do
+    case String.trim(value || "") do
+      "" -> filters
+      recipient -> Map.put(filters, :recipient_id, recipient)
+    end
   end
 
   @impl true
@@ -110,13 +227,19 @@ defmodule AsyncWorldsWeb.DashboardLive do
               Private DM workspace. Players see only the last published state.
             </p>
           </div>
-          <button
-            id="refresh-authorization"
-            phx-click="refresh_authorization"
-            class="admin-button admin-secondary"
-          >
-            <.icon name="hero-arrow-path" class="size-4" /> Refresh status
-          </button>
+          <div class="text-right">
+            <button
+              id="refresh-authorization"
+              phx-click="refresh_authorization"
+              class="admin-button admin-secondary"
+            >
+              <.icon name="hero-arrow-path" class="size-4" /> Refresh status
+            </button>
+            <p id="dashboard-freshness" class="mt-2 text-xs text-slate-500">
+              Refreshed {Calendar.strftime(@refreshed_at, "%Y-%m-%d %H:%M:%S")} UTC · this page
+              updates only on explicit refresh.
+            </p>
+          </div>
         </header>
 
         <section
@@ -181,6 +304,93 @@ defmodule AsyncWorldsWeb.DashboardLive do
           </div>
         </section>
 
+        <section id="readiness-roster" class="admin-panel">
+          <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold">Readiness roster</h2>
+            <.link
+              id="roster-manage-characters"
+              navigate={~p"/characters"}
+              class="text-sm text-amber-300 hover:text-amber-100"
+            >
+              Manage characters
+            </.link>
+          </div>
+          <%= if is_nil(@tick) do %>
+            <p id="roster-no-tick" class="text-sm text-slate-400">
+              No active tick. Open the next tick to track who still owes a choice.
+            </p>
+          <% else %>
+            <p :if={@roster && @roster.frozen} id="roster-frozen" class="mb-4 text-sm text-slate-400">
+              Tick {@roster.tick_number} is closed; this roster reflects the frozen inputs, and live
+              management is locked until publication.
+            </p>
+            <div id="roster-rows" phx-update="stream" class="space-y-3">
+              <p id="roster-rows-empty" class="hidden only:block text-sm text-slate-400">
+                No characters yet. Create characters to track their readiness.
+              </p>
+              <article
+                :for={{dom_id, row} <- @streams.roster}
+                id={dom_id}
+                class="rounded-xl border border-white/10 p-4"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p class="font-medium">
+                      <.link navigate={~p"/characters"} class="text-slate-100 hover:text-amber-100">
+                        {row.name}
+                      </.link>
+                      <span
+                        :if={row.unassigned}
+                        id={"roster-unassigned-#{row.character_id}"}
+                        class="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-slate-300"
+                      >
+                        Unassigned · DM controlled
+                      </span>
+                    </p>
+                    <p class="mt-1 text-xs text-slate-400">
+                      <%= if row.unassigned do %>
+                        No linked Discord player
+                      <% else %>
+                        Player {row.discord_user_id}
+                      <% end %>
+                    </p>
+                  </div>
+                  <div class="text-right">
+                    <%= if row.state == :no_active_quest do %>
+                      <p class="text-sm text-slate-400">No active quest</p>
+                    <% else %>
+                      <p class="text-sm">
+                        <.link navigate={~p"/quests"} class="text-amber-300 hover:text-amber-100">
+                          {row.quest_name || "Quest"}
+                        </.link>
+                        <span class="text-slate-400">· node {row.node_id}</span>
+                      </p>
+                    <% end %>
+                    <p
+                      id={"roster-state-#{row.character_id}"}
+                      class={[
+                        "mt-1 text-sm font-medium",
+                        row.state == :submitted && "text-emerald-300",
+                        row.state == :missing && "text-amber-200",
+                        row.state == :no_active_quest && "text-slate-400"
+                      ]}
+                    >
+                      {roster_state_label(row.state)}
+                    </p>
+                    <p
+                      :if={row.invalidated}
+                      id={"roster-invalidated-#{row.character_id}"}
+                      class="mt-1 text-xs text-rose-300"
+                    >
+                      Earlier choice is no longer eligible; a new choice is needed.
+                    </p>
+                  </div>
+                </div>
+              </article>
+            </div>
+          <% end %>
+        </section>
+
         <div class="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
           <section class="admin-panel">
             <div class="mb-5 flex items-center justify-between">
@@ -233,15 +443,34 @@ defmodule AsyncWorldsWeb.DashboardLive do
                 No clock changes recorded.
               </p>
               <article
-                :for={{dom_id, audit} <- @streams.audits}
+                :for={{dom_id, item} <- @streams.audits}
                 id={dom_id}
                 class="border-b border-white/10 pb-3 text-sm"
               >
                 <p>
-                  Clock #{audit.clock_id} · {audit.operation}
-                  <span class="text-amber-200">{audit.before["filled"] || 0} → {audit.after["filled"]}</span>
+                  <.link navigate={~p"/clocks"} class="text-amber-300 hover:text-amber-100">
+                    {clock_audit_name(item.audit)}
+                  </.link>
+                  <span
+                    :if={clock_audit_hidden?(item.audit)}
+                    class="ml-1 rounded-full bg-white/10 px-2 py-0.5 text-xs text-slate-300"
+                  >
+                    hidden
+                  </span>
+                  · {item.audit.operation}
+                  <span class="text-amber-200">
+                    {item.audit.before["filled"] || 0} → {item.audit.after["filled"]}
+                  </span>
                 </p>
-                <p class="mt-1 break-all text-xs text-slate-500">{audit.source}</p>
+                <p class="mt-1 break-all text-xs text-slate-500">
+                  <%= if item.tick do %>
+                    <span id={"audit-tick-#{item.audit.id}"}>Tick {item.tick.number}</span> ·
+                  <% end %>
+                  {item.audit.source} · {Calendar.strftime(
+                    item.audit.inserted_at,
+                    "%Y-%m-%d %H:%M:%S"
+                  )} UTC
+                </p>
               </article>
             </div>
           </section>
@@ -277,9 +506,51 @@ defmodule AsyncWorldsWeb.DashboardLive do
           <p class="mb-5 mt-2 text-sm text-slate-400">
             Retry a specific failed send, never republish. Ambiguous sends may already exist in Discord.
           </p>
+          <.form
+            for={@delivery_filter_form}
+            id="delivery-filters"
+            phx-change="filter_deliveries"
+            class="admin-form mb-5 flex flex-wrap items-end gap-3"
+          >
+            <.input
+              field={@delivery_filter_form[:status]}
+              type="select"
+              label="Status"
+              options={[
+                All: "",
+                Pending: "pending",
+                Sending: "sending",
+                Sent: "sent",
+                Failed: "failed",
+                Ambiguous: "ambiguous"
+              ]}
+              class="admin-input"
+            />
+            <.input
+              field={@delivery_filter_form[:kind]}
+              type="select"
+              label="Kind"
+              options={[All: "", Public: "public", Private: "private"]}
+              class="admin-input"
+            />
+            <.input
+              field={@delivery_filter_form[:tick]}
+              type="text"
+              label="Tick number"
+              placeholder="Any"
+              class="admin-input"
+            />
+            <.input
+              field={@delivery_filter_form[:recipient]}
+              type="text"
+              label="Recipient ID"
+              placeholder="Any"
+              class="admin-input"
+            />
+          </.form>
           <div id="delivery-list" phx-update="stream" class="space-y-4">
             <p id="delivery-list-empty" class="hidden only:block text-sm text-slate-400">
-              Nothing queued yet.
+              Nothing matches the current filters.
             </p>
             <article
               :for={{dom_id, item} <- @streams.deliveries}
@@ -289,10 +560,37 @@ defmodule AsyncWorldsWeb.DashboardLive do
               <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p class="font-medium">
-                    Tick #{item.delivery.tick_id} · {item.delivery.kind} · {item.delivery.status}
+                    <span :if={item.tick}>Tick {item.tick.number}</span>
+                    <span :if={is_nil(item.tick)}>Tick #{item.delivery.tick_id}</span>
+                    · {item.delivery.kind} ·
+                    <span
+                      id={"delivery-status-#{item.id}"}
+                      class={delivery_status_class(item.delivery.status)}
+                    >
+                      {item.delivery.status}
+                    </span>
+                    <.link
+                      :if={item.tick && item.tick.status == :published}
+                      id={"delivery-history-#{item.id}"}
+                      navigate={~p"/ticks/#{item.tick.id}/history"}
+                      class="ml-2 text-xs text-amber-300 hover:text-amber-100"
+                    >
+                      History
+                    </.link>
+                    <.link
+                      :if={item.tick && item.tick.status == :in_review}
+                      id={"delivery-review-#{item.id}"}
+                      navigate={~p"/ticks/#{item.tick.id}/review"}
+                      class="ml-2 text-xs text-amber-300 hover:text-amber-100"
+                    >
+                      Review
+                    </.link>
                   </p>
                   <p class="mt-1 text-xs text-slate-400">
                     Recipient {item.delivery.recipient_id} · attempts {item.delivery.attempts}
+                    <span :if={item.delivery.error_class}>
+                      · {item.delivery.error_class} error
+                    </span>
                     <span :if={item.delivery.last_error}>· {item.delivery.last_error}</span>
                   </p>
                 </div>
@@ -328,6 +626,21 @@ defmodule AsyncWorldsWeb.DashboardLive do
     </Layouts.app>
     """
   end
+
+  defp roster_state_label(:submitted), do: "Submitted"
+  defp roster_state_label(:missing), do: "Missing choice"
+  defp roster_state_label(:no_active_quest), do: "No active quest"
+
+  defp clock_audit_name(audit),
+    do: audit.after["name"] || audit.before["name"] || "Clock ##{audit.clock_id}"
+
+  defp clock_audit_hidden?(audit),
+    do: audit.after["visibility"] == "hidden" or audit.before["visibility"] == "hidden"
+
+  defp delivery_status_class(:failed), do: "text-rose-300"
+  defp delivery_status_class(:ambiguous), do: "text-amber-200"
+  defp delivery_status_class(:sent), do: "text-emerald-300"
+  defp delivery_status_class(_), do: "text-slate-300"
 
   defp status_label(:in_review), do: "in review"
   defp status_label(status), do: to_string(status)

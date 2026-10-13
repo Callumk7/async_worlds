@@ -179,6 +179,9 @@ defmodule AsyncWorldsWeb.AdminComponents do
   def error_message(:not_retryable),
     do: "Only failed or explicitly confirmed ambiguous deliveries can be retried."
 
+  def error_message(:invalid_filter),
+    do: "That delivery filter is not supported. Refresh and choose from the listed options."
+
   def error_message(:already_published),
     do: "This tick is already published. Do not republish to retry delivery."
 
