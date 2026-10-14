@@ -61,3 +61,5 @@ and duplicate-key validation. See [quest import](quest-import.md) for payloads.
 - [Published and personal history](http-history.md)
 
 - [Delivery inspection and retry](http-deliveries.md)
+
+- [Journal operations](http-journals.md)

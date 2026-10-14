@@ -40,6 +40,43 @@ defmodule AsyncWorlds.Journals do
     end
   end
 
+  @doc "Explicit DM journal browsing, independent of Discord debug personas."
+  def dm_list_entries(scope, character_id, cursor \\ nil) do
+    with {:ok, cursor} <- cursor(cursor) do
+      DMAccess.run(scope, fn campaign, _actor ->
+        id = id!(character_id)
+
+        unless Repo.get_by(Character, campaign_id: campaign.id, id: id),
+          do: Repo.rollback(:not_found)
+
+        {:ok, page(where(visible_query(campaign, nil), [e], e.character_id == ^id), cursor)}
+      end)
+    end
+  end
+
+  def dm_get_entry(scope, entry_id) do
+    DMAccess.run(scope, fn campaign, actor ->
+      entry = deletable!(campaign, nil, entry_id)
+      {:ok, %{entry: entry, delete_binding: dm_delete_binding(campaign, actor, entry.id)}}
+    end)
+  end
+
+  @doc "Delete under fresh DM authorization with a retained target/configuration confirmation binding."
+  def dm_delete_entry(scope, entry_id, expected_binding) do
+    DMAccess.run(scope, fn campaign, actor ->
+      id = id!(entry_id)
+
+      unless expected_binding == dm_delete_binding(campaign, actor, id),
+        do: Repo.rollback(:stale_component)
+
+      {:ok, delete_retained!(campaign, nil, id)}
+    end)
+  end
+
+  defp dm_delete_binding(campaign, actor, id) do
+    %{campaign: campaign.id, actor: actor, target: id, configuration: configuration(campaign)}
+  end
+
   # A retained outcome, not a modal or expiring draft. Request identity is scoped
   # to campaign + actor + creation origin. Reusing it for another target or payload
   # conflicts, including after deletion, rather than creating a second entry.
@@ -239,25 +276,29 @@ defmodule AsyncWorlds.Journals do
       unless expected_binding == Map.put(binding(campaign, character, context), "target", id),
         do: Repo.rollback(:stale_component)
 
-      receipt = Repo.get_by(CreationReceipt, campaign_id: campaign.id, entry_id: id)
-
-      unless receipt && (is_nil(character) or receipt.character_id == character.id),
-        do: Repo.rollback(:not_found)
-
-      case receipt.state do
-        :deleted ->
-          :already_deleted
-
-        :completed ->
-          entry = Repo.get_by(Entry, [campaign_id: campaign.id, id: id], log: false)
-          if entry, do: Repo.delete!(entry, log: false)
-          receipt |> Ecto.Changeset.change(state: :deleted) |> Repo.update!()
-          if entry, do: :deleted, else: :already_deleted
-
-        _ ->
-          Repo.rollback(:not_found)
-      end
+      delete_retained!(campaign, character, id)
     end)
+  end
+
+  defp delete_retained!(campaign, character, id) do
+    receipt = Repo.get_by(CreationReceipt, campaign_id: campaign.id, entry_id: id)
+
+    unless receipt && (is_nil(character) or receipt.character_id == character.id),
+      do: Repo.rollback(:not_found)
+
+    case receipt.state do
+      :deleted ->
+        :already_deleted
+
+      :completed ->
+        entry = Repo.get_by(Entry, [campaign_id: campaign.id, id: id], log: false)
+        if entry, do: Repo.delete!(entry, log: false)
+        receipt |> Ecto.Changeset.change(state: :deleted) |> Repo.update!()
+        if entry, do: :deleted, else: :already_deleted
+
+      _ ->
+        Repo.rollback(:not_found)
+    end
   end
 
   @doc "Fresh control binding, evaluated under the same campaign lock as the operation."
