@@ -13,5 +13,15 @@ defmodule AsyncWorlds.Repo.Migrations.CreateTickBriefings do
     end
 
     create unique_index(:tick_briefings, [:tick_id])
+
+    # Match existing tick history: reject rewrites/direct deletes, but permit
+    # ON DELETE CASCADE after the parent tick has been removed.
+    execute(
+      """
+      CREATE TRIGGER immutable_tick_record BEFORE UPDATE OR DELETE ON tick_briefings
+      FOR EACH ROW EXECUTE FUNCTION reject_tick_history_change()
+      """,
+      "DROP TRIGGER immutable_tick_record ON tick_briefings"
+    )
   end
 end

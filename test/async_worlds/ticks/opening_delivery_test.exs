@@ -82,6 +82,23 @@ defmodule AsyncWorlds.Ticks.OpeningDeliveryTest do
     assert Deliveries.list_deliveries(c.campaign.id) == deliveries
   end
 
+  test "stored briefings reject updates and deletes while permitting tick cascade", c do
+    {:ok, tick} = DM.Ticks.open_tick(c.scope)
+    {:ok, briefing} = DM.Ticks.fetch_briefing(c.scope, tick.id)
+
+    assert_raise Postgrex.Error, ~r/immutable/, fn ->
+      Repo.update!(Ecto.Changeset.change(briefing, narration: "rewritten"), mode: :savepoint)
+    end
+
+    assert_raise Postgrex.Error, ~r/immutable/, fn ->
+      Repo.delete!(briefing, mode: :savepoint)
+    end
+
+    assert {:ok, ^briefing} = DM.Ticks.fetch_briefing(c.scope, tick.id)
+    Repo.delete!(tick)
+    assert Repo.get(AsyncWorlds.Ticks.Briefing, briefing.id) == nil
+  end
+
   test "saved briefing reads remain campaign scoped and freshly authorized", c do
     {:ok, tick} = DM.Ticks.open_tick(c.scope)
 
