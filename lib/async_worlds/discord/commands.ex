@@ -7,7 +7,13 @@ defmodule AsyncWorlds.Discord.Commands do
 
   alias AsyncWorlds.{Characters, Clocks}
   alias AsyncWorlds.DM.Ticks
-  alias AsyncWorlds.Discord.{DebugInteractions, JournalInteractions, QuestInteractions}
+
+  alias AsyncWorlds.Discord.{
+    DebugInteractions,
+    FactionCommands,
+    JournalInteractions,
+    QuestInteractions
+  }
 
   @doc "Discord registration definitions, stripped of internal routing metadata."
   def definitions, do: Enum.map(catalogue(), &discord_definition/1)
@@ -25,6 +31,7 @@ defmodule AsyncWorlds.Discord.Commands do
     [
       Map.put(DebugInteractions.definition(), :permission, :debug),
       JournalInteractions.definition(),
+      FactionCommands.definition(),
       %{
         name: "clocks",
         description: "View the campaign's visible clocks",
@@ -106,6 +113,9 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(%{name: name} = data) do
     case Enum.find(catalogue(), &(&1.name == name)) do
+      %{name: "faction"} ->
+        FactionCommands.route(data)
+
       %{name: "journal"} ->
         JournalInteractions.route(data)
 
@@ -163,6 +173,11 @@ defmodule AsyncWorlds.Discord.Commands do
                :journal_control
              ],
       do: JournalInteractions.execute(command, context)
+
+  def execute(:faction_list, context), do: FactionCommands.execute(:faction_list, context)
+
+  def execute({:faction_show, _} = command, context),
+    do: FactionCommands.execute(command, context)
 
   def execute(:help, context), do: {:ok, AsyncWorlds.Discord.Help.render(context)}
 
