@@ -1,7 +1,9 @@
 # AsyncWorlds
 
-A Phoenix campaign engine with PostgreSQL persistence. See [the implementation
-plan](docs/project-plan.md) for the project scope.
+A Phoenix campaign engine with PostgreSQL persistence. The active direction is
+[Flexible actions and visible campaign activity](docs/flexible-actions-plan.md).
+The [original MVP outline](docs/archive/project-outline.md) and
+[implementation plan with closeout](docs/archive/project-plan.md) are historical baselines.
 
 For production releases, runtime secrets/TLS, migration and campaign setup,
 health probes, single-bot rollouts, backup/restore and the repeatable external-DB

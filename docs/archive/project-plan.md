@@ -2,6 +2,39 @@
 
 [Linear project](https://linear.app/warp-monster/project/world-games-a72f48eaa32c) · [Linear implementation plan](https://linear.app/warp-monster/document/world-games-implementation-plan-86860ffca648)
 
+## Closeout
+
+**Status: closed / superseded as the active delivery plan.** The original plan is
+preserved below for reference; closure is a direction change, not completion of
+all four milestones. The active successor is [Flexible actions and visible campaign
+activity](../flexible-actions-plan.md).
+
+Repository-level functionality review at handover:
+
+- **Milestone 1:** foundation and world-only loop implemented; real-server and
+  deployment acceptance still need verification.
+- **Milestone 2:** playable personal quest loop implemented, including private
+  submissions/results, review, and publication.
+- **Milestone 3:** largely implemented: form authoring, graph diagnostics,
+  administration, readiness, previews, and published history.
+- **Milestone 4:** resource gameplay not implemented and removed from the immediate
+  delivery path; it is not being marked complete.
+
+The review's test run reported **662 tests, 0 failures**. That is repository evidence,
+not a real-campaign rehearsal or production sign-off. Smaller baseline differences
+remain: no tick deadline option, `/character` does not include its quest-line,
+player output lacks automatic source-labelled clock consequences, and review clock
+adjustments replace background contributions rather than arbitrary final fills.
+These are not automatically added to the successor scope.
+
+HTTP APIs, journals, and DM player-testing tools extend the original scope but do
+not substitute for undelivered resource mechanics. Preserve existing functionality
+and safety guarantees while prioritising flexible actions and public activity.
+This repository closeout does not itself update the linked Linear document or
+milestone statuses.
+
+## Original plan (historical)
+
 ## Purpose and scope
 
 Build Tick & Clock, the Discord campaign engine described in [project-outline.md](project-outline.md), initially for the DM's own campaign.

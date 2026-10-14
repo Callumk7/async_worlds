@@ -2,6 +2,14 @@
 
 9 Oct 2026 · @Callum
 
+> **Status: closed / superseded as the active MVP specification.**
+> Preserved below as the original gameplay baseline, not a claim that every feature
+> was delivered. The current direction is [Flexible actions and visible campaign
+> activity](../flexible-actions-plan.md). Resources are no longer required for the
+> next delivery phase. See the [implementation-plan closeout](project-plan.md#closeout)
+> for the handover assessment. Original requirements below are historical where
+> they conflict with the new direction, particularly pre-publication action visibility.
+
 ## Overview
 
 A Discord bot plus a DM-only web admin that moves a D&D campaign forward between sessions in discrete **ticks**. Each tick, players make choices in personal quest-lines and assign resources against world **clocks**; the engine resolves everything, the DM reviews and edits, then results are published.
