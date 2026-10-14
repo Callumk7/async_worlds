@@ -37,7 +37,12 @@ copy**. Working copies are persistent but never appear in assignment controls.
    and shown read-only; there is no identity field to fill in. Older unreleased drafts
    with blank or invalid identities receive one when saved or released. After release
    the identity cannot change. Imports retain their supplied valid identities.
-2. Write the entry node's narrative. Add ordered fixed choices with labels,
+2. Write the entry node's narrative. Optionally write a **Public activity summary**
+   (up to 1000 bytes), separate from that private narrative. Use safe public text
+   such as “Investigating the harbour”; leave it blank for generic text or secret
+   quests. Save/reopen/release preserves summaries, but new releases do not update
+   existing assignments. This field prepares future briefings; it does not post to
+   Discord yet. Add ordered fixed choices with labels,
    outcome text and destinations selected by human-readable node descriptions.
    Add a node for each destination, choose a **Start node**, and explicitly mark
    terminal nodes as endings. Endings must have no choices; continuing nodes need

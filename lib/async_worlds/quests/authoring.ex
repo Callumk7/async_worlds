@@ -35,7 +35,11 @@ defmodule AsyncWorlds.Quests.Authoring do
       Enum.with_index(definition["nodes"])
       |> Enum.map(fn {node, i} ->
         prefix = "node_#{i}"
-        node = Map.put(node, "text", binary_param(params, prefix <> "_text", node["text"]))
+
+        node =
+          node
+          |> Map.put("text", binary_param(params, prefix <> "_text", node["text"]))
+          |> apply_public_summary(params, prefix <> "_public_summary")
 
         node =
           if Enum.all?(node["choices"], &editable?/1),
@@ -139,6 +143,7 @@ defmodule AsyncWorlds.Quests.Authoring do
         acc =
           acc
           |> Map.put(prefix <> "_text", node["text"])
+          |> Map.put(prefix <> "_public_summary", Map.get(node, "public_summary", ""))
           |> Map.put(prefix <> "_ending", to_string(node["ending"]))
 
         Enum.with_index(node["choices"])
@@ -304,7 +309,8 @@ defmodule AsyncWorlds.Quests.Authoring do
   end
 
   defp safe_node?(a, b) do
-    Map.drop(a, ["text", "ending", "choices"]) == Map.drop(b, ["text", "ending", "choices"]) and
+    Map.drop(a, ["text", "public_summary", "ending", "choices"]) ==
+      Map.drop(b, ["text", "public_summary", "ending", "choices"]) and
       (Enum.all?(b["choices"], &editable?/1) or a["ending"] == b["ending"]) and
       safe_collection?(
         a["choices"],
@@ -379,7 +385,8 @@ defmodule AsyncWorlds.Quests.Authoring do
 
   defp fresh_node?(node),
     do:
-      Map.keys(node) |> Enum.sort() == Enum.sort(~w(id text ending choices)) and
+      Map.keys(Map.drop(node, ["public_summary"])) |> Enum.sort() ==
+        Enum.sort(~w(id text ending choices)) and
         allocated_id?(node["id"], "node") and is_list(node["choices"]) and
         Enum.all?(node["choices"], &fresh_choice?/1)
 
@@ -416,6 +423,7 @@ defmodule AsyncWorlds.Quests.Authoring do
 
       limit =
         case key do
+          "public_summary" -> 1000
           key when key in ["text", "label"] -> 8000
           key when key in ["start_node", "next_node"] -> 100
           _ -> nil
@@ -459,10 +467,11 @@ defmodule AsyncWorlds.Quests.Authoring do
 
   defp bounded_definition?(_), do: false
 
-  defp bounded_node?(%{"text" => text, "ending" => ending, "choices" => choices})
+  defp bounded_node?(%{"text" => text, "ending" => ending, "choices" => choices} = node)
        when is_binary(text) and byte_size(text) <= 8000 and is_boolean(ending) and
               is_list(choices) and length(choices) <= 100 do
-    Enum.all?(choices, &bounded_choice?/1)
+    AsyncWorlds.Quests.Definition.public_summary?(node) and
+      Enum.all?(choices, &bounded_choice?/1)
   end
 
   defp bounded_node?(_), do: false
@@ -480,6 +489,18 @@ defmodule AsyncWorlds.Quests.Authoring do
        do: true
 
   defp bounded_outcome?(_), do: false
+
+  defp apply_public_summary(node, params, key) do
+    case Map.fetch(params, key) do
+      {:ok, text} when is_binary(text) ->
+        if String.valid?(text) and String.trim(text) == "",
+          do: Map.delete(node, "public_summary"),
+          else: Map.put(node, "public_summary", text)
+
+      _ ->
+        node
+    end
+  end
 
   defp binary_param(params, key, default) do
     case Map.get(params, key, default) do

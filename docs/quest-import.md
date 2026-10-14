@@ -150,8 +150,12 @@ duplicate IDs, incorrect types and unsupported variants fail. IDs are 1–100
 ASCII letters/digits/underscore/hyphen. Text/labels/outcome text are nonempty
 valid strings, at most 8000 bytes, with no NUL. Array order is retained.
 
-- Node: `id`, `text`, `ending` (boolean), `choices` (array). Node IDs are unique
-  per quest. Endings require no choices; non-endings require at least one.
+- Node: `id`, `text`, `ending` (boolean), `choices` (array), and optional
+  `public_summary` (valid UTF-8 string, at most 1000 bytes, no NUL; not null).
+  Missing/blank public summaries use generic briefing text, never private narrative.
+  Node IDs are unique per quest. Endings require no choices; non-endings require
+  at least one. Existing imports remain valid without the optional field; adding
+  it appends a revision without changing assignments or frozen inputs.
 - Choice: `id`, `label`, `eligibility` (`hidden`/`disabled`), `conditions` (ANDed
   array), `mode`, `outcomes`. Choice IDs are unique across all nodes of a quest.
 - Fixed: `mode: "fixed"`, `outcomes` exactly `fixed`; no dice/critical fields.

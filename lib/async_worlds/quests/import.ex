@@ -61,8 +61,15 @@ defmodule AsyncWorlds.Quests.Import do
 
     nodes =
       each(nodes, p <> ".nodes", fn n, np ->
-        keys!(n, ~w(id text ending choices), np)
+        check!(is_map(n), np, "expected object")
+        keys!(Map.drop(n, ["public_summary"]), ~w(id text ending choices), np)
         check!(Definition.id?(n["id"]), np <> ".id", "invalid stable ID")
+
+        check!(
+          Definition.public_summary?(n),
+          np <> ".public_summary",
+          "expected optional valid text, at most 1000 bytes; blank uses a generic summary"
+        )
 
         check!(
           Definition.text?(n["text"]),

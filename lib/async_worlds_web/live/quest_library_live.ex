@@ -594,6 +594,19 @@ defmodule AsyncWorldsWeb.QuestLibraryLive do
                       class="admin-input"
                     />
                     <.input
+                      field={@form["node_#{i}_public_summary"]}
+                      id={"node-#{i}-public-summary"}
+                      type="textarea"
+                      label="Public activity summary (optional)"
+                      aria-describedby={"node-#{i}-public-summary-help"}
+                      class="admin-input"
+                    />
+                    <p id={"node-#{i}-public-summary-help"} class="text-xs text-slate-400">
+                      Public briefing text, separate from private narrative. Maximum 1000 bytes.
+                      Leave blank for a generic decision summary, including secret quests.
+                      Releasing changes does not update existing assignments. Discord posting is not enabled yet.
+                    </p>
+                    <.input
                       field={@form["node_#{i}_ending"]}
                       id={"node-#{i}-ending"}
                       type="select"
