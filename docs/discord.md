@@ -84,6 +84,13 @@ The registered command set is:
   mentions are suppressed, and foreign IDs never reveal other campaigns. These
   commands do not use a DM debug persona. Manage factions at `/factions`; see
   [factions.md](factions.md). Re-register commands after deploying this addition.
+- `/location list`, `/location show location:<id>` — available to every verified
+  server member without a character. List shows campaign location IDs and names;
+  show includes the description. Names and descriptions are campaign-readable,
+  not DM secrets. Replies and followups are private with mentions suppressed.
+  These commands do not use a DM debug persona or reveal other campaigns.
+  Manage locations at `/locations`; see [locations.md](locations.md).
+  Re-register commands after deployment.
 - `/tick open` — configured DM only; opens the next tick and atomically saves and
   queues a public roster briefing with `/quest` instructions and existing private
   prompts. No optional narration setup is required. Repeated opens do not create

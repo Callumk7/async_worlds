@@ -82,6 +82,14 @@ defmodule AsyncWorldsWeb.AdminComponents do
         <.icon name="hero-flag" class="size-4" /> Factions
       </.link>
       <.link
+        id="nav-locations"
+        navigate={~p"/locations"}
+        aria-current={@active == "locations" && "page"}
+        class={["admin-tab", @active == "locations" && "admin-tab-active"]}
+      >
+        <.icon name="hero-map-pin" class="size-4" /> Locations
+      </.link>
+      <.link
         id="nav-quests"
         navigate={~p"/quests"}
         aria-current={@active == "quests" && "page"}

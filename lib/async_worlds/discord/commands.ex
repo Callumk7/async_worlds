@@ -12,6 +12,7 @@ defmodule AsyncWorlds.Discord.Commands do
     DebugInteractions,
     FactionCommands,
     JournalInteractions,
+    LocationCommands,
     QuestInteractions
   }
 
@@ -32,6 +33,7 @@ defmodule AsyncWorlds.Discord.Commands do
       Map.put(DebugInteractions.definition(), :permission, :debug),
       JournalInteractions.definition(),
       FactionCommands.definition(),
+      LocationCommands.definition(),
       %{
         name: "clocks",
         description: "View the campaign's visible clocks",
@@ -113,6 +115,9 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(%{name: name} = data) do
     case Enum.find(catalogue(), &(&1.name == name)) do
+      %{name: "location"} ->
+        LocationCommands.route(data)
+
       %{name: "faction"} ->
         FactionCommands.route(data)
 
@@ -173,6 +178,11 @@ defmodule AsyncWorlds.Discord.Commands do
                :journal_control
              ],
       do: JournalInteractions.execute(command, context)
+
+  def execute(:location_list, context), do: LocationCommands.execute(:location_list, context)
+
+  def execute({:location_show, _} = command, context),
+    do: LocationCommands.execute(command, context)
 
   def execute(:faction_list, context), do: FactionCommands.execute(:faction_list, context)
 
