@@ -2,6 +2,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
   alias AsyncWorlds.DM.Ticks
+  alias AsyncWorlds.Ticks.ReviewProjection
 
   @impl true
   def mount(_params, _session, socket),
@@ -99,9 +100,25 @@ defmodule AsyncWorldsWeb.TickReviewLive do
     {:noreply, complete(socket, result, "Selected die rerolled; other dice preserved.")}
   end
 
+  def handle_event("confirm", %{"publish" => params}, socket) do
+    form =
+      params_form(
+        %{"draft_id" => socket.assigns.draft.id, "confirm" => params["confirm"]},
+        [:draft_id, :confirm],
+        as: :publish
+      )
+
+    {:noreply, assign(socket, :publish_form, form)}
+  end
+
   def handle_event("publish", %{"publish" => params}, socket) do
     if params["confirm"] == "true" do
-      case Ticks.publish_tick(scope(socket), socket.assigns.tick.id, params["draft_id"]) do
+      result =
+        with :ok <- inspected_revision(socket, params["draft_id"]) do
+          Ticks.publish_tick(scope(socket), socket.assigns.tick.id, socket.assigns.draft.id)
+        end
+
+      case result do
         {:ok, _} ->
           {:noreply,
            socket
@@ -109,8 +126,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
            |> push_navigate(to: ~p"/dashboard")}
 
         {:error, reason} ->
-          {:noreply,
-           socket |> put_flash(:error, error_message(reason)) |> load(socket.assigns.tick.id)}
+          {:noreply, complete(socket, {:error, reason}, nil)}
       end
     else
       {:noreply,
@@ -123,15 +139,25 @@ defmodule AsyncWorldsWeb.TickReviewLive do
 
   defp scope(socket), do: socket.assigns.current_scope
 
-  defp edit(socket, draft_id, operation, reason),
-    do:
+  defp edit(socket, draft_id, operation, reason) do
+    with :ok <- inspected_revision(socket, draft_id) do
       Ticks.edit_draft(
         scope(socket),
         socket.assigns.tick.id,
-        draft_id,
+        socket.assigns.draft.id,
         operation,
         reason
       )
+    end
+  end
+
+  # Browser tokens cannot select a draft this tab has never inspected.
+  defp inspected_revision(socket, draft_id) do
+    if socket.assigns.preview_ready && !socket.assigns.stale &&
+         draft_id == socket.assigns.draft.id,
+       do: :ok,
+       else: {:error, :stale_draft}
+  end
 
   defp optional_delta(""), do: {:ok, nil}
   defp optional_delta(value), do: integer(value)
@@ -141,12 +167,20 @@ defmodule AsyncWorldsWeb.TickReviewLive do
 
   defp complete(socket, {:error, reason}, _) do
     stale =
-      reason in [:stale_draft, :stale_identity, :stale_input] or
+      reason in [:stale_draft, :stale_identity, :stale_input, :already_published] or
         match?({:invalid_transition, _, _}, reason)
 
     socket =
       socket
       |> assign(:stale, socket.assigns.stale || stale)
+      |> assign(
+        :publish_form,
+        params_form(
+          %{"draft_id" => socket.assigns.draft.id, "confirm" => "false"},
+          [:draft_id, :confirm],
+          as: :publish
+        )
+      )
       |> put_flash(:error, error_message(reason))
 
     if stale and socket.assigns.preview_ready do
@@ -194,15 +228,12 @@ defmodule AsyncWorldsWeb.TickReviewLive do
 
       private_messages =
         case preview do
-          {:ok, outputs} ->
-            Enum.with_index((outputs["dm"] || []) ++ (outputs["players"] || []), fn message,
-                                                                                    index ->
-              Map.put(message, :id, index)
-            end)
-
-          _ ->
-            []
+          {:ok, outputs} -> ReviewProjection.recipients(outputs)
+          _ -> []
         end
+
+      players =
+        if match?({:ok, _}, preview), do: ReviewProjection.players(payload, snapshot), else: []
 
       quests = if match?({:ok, _}, preview), do: quest_items(draft, snapshot), else: []
 
@@ -235,6 +266,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
       |> stream(:public_preview, messages, reset: true)
       |> stream(:private_preview, private_messages, reset: true)
       |> stream(:quest_review, quests, reset: true)
+      |> stream(:player_consequences, players, reset: true)
     else
       _ -> unavailable(socket)
     end
@@ -311,6 +343,8 @@ defmodule AsyncWorldsWeb.TickReviewLive do
         id: clock["id"],
         clock: clock,
         frozen: frozen,
+        events: ReviewProjection.clock_events(draft.payload, clock["id"]),
+        override: override,
         form:
           params_form(
             %{
@@ -362,7 +396,68 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           This revision is stale. Editing and publication are disabled until you reload and inspect the current review.
         </p>
         <section class="admin-panel">
-          <h2 class="text-xl font-semibold mb-4">Player quest review</h2>
+          <h2 class="text-xl font-semibold mb-4">Player consequences</h2>
+          <p class="mb-4 text-sm text-slate-400">
+            DM-only inspection. Missing choices do not advance; no live state changes until publication.
+          </p>
+          <div id="player-consequences" phx-update="stream" class="space-y-4 mb-6">
+            <p id="player-consequences-empty" class="hidden only:block">
+              <%= if @preview_ready do %>
+                No players in the frozen tick.
+              <% else %>
+                Player inspection is unavailable until the preview is valid.
+              <% end %>
+            </p>
+            <article
+              :for={{dom_id, player} <- @streams.player_consequences}
+              id={dom_id}
+              class="rounded-xl border border-white/10 p-4 space-y-3"
+            >
+              <h3 class="font-semibold">{player.name} · {player.state}</h3>
+              <p
+                :if={player.before}
+                id={"player-position-#{player.id}"}
+                class="text-sm text-slate-400"
+              >
+                Position {player.before["node_id"]} ({player.before["status"]}, v{player.before[
+                  "position_version"
+                ]}) → {player.after["node_id"]} ({player.after["status"]}, v{player.after[
+                  "position_version"
+                ]})
+              </p>
+              <p id={"player-flags-#{player.id}"} class="text-sm">
+                Flags: {Jason.encode!(player.flags_before)} → {Jason.encode!(player.flags_after)}
+              </p>
+              <div id={"player-effects-#{player.id}"}>
+                <p :if={player.consequences == []} class="text-sm text-slate-400">
+                  No recorded player consequences.
+                </p>
+                <p :for={event <- player.consequences} class="text-sm mt-2">
+                  {ReviewProjection.source_label(event)} · {ReviewProjection.summary(event)}
+                  <span class="block text-xs text-slate-400 break-all">{event["source"]}</span>
+                </p>
+              </div>
+              <div id={"player-downstream-#{player.id}"} class="text-sm space-y-2">
+                <p class="text-slate-400">
+                  Shared downstream trace for clocks affected by this choice (includes background contributions).
+                </p>
+                <p :if={player.downstream == []}>No downstream clock changes or fired triggers.</p>
+                <p :for={event <- player.downstream}>
+                  {ReviewProjection.source_label(event)} · {ReviewProjection.summary(event)}
+                </p>
+              </div>
+              <p :if={player.next} id={"player-next-#{player.id}"} class="text-sm">
+                Next: {player.next["text"]}
+              </p>
+              <a
+                :if={player.submitted?}
+                href={"#quest_review-#{player.id}"}
+                class="text-sm text-amber-200 hover:underline"
+              >Inspect submitted-choice controls</a>
+              <a href="#private-preview" class="block text-sm text-amber-200 hover:underline">Inspect exact messages by recipient below</a>
+            </article>
+          </div>
+          <h2 class="text-xl font-semibold mb-4">Submitted choice controls</h2>
           <div id="quest-review" phx-update="stream" class="space-y-5">
             <article
               :for={{dom_id, item} <- @streams.quest_review}
@@ -382,6 +477,9 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 ]["status"]}
               </p>
               <p>{item.result["text"]}</p>
+              <p class="text-sm text-slate-400">
+                Outcome edits and selected rerolls recompute progression, flags, clocks and downstream triggers. Unselected dice stay recorded. Narration edits only replace this player's outgoing result text. Every change creates an audited revision and clears approval.
+              </p>
               <div id={"quest-next-#{item.id}"} class="text-sm text-slate-400">
                 <p>Next: {item.next["text"]}</p>
                 <p :for={choice <- item.next["choices"]}>
@@ -479,18 +577,45 @@ defmodule AsyncWorldsWeb.TickReviewLive do
         </section>
         <section class="admin-panel">
           <h2 class="text-xl font-semibold mb-4">Exact private preview</h2>
+          <p class="mb-4 text-sm text-slate-400">
+            Revision {@draft.revision} · exact renderer output, grouped by recipient and delivery route. DM diagnostics are never player messages.
+          </p>
           <div id="private-preview" phx-update="stream" class="space-y-3">
-            <article :for={{dom_id, message} <- @streams.private_preview} id={dom_id}>
-              <p class="text-xs text-slate-400">Private recipient {message["recipient_id"]}</p>
-              <pre class="whitespace-pre-wrap break-words font-sans text-sm">{message["content"]}</pre>
+            <p id="private-preview-empty" class="hidden only:block">
+              No private messages available for this revision.
+            </p>
+            <article
+              :for={{dom_id, group} <- @streams.private_preview}
+              id={dom_id}
+              data-character-id={group.character}
+              data-recipient-id={group.recipient}
+              class="rounded-xl border border-white/10 p-4"
+            >
+              <h3 class="text-sm font-semibold">
+                {group.audience} · recipient {group.recipient} · character {group.character ||
+                  "DM diagnostics"} · {group.route}
+              </h3>
+              <div
+                :for={{message, index} <- group.messages}
+                id={"#{dom_id}-chunk-#{index}"}
+                class="mt-3"
+              >
+                <p class="text-xs text-slate-400">
+                  Message {index} of {length(group.messages)} · {length(
+                    String.codepoints(message["content"])
+                  )} codepoints
+                </p>
+                <pre class="whitespace-pre-wrap break-words font-sans text-sm">{message["content"]}</pre>
+              </div>
             </article>
           </div>
         </section>
+        <h2 id="world-consequences" class="text-2xl font-semibold">World consequences</h2>
         <div class="grid gap-7 lg:grid-cols-[1.1fr_1fr]">
           <section class="admin-panel">
             <h2 class="mb-2 text-xl font-semibold">Clock results</h2>
             <p class="mb-5 text-sm text-slate-400">
-              Replace a clock's signed tick delta, not its live fill. Blank restores the frozen rate. Completion and triggers recompute; initially-full completion latches remain.
+              A clock override replaces only the background delta, not a quest-effect delta or final fill. Blank restores the frozen background behavior (including pause). Completion and triggers recompute; initially-full completion latches remain.
             </p>
             <div id="review-clocks" phx-update="stream" class="space-y-4">
               <p id="review-clocks-empty" class="hidden only:block text-sm text-slate-400">
@@ -515,6 +640,24 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                     do: "completed",
                     else: if(item.clock["paused"], do: "paused", else: "running")}
                 </p>
+                <div id={"clock-contributions-#{item.id}"} class="mt-3 space-y-2 text-sm">
+                  <p class="text-slate-400">
+                    Background configuration: frozen rate {item.frozen["background_rate"]} · {if is_nil(
+                                                                                                   item.override
+                                                                                                 ),
+                                                                                                 do:
+                                                                                                   "no override",
+                                                                                                 else:
+                                                                                                   "replacement #{item.override}"}. Zero/clamped deltas may produce no change record; the trace below records actual state changes in canonical order.
+                  </p>
+                  <p :if={item.events == []} class="text-slate-400">
+                    No recorded clock changes or fired triggers.
+                  </p>
+                  <p :for={event <- item.events}>
+                    {ReviewProjection.source_label(event)} · {ReviewProjection.summary(event)}
+                    <span class="block text-xs text-slate-400 break-all">{event["source"]}</span>
+                  </p>
+                </div>
                 <.form
                   for={item.form}
                   id={"draft-clock-#{item.id}"}
@@ -526,8 +669,8 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                   <.input
                     field={item.form[:amount]}
                     type="number"
-                    label="Override signed delta (blank = frozen behavior)"
-                    disabled={@stale || item.frozen["completed"]}
+                    label="Replace background delta (blank = frozen behavior)"
+                    disabled={@stale || !@preview_ready || item.frozen["completed"]}
                     class="admin-input"
                   />
                   <.input
@@ -535,12 +678,12 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                     label="Audit reason"
                     required
                     maxlength="2000"
-                    disabled={@stale || item.frozen["completed"]}
+                    disabled={@stale || !@preview_ready || item.frozen["completed"]}
                     class="admin-input"
                   />
                   <button
                     id={"save-draft-clock-#{item.id}"}
-                    disabled={@stale || item.frozen["completed"]}
+                    disabled={@stale || !@preview_ready || item.frozen["completed"]}
                     phx-disable-with="Recomputing…"
                     class="admin-button admin-secondary"
                   >
@@ -612,16 +755,25 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 Preview validation failed. Publication is disabled; reload or investigate the draft.
               </p>
               <div id="public-preview" phx-update="stream" class="space-y-3">
-                <pre
+                <p id="public-preview-empty" class="hidden only:block">
+                  No public messages available for this revision.
+                </p>
+                <article
                   :for={{dom_id, message} <- @streams.public_preview}
                   id={dom_id}
                   class="whitespace-pre-wrap break-words rounded-xl bg-slate-950/70 p-4 font-sans text-sm leading-6"
-                >{message["content"]}</pre>
+                >
+                  <p class="mb-2 text-xs text-slate-400">
+                    Public channel {message["recipient_id"]} · message {message.id + 1} · revision {@draft.revision}
+                  </p>
+                  <pre class="whitespace-pre-wrap break-words font-sans">{message["content"]}</pre>
+                </article>
               </div>
               <.form
                 for={@publish_form}
                 id="publish-form"
                 phx-submit="publish"
+                phx-change="confirm"
                 class="admin-form mt-6 space-y-4"
               >
                 <.input field={@publish_form[:draft_id]} type="hidden" />
@@ -663,20 +815,9 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               <p class="mt-1 break-all text-xs text-amber-200">
                 {item.event["source"]} · {item.event["phase"]}
               </p>
-              <%= if item.event["kind"] == "clock_change" do %>
-                <p class="mt-2 text-slate-400">
-                  Fill {item.event["before"]["filled"]} → {item.event["after"]["filled"]}; paused {to_string(
-                    item.event["before"]["paused"]
-                  )} → {to_string(item.event["after"]["paused"])}; completed {to_string(
-                    item.event["before"]["completed"]
-                  )} → {to_string(item.event["after"]["completed"])}
-                </p>
-              <% else %>
-                <p class="mt-2 text-slate-400">
-                  {item.event["type"]} · {item.event["text"] ||
-                    "Target clock #{item.event["target_clock_id"]}"}
-                </p>
-              <% end %>
+              <p class="mt-2 text-slate-400">
+                {ReviewProjection.source_label(item.event)} · {ReviewProjection.summary(item.event)}
+              </p>
             </article>
           </div>
         </section>

@@ -135,6 +135,9 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
     view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
     assert has_element?(view, "#flash-error", "another window")
     assert Deliveries.list_deliveries(c.campaign.id) == c.opening_deliveries
+    assert has_element?(view, "#stale-review")
+    refute has_element?(view, "#public-preview", "Elsewhere")
+    view |> element("#refresh-review") |> render_click()
     assert has_element?(view, "#public-preview", "Elsewhere")
     Repo.update!(Ecto.Changeset.change(c.clock, filled: 1))
     view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()

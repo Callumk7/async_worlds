@@ -199,8 +199,9 @@ defmodule AsyncWorlds.Clocks do
   defp expect_members!(_members, nil), do: :ok
 
   defp expect_members!(members, expected) do
-    unless is_list(expected) and Enum.sort_by(members, & &1.id) == Enum.sort_by(expected, & &1.id),
-      do: Repo.rollback(:stale_clock)
+    unless is_list(expected) and
+             Enum.sort_by(members, & &1.id) == Enum.sort_by(expected, & &1.id),
+           do: Repo.rollback(:stale_clock)
   end
 
   defp race_members(campaign_id, group) do
