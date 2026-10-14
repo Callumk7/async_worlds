@@ -23,9 +23,14 @@ defmodule AsyncWorldsWeb.DashboardLive do
      socket
      |> assign(
        page_title: "Campaign command center",
+       opening: nil,
+       opening_stale: false,
+       opening_form: opening_form(""),
+       opening_confirmation: confirmation_form(),
        delivery_filters: %{},
        delivery_filter_form: filter_form(%{})
      )
+     |> stream(:opening_chunks, [])
      |> refresh()}
   end
 
@@ -41,10 +46,72 @@ defmodule AsyncWorldsWeb.DashboardLive do
      |> refresh()}
   end
 
+  def handle_event("opening_changed", %{"opening" => %{"narration" => text}}, socket)
+      when is_binary(text) do
+    {:noreply,
+     socket
+     |> assign(
+       opening_form: opening_form(text),
+       opening_stale: socket.assigns.opening != nil,
+       opening_confirmation: confirmation_form()
+     )}
+  end
+
+  def handle_event("prepare_opening", %{"opening" => params} = input, socket)
+      when map_size(input) == 1 do
+    case Ticks.prepare_opening(scope(socket), params) do
+      {:ok, opening} ->
+        {:noreply,
+         socket
+         |> assign(
+           opening:
+             opening |> Map.delete(:messages) |> Map.put(:chunk_count, length(opening.messages)),
+           opening_stale: false,
+           opening_form: opening_form(opening.narration),
+           opening_confirmation: confirmation_form()
+         )
+         |> stream(:opening_chunks, opening.messages, reset: true)}
+
+      {:error, reason} ->
+        {:noreply, stale_opening(socket, reason)}
+    end
+  end
+
+  def handle_event(
+        "open_prepared_tick",
+        %{"approval" => %{"confirm" => "true"} = approval} = input,
+        socket
+      )
+      when map_size(input) == 1 and map_size(approval) == 1 do
+    result =
+      if socket.assigns.opening && not socket.assigns.opening_stale do
+        Ticks.open_prepared_tick(scope(socket), socket.assigns.opening.token)
+      else
+        {:error, :stale_preparation}
+      end
+
+    case result do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> clear_opening()
+         |> complete(
+           result,
+           "Tick opened using the existing opening flow. Briefing delivery is not implemented yet."
+         )}
+
+      {:error, reason} ->
+        {:noreply, stale_opening(socket, reason)}
+    end
+  end
+
+  def handle_event("open_prepared_tick", _, socket),
+    do: {:noreply, put_flash(socket, :error, error_message(:confirmation_required))}
+
   def handle_event("open_tick", _params, socket) do
     {:noreply,
      complete(
-       socket,
+       clear_opening(socket),
        Ticks.open_tick(scope(socket)),
        "Tick opened. Configure clocks before closing."
      )}
@@ -75,6 +142,30 @@ defmodule AsyncWorldsWeb.DashboardLive do
 
   defp complete(socket, {:error, reason}, _),
     do: socket |> put_flash(:error, error_message(reason)) |> refresh()
+
+  defp opening_form(text) do
+    {%{narration: text}, %{narration: :string}}
+    |> Ecto.Changeset.change()
+    |> to_form(as: :opening)
+  end
+
+  defp confirmation_form do
+    {%{confirm: false}, %{confirm: :boolean}}
+    |> Ecto.Changeset.change()
+    |> to_form(as: :approval)
+  end
+
+  defp clear_opening(socket) do
+    socket
+    |> assign(opening: nil, opening_stale: false, opening_confirmation: confirmation_form())
+    |> stream(:opening_chunks, [], reset: true)
+  end
+
+  defp stale_opening(socket, reason) do
+    socket
+    |> assign(opening_stale: true, opening_confirmation: confirmation_form())
+    |> put_flash(:error, error_message(reason))
+  end
 
   defp scope(socket), do: socket.assigns.current_scope
 
@@ -141,6 +232,16 @@ defmodule AsyncWorldsWeb.DashboardLive do
     |> stream(:jobs, jobs, reset: true)
     |> stream(:deliveries, deliveries, reset: true)
     |> stream(:roster, (roster && roster.rows) || [], reset: true)
+    |> check_opening()
+  end
+
+  defp check_opening(%{assigns: %{opening: nil}} = socket), do: socket
+
+  defp check_opening(socket) do
+    case Ticks.preview_opening(scope(socket), socket.assigns.opening.token) do
+      {:ok, _} -> socket
+      {:error, reason} -> stale_opening(socket, reason)
+    end
   end
 
   defp deliveries_raw(socket, scope) do
@@ -281,9 +382,10 @@ defmodule AsyncWorldsWeb.DashboardLive do
               phx-click="open_tick"
               disabled={@tick != nil}
               phx-disable-with="Opening…"
-              class="admin-button"
+              data-confirm="Open without the prepared briefing? Only the existing short announcement and private prompts will be queued."
+              class="admin-button admin-secondary"
             >
-              Open next tick
+              Open without briefing (legacy)
             </button>
             <button
               :if={@tick}
@@ -306,6 +408,76 @@ defmodule AsyncWorldsWeb.DashboardLive do
               Review draft <.icon name="hero-arrow-right" class="size-4" />
             </.link>
           </div>
+        </section>
+
+        <section :if={is_nil(@tick)} id="tick-opening" class="admin-panel space-y-5">
+          <div>
+            <h2 class="text-lg font-semibold">Prepare next tick opening</h2>
+            <p class="mt-2 text-sm text-slate-400">
+              Preview only: nothing is sent or saved. Briefing delivery is an ENG-65 follow-up;
+              opening still queues only the existing announcement and private prompts.
+            </p>
+          </div>
+          <.form
+            for={@opening_form}
+            id="opening-form"
+            phx-change="opening_changed"
+            phx-submit="prepare_opening"
+          >
+            <.input
+              field={@opening_form[:narration]}
+              type="textarea"
+              label="Optional public opening narration (not world news)"
+            />
+            <button id="prepare-opening" class="admin-button" phx-disable-with="Preparing…">
+              Prepare / reload exact preview
+            </button>
+          </.form>
+          <%= if @opening do %>
+            <div id="opening-preview" class="space-y-4">
+              <h3 class="font-semibold">
+                Exact public opening preview · Tick {@opening.tick_number}
+              </h3>
+              <p id="opening-channel" class="text-sm text-amber-200">
+                Public channel: {@opening.public_channel_id} · all {@opening.chunk_count} chunks
+              </p>
+              <p :if={@opening_stale} id="opening-stale" role="alert" class="text-sm text-rose-300">
+                Preparation is stale or invalid. The old preview is retained; deliberately prepare again and inspect every chunk before opening.
+              </p>
+            </div>
+          <% end %>
+          <div id="opening-chunks" phx-update="stream" class="space-y-4">
+            <article
+              :for={{id, chunk} <- @streams.opening_chunks}
+              id={id}
+              class="rounded-xl border border-slate-700 p-4"
+            >
+              <p class="mb-3 text-xs text-slate-400">
+                Chunk {chunk.chunk_index} · channel {chunk.recipient_id}
+              </p>
+              <div class="whitespace-pre-wrap break-words text-sm font-sans">{chunk.content}</div>
+            </article>
+          </div>
+          <.form
+            :if={@opening}
+            for={@opening_confirmation}
+            id="opening-approval"
+            phx-submit="open_prepared_tick"
+          >
+            <.input
+              field={@opening_confirmation[:confirm]}
+              type="checkbox"
+              label="I inspected all current chunks and the destination. I understand briefing delivery is not shipped."
+            />
+            <button
+              id="open-prepared-tick"
+              disabled={@opening_stale}
+              class="admin-button"
+              phx-disable-with="Opening…"
+            >
+              Open inspected tick (existing delivery only)
+            </button>
+          </.form>
         </section>
 
         <section id="readiness-roster" class="admin-panel">

@@ -22,7 +22,13 @@ never form fields. Tick, clock and delivery calls use the actor-aware
    controls call the shared clock context and write `dm:web:<user ID>` audits.
    Resetting one member resets both members. Completed clocks require reset
    before editing; race selectors list only eligible unpaired clocks.
-3. **Overview:** open the next tick, then close it to freeze inputs and queue
+3. **Overview:** use **Prepare / reload exact preview** to inspect the public
+   opening destination and every chunk before opening. Opening narration is
+   independent of world news; stale inputs require deliberate reinspection.
+   Briefing delivery is not shipped (ENG-65): inspected opening and the explicit
+   **Open without briefing (legacy)** fallback still use existing announcement
+   and private prompts only. See [opening preparation](tick-opening.md).
+   Open the next tick, then close it to freeze inputs and queue
    durable resolution. Closing asks for browser confirmation. All live clock
    management locks during resolution/review, including requests from old tabs.
 4. Use **Refresh status** to inspect resolution jobs and reveal the review link
