@@ -5,7 +5,8 @@ defmodule AsyncWorlds.Discord.Commands do
   private; public announcements belong exclusively to the durable domain outbox.
   """
 
-  alias AsyncWorlds.{Characters, Clocks, Ticks}
+  alias AsyncWorlds.{Characters, Clocks}
+  alias AsyncWorlds.DM.Ticks
   alias AsyncWorlds.Discord.{DebugInteractions, JournalInteractions, QuestInteractions}
 
   @doc "Discord registration definitions, stripped of internal routing metadata."
@@ -228,8 +229,8 @@ defmodule AsyncWorlds.Discord.Commands do
     {:ok, "DM console: #{admin_url()}\nSign in with your configured DM Discord account."}
   end
 
-  def execute(:tick_open, %{campaign: campaign}) do
-    case Ticks.open_tick(campaign.id) do
+  def execute(:tick_open, context) do
+    case Ticks.open_tick(dm_scope(context)) do
       {:ok, tick} ->
         {:ok, "Tick #{tick.number} is open. Its public announcement is queued."}
 
@@ -241,30 +242,34 @@ defmodule AsyncWorlds.Discord.Commands do
     end
   end
 
-  def execute(:tick_close, %{campaign: campaign}) do
-    case Ticks.active_tick(campaign.id) do
-      nil ->
+  def execute(:tick_close, context) do
+    case Ticks.close_active_tick(dm_scope(context)) do
+      {:error, :no_tick} ->
         {:ok, "No active tick to close."}
 
-      tick ->
-        with {:ok, %{tick: closed}} <- Ticks.close_tick(campaign.id, tick.id) do
-          {:ok,
-           "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest choices resolve privately from frozen inputs; management stays locked until publication. Review in #{admin_url()}"}
-        end
+      {:ok, %{tick: closed}} ->
+        {:ok,
+         "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest choices resolve privately from frozen inputs; management stays locked until publication. Review in #{admin_url()}"}
+
+      error ->
+        error
     end
   end
 
-  def execute(:tick_remind, %{campaign: campaign, user_id: user, interaction_id: request}) do
-    with {:ok, count} <-
-           AsyncWorlds.Ticks.PrivateNotifications.remind(campaign.discord_guild_id, user, request) do
+  def execute(:tick_remind, %{interaction_id: request} = context) do
+    with {:ok, count} <- Ticks.remind(dm_scope(context), request) do
       {:ok,
        "Private reminder intents recorded for #{count} missing submissions. Repeated requests do not resend. Inspect failures and use targeted retries in the DM console; ambiguous sends require confirmation."}
     end
   end
 
-  def execute(:tick_status, %{campaign: campaign, user_id: user_id}) do
-    tick = Ticks.active_tick(campaign.id) || Ticks.latest_published_tick(campaign.id)
+  def execute(:tick_status, %{campaign: campaign, user_id: user_id} = context) do
+    with {:ok, tick} <- Ticks.status(dm_scope(context)) do
+      tick_status_content(campaign, user_id, tick)
+    end
+  end
 
+  defp tick_status_content(campaign, user_id, tick) do
     content =
       if tick,
         do: "Tick #{tick.number}: #{status(tick.status)}",
@@ -293,6 +298,9 @@ defmodule AsyncWorlds.Discord.Commands do
 
   defp status(:in_review), do: "in review — private draft ready for DM review/publication."
   defp status(:published), do: "published — ready to open the next world tick."
+
+  defp dm_scope(context),
+    do: %{campaign: context.campaign, discord_user_id: context.user_id}
 
   defp access(context), do: Map.get(context, :access, context.user_id)
 

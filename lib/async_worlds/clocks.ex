@@ -6,7 +6,8 @@ defmodule AsyncWorlds.Clocks do
   `lock_mutations/1` in the same transaction as freezing inputs; publication
   must apply its approved state and call `unlock_mutations/1` in one transaction.
   Resolving/review rejects ALL management, including creation and racing edits.
-  Callers authorize the DM before entering this domain boundary.
+  These are trusted engine primitives. DM interfaces use AsyncWorlds.DM.Clocks,
+  which checks the verified actor under the campaign lock and derives audit sources.
   """
   import Ecto.Query
   import Ecto.Changeset

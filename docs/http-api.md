@@ -36,6 +36,8 @@ Other API paths receive the verified identity with `campaign: nil`; controllers
 must authorize any selected campaign with `Campaigns.authorize_dm/2`. Never use
 request-supplied actor IDs as credentials. Domain transaction authorization and
 concurrency checks still apply; the request scope is not a replacement for them.
+For tick, clock and delivery operations, pass this scope to the actor-aware
+`AsyncWorlds.DM` modules; see [shared DM boundaries](dm-domain.md).
 
 Missing/invalid credentials return **401** with `WWW-Authenticate: Bearer` and
 `{"error":{"code":"unauthenticated"}}`. Missing, malformed or unauthorized

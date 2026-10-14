@@ -6,7 +6,9 @@ Sign in through Discord OAuth as the configured campaign DM. The console's
 LiveView session. HTTP/mounts, navigation parameters, and every event recheck the
 server session and current DM configuration. Session revocation/expiry redirects
 all console views to login. Campaign and actor IDs come from authenticated scope,
-never form fields.
+never form fields. Tick, clock and delivery calls use the actor-aware
+`AsyncWorlds.DM` APIs, which recheck ownership under the campaign lock. See
+[shared DM boundaries](dm-domain.md).
 
 ## Run a world-only turn
 

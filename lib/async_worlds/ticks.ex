@@ -1,12 +1,13 @@
 defmodule AsyncWorlds.Ticks do
   @moduledoc """
-  Shared manual tick lifecycle. Interfaces authorize the campaign DM first.
+  Trusted tick lifecycle/engine primitives. Interface DM operations use
+  AsyncWorlds.DM.Ticks for actor-aware authorization under the campaign lock.
 
   Writers lock the campaign before the tick, matching clock management's lock
   order. Snapshots and drafts are DM-only; public readers use live clocks and
   `latest_published_tick/1`, never draft payloads. Close atomically queues durable
   resolution. Audited review operations and atomic world publication share this
-  boundary. Interfaces authorize all DM-only reads and mutations.
+  boundary. DM interfaces enter through AsyncWorlds.DM.Ticks.
   """
   import Ecto.Query
   import Ecto.Changeset
@@ -123,7 +124,10 @@ defmodule AsyncWorlds.Ticks do
   @doc "Freshly authorized DM retrieval. Never expose a raw draft through player commands."
   def fetch_draft(guild_id, actor_id, tick_id) do
     with {:ok, campaign} <- AsyncWorlds.Campaigns.authorize_dm(guild_id, actor_id) do
-      fetch_draft(campaign.id, tick_id)
+      AsyncWorlds.DM.Ticks.fetch_draft(
+        %{campaign: campaign, discord_user_id: actor_id},
+        tick_id
+      )
     end
   end
 
@@ -264,7 +268,7 @@ defmodule AsyncWorlds.Ticks do
   Approved state/audits/outbox writes belong inside this callback (ENG-8/ENG-7).
   """
   # Trusted transaction primitive retained for future engine extensions. Interfaces
-  # must use publish_tick/3, not supply their own state/publication implementation.
+  # must use AsyncWorlds.DM.Ticks.publish_tick/3, not supply a custom implementation.
   def publish_tick(campaign_id, tick_id, expected_draft_id, apply) when is_function(apply, 1) do
     transaction(campaign_id, tick_id, fn campaign, tick ->
       if tick.status == :published, do: Repo.rollback(:already_published)

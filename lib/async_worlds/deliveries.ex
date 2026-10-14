@@ -1,7 +1,8 @@
 defmodule AsyncWorlds.Deliveries do
   @moduledoc """
-  Durable Discord outbox. Callers authorize the DM before reads/retries; enqueue
-  is a trusted internal operation using approved, privacy-filtered content.
+  Durable Discord outbox. DM interfaces use AsyncWorlds.DM.Deliveries for
+  actor-aware reads/retries; enqueue is a trusted internal operation using
+  approved, privacy-filtered content.
 
   Enqueue inside the publication transaction so records/jobs roll back together.
   A committed claim precedes network I/O. A crash or unknown transport outcome
@@ -33,8 +34,8 @@ defmodule AsyncWorlds.Deliveries do
   @statuses [:pending, :sending, :sent, :failed, :ambiguous]
 
   @doc """
-  DM-filtered delivery search by tick, recipient, kind and status. Callers
-  authorize the DM and pass whitelisted values; unknown filters are rejected
+  Trusted delivery search by tick, recipient, kind and status. DM interfaces
+  use AsyncWorlds.DM.Deliveries; unknown filters are rejected
   rather than silently widened.
   """
   def search_deliveries(campaign_id, filters \\ %{}, limit \\ 50) when is_map(filters) do

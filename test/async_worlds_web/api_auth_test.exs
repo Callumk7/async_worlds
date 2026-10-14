@@ -137,6 +137,23 @@ defmodule AsyncWorldsWeb.ApiAuthTest do
     refute Map.has_key?(conn.assigns, :current_scope)
   end
 
+  test "HTTP scope enters the same actor-aware domain boundary and cannot retain revoked access" do
+    conn = request("/api/campaigns/123/clocks")
+    scope = conn.assigns.current_scope
+    assert {:ok, clock} = AsyncWorlds.DM.Clocks.create_clock(scope, %{name: "HTTP", segments: 4})
+    assert {:ok, [audit]} = AsyncWorlds.DM.Clocks.list_audits(scope)
+    assert audit.source == "dm:http:456"
+
+    {:ok, _} =
+      Campaigns.setup_campaign(%{
+        discord_guild_id: "123",
+        dm_user_id: "457",
+        public_channel_id: "789"
+      })
+
+    assert {:error, :unauthorized} = AsyncWorlds.DM.Clocks.adjust_clock(scope, clock.id, 1)
+  end
+
   test "authentication precedes general JSON parsing, not just import parsing" do
     conn =
       build_conn()
