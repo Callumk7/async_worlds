@@ -29,6 +29,7 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
              "debug",
              "journal",
              "faction",
+             "location",
              "clocks",
              "tick",
              "admin",

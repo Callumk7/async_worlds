@@ -22,6 +22,7 @@ no web-based key display, issuance or per-key permissions yet.
 Character and flag routes are documented in [HTTP character management](http-characters.md).
 Clock routes are documented in [HTTP clock management](http-clocks.md).
 Faction CRUD routes are documented in [HTTP factions](http-factions.md).
+Location CRUD routes are documented in [HTTP locations](http-locations.md).
 Tick lifecycle, readiness and reminder routes are documented in [HTTP ticks](http-ticks.md).
 Draft review, previews, audited edits and publication are documented in [HTTP tick review](http-tick-review.md).
 Published ticks and personal results/submissions are documented in [HTTP history](http-history.md).
