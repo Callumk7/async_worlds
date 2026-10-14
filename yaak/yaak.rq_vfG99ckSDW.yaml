@@ -1,0 +1,46 @@
+type: http_request
+model: http_request
+id: rq_vfG99ckSDW
+createdAt: 2026-10-14T12:22:42.152685
+updatedAt: 2026-10-14T12:22:42.152685
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "expected_progression": ${[ QUEST_EXPECTED_PROGRESSION ]},
+      "reason": "${[ QUEST_REASON ]}",
+      "revision_id": "${[ QUEST_REVISION_ID ]}"
+    }
+bodyType: application/json
+description: Expected 200. Requires the full current active progression (or explicit absence, as permitted by the domain). Ends prior active work, clears this character's open choice, and starts a new assignment ID even for the same revision. Refresh the precondition after success.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 06 - Replace the active assignment
+sortPriority: 5.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/replace
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

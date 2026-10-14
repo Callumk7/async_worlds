@@ -1,0 +1,53 @@
+type: http_request
+model: http_request
+id: rq_iuuenmC7cA
+createdAt: 2026-10-14T12:22:42.373368
+updatedAt: 2026-10-14T12:22:42.373368
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "expected_progression": {
+        "id": "9223372036854775807",
+        "campaign_id": "1",
+        "character_id": "${[ QUEST_CHARACTER_ID ]}",
+        "revision_id": "${[ QUEST_REVISION_ID ]}",
+        "node_id": "hub",
+        "position_version": 0,
+        "status": "active"
+      },
+      "reason": "${[ QUEST_REASON ]}"
+    }
+bodyType: application/json
+description: 'Expected 409 stale_progression for an existing selected character: deliberately mismatched progression identity/version. No write or audit.'
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 10 - Reject a mismatched progression
+sortPriority: 9.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/end
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

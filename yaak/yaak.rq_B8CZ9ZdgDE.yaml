@@ -1,20 +1,20 @@
 type: http_request
 model: http_request
-id: rq_uxiAnpqZS5
-createdAt: 2026-10-11T19:54:53.878648
-updatedAt: 2026-10-11T19:54:53.878649
+id: rq_B8CZ9ZdgDE
+createdAt: 2026-10-14T12:22:42.044255
+updatedAt: 2026-10-14T12:22:42.044255
 workspaceId: wk_gKCDaoQfbG
-folderId: null
+folderId: fl_YxW6BDNaaw
 authentication: {}
 authenticationType: null
 body: {}
 bodyType: null
-description: ''
+description: 'Expected 200: up to ten latest DM-only audits with reasons, actor, tick, before/after positions and invalidated-submission count.'
 headers: []
 method: GET
-name: ''
-sortPriority: -1791748493877.0
-url: ''
+name: 04 - Recent interventions
+sortPriority: 3.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/interventions
 urlParameters: []
 settingSendCookies:
   enabled: false

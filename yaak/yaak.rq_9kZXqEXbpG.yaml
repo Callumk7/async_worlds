@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_9kZXqEXbpG
+createdAt: 2026-10-14T12:22:42.267736
+updatedAt: 2026-10-14T12:22:42.267737
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "expected_progression": ${[ QUEST_EXPECTED_PROGRESSION ]},
+      "reason": "${[ QUEST_REASON ]}"
+    }
+bodyType: application/json
+description: Expected 200 with the full active precondition. Stops without completing and clears the open choice. Management progression becomes null; do not reuse the returned ended record as an active precondition.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 08 - End the active assignment
+sortPriority: 7.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/end
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

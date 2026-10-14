@@ -51,6 +51,28 @@ defmodule AsyncWorldsWeb.Router do
 
     post "/campaigns/:guild_id/quests/import", QuestImportController, :create
 
+    get "/campaigns/:guild_id/quests/management", QuestInterventionController, :management
+    get "/campaigns/:guild_id/characters/:id/quests", QuestInterventionController, :management
+
+    get "/campaigns/:guild_id/characters/:id/quests/unlocked",
+        QuestInterventionController,
+        :unlocked
+
+    get "/campaigns/:guild_id/characters/:id/quests/interventions",
+        QuestInterventionController,
+        :interventions
+
+    post "/campaigns/:guild_id/characters/:id/quests/assign",
+         QuestInterventionController,
+         :assign_quest
+
+    post "/campaigns/:guild_id/characters/:id/quests/replace",
+         QuestInterventionController,
+         :replace
+
+    post "/campaigns/:guild_id/characters/:id/quests/move", QuestInterventionController, :move
+    post "/campaigns/:guild_id/characters/:id/quests/end", QuestInterventionController, :end_quest
+
     get "/campaigns/:guild_id/quests", QuestAuthoringController, :index
     get "/campaigns/:guild_id/quests/revisions", QuestAuthoringController, :revisions
     get "/campaigns/:guild_id/quests/revisions/:id", QuestAuthoringController, :revision
