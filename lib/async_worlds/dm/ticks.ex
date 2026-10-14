@@ -66,6 +66,18 @@ defmodule AsyncWorlds.DM.Ticks do
   def publish_tick(scope, id, draft_id),
     do: DMAccess.run(scope, fn c, _ -> Ticks.publish_tick(c.id, id, draft_id) end)
 
+  def readiness(scope, id),
+    do:
+      DMAccess.run(scope, fn c, actor ->
+        AsyncWorlds.Quests.Submissions.readiness(c, actor, id)
+      end)
+
+  def readiness_roster(scope, id),
+    do:
+      DMAccess.run(scope, fn c, actor ->
+        AsyncWorlds.Quests.Submissions.readiness_roster(c, actor, id)
+      end)
+
   def remind(scope, request_id),
     do:
       DMAccess.run(scope, fn c, actor ->

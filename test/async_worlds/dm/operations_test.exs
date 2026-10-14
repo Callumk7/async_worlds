@@ -52,6 +52,8 @@ defmodule AsyncWorlds.DM.OperationsTest do
       ),
       &Ticks.publish_tick(&1, tick.id, Ecto.UUID.generate()),
       &Ticks.remind(&1, "999"),
+      &Ticks.readiness(&1, tick.id),
+      &Ticks.readiness_roster(&1, tick.id),
       &Clocks.list_clocks/1,
       &Clocks.get_clock(&1, clock.id),
       &Clocks.list_audits/1,

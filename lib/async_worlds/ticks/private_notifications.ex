@@ -18,9 +18,10 @@ defmodule AsyncWorlds.Ticks.PrivateNotifications do
     end
   end
 
+  @doc "Request keys are transport-neutral; intents remain deduplicated per tick/subject/route, not per request."
   def remind(guild, actor, request_id) do
     with {:ok, expected} <- AsyncWorlds.Campaigns.authorize_dm(guild, actor),
-         {:ok, _request_id} <- AsyncWorlds.Discord.Snowflake.cast(request_id) do
+         :ok <- request_key(request_id) do
       Repo.transaction(fn ->
         campaign =
           Repo.one!(
@@ -50,11 +51,16 @@ defmodule AsyncWorlds.Ticks.PrivateNotifications do
           end
         end)
       end)
-    else
-      :error -> {:error, :invalid_id}
-      error -> error
     end
   end
+
+  defp request_key(key) when is_binary(key) and byte_size(key) in 1..200 do
+    if String.valid?(key) and String.trim(key) != "" and not String.contains?(key, <<0>>),
+      do: :ok,
+      else: {:error, :invalid_idempotency_key}
+  end
+
+  defp request_key(_), do: {:error, :invalid_idempotency_key}
 
   @doc false
   def applicable?(%{guard: %{"type" => type} = guard} = delivery, campaign)
