@@ -20,8 +20,9 @@ defmodule AsyncWorlds.Ticks.OpeningOutputTest do
     messages = OpeningOutput.render(7, "789", rows, "Opening narration")
     text = Enum.map_join(messages, "", & &1.content)
     assert text =~ "Tick 7"
-    assert text =~ "Scout: Public harbour work"
+    assert text =~ "Scout: Public harbour work — Quest decision required"
     assert text =~ "Idle: No quest decision required."
+    refute text =~ "No quest decision required. No quest decision required."
     assert text =~ "DM handles this quest decision"
     assert text =~ "Opening narration"
     assert text =~ "/quest"

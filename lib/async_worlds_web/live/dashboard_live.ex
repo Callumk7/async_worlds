@@ -73,7 +73,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
          |> stream(:opening_chunks, opening.messages, reset: true)}
 
       {:error, reason} ->
-        {:noreply, stale_opening(socket, reason)}
+        {:noreply, socket |> refresh_overview() |> stale_opening(reason)}
     end
   end
 
@@ -101,12 +101,18 @@ defmodule AsyncWorldsWeb.DashboardLive do
          )}
 
       {:error, reason} ->
-        {:noreply, stale_opening(socket, reason)}
+        {:noreply, socket |> refresh_overview() |> stale_opening(reason)}
     end
   end
 
   def handle_event("open_prepared_tick", _, socket),
-    do: {:noreply, put_flash(socket, :error, error_message(:confirmation_required))}
+    do:
+      {:noreply,
+       put_flash(
+         socket,
+         :error,
+         "Confirm that you inspected all opening chunks and the destination."
+       )}
 
   def handle_event("open_tick", _params, socket) do
     {:noreply,
@@ -169,7 +175,9 @@ defmodule AsyncWorldsWeb.DashboardLive do
 
   defp scope(socket), do: socket.assigns.current_scope
 
-  defp refresh(socket) do
+  defp refresh(socket), do: socket |> refresh_overview() |> check_opening()
+
+  defp refresh_overview(socket) do
     scope = socket.assigns.current_scope
 
     {:ok, campaign} =
@@ -232,7 +240,6 @@ defmodule AsyncWorldsWeb.DashboardLive do
     |> stream(:jobs, jobs, reset: true)
     |> stream(:deliveries, deliveries, reset: true)
     |> stream(:roster, (roster && roster.rows) || [], reset: true)
-    |> check_opening()
   end
 
   defp check_opening(%{assigns: %{opening: nil}} = socket), do: socket
@@ -410,7 +417,11 @@ defmodule AsyncWorldsWeb.DashboardLive do
           </div>
         </section>
 
-        <section :if={is_nil(@tick)} id="tick-opening" class="admin-panel space-y-5">
+        <section
+          :if={is_nil(@tick) || @opening != nil}
+          id="tick-opening"
+          class="admin-panel space-y-5"
+        >
           <div>
             <h2 class="text-lg font-semibold">Prepare next tick opening</h2>
             <p class="mt-2 text-sm text-slate-400">

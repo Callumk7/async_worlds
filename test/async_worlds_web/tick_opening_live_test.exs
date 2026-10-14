@@ -134,6 +134,8 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
     {:ok, view, _} = live(c.conn, ~p"/dashboard")
     prepare(view)
     view |> form("#opening-approval") |> render_submit()
+    assert has_element?(view, "#flash-error", "Confirm that you inspected")
+    refute has_element?(view, "#flash-error", "duplicate")
     assert Ticks.active_tick(c.campaign.id) == nil
 
     render_submit(view, "open_prepared_tick", %{
@@ -147,6 +149,27 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
     assert Ticks.active_tick(c.campaign.id).number == 1
     refute has_element?(view, "#opening-preview")
     assert has_element?(view, "#close-tick:not([disabled])")
+  end
+
+  for action <- [:prepare, :open], locked <- [false, true] do
+    test "#{action} rejection refreshes overview with locked=#{locked} and retains preview", c do
+      {:ok, view, _} = live(c.conn, ~p"/dashboard")
+      prepare(view, "Retained narration")
+      {:ok, tick} = Ticks.open_tick(c.campaign.id)
+      if unquote(locked), do: Ticks.close_tick(c.campaign.id, tick.id)
+
+      if unquote(action) == :prepare do
+        prepare(view, "New narration")
+      else
+        render_submit(view, "open_prepared_tick", %{"approval" => %{"confirm" => "true"}})
+      end
+
+      assert has_element?(view, "#tick-status", "Tick 1")
+      assert has_element?(view, "#close-tick")
+      assert has_element?(view, "#opening-chunks", "Retained narration")
+      assert has_element?(view, "#opening-stale")
+      if unquote(locked), do: assert(has_element?(view, "#close-tick[disabled]"))
+    end
   end
 
   test "changed roster rejects opening and retains old preview until deliberate inspection", c do

@@ -34,7 +34,13 @@ defmodule AsyncWorlds.Ticks.OpeningOutput do
 
   defp roster_lines(activities) do
     Enum.map(activities, fn activity ->
-      "#{activity.name}: #{activity.summary} #{requirement(activity)}"
+      requirement = requirement(activity)
+
+      if activity.summary == requirement do
+        "#{activity.name}: #{activity.summary}"
+      else
+        "#{activity.name}: #{activity.summary} — #{requirement}"
+      end
     end)
   end
 
