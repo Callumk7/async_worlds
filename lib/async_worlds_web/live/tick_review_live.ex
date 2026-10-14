@@ -402,7 +402,11 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           </p>
           <div id="player-consequences" phx-update="stream" class="space-y-4 mb-6">
             <p id="player-consequences-empty" class="hidden only:block">
-              No players in the frozen tick.
+              <%= if @preview_ready do %>
+                No players in the frozen tick.
+              <% else %>
+                Player inspection is unavailable until the preview is valid.
+              <% end %>
             </p>
             <article
               :for={{dom_id, player} <- @streams.player_consequences}

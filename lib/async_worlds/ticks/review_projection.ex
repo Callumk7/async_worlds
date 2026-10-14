@@ -3,6 +3,7 @@ defmodule AsyncWorlds.Ticks.ReviewProjection do
 
   def players(payload, snapshot) do
     inputs = snapshot.data["quest_inputs"] || %{}
+    invalidated = MapSet.new(inputs["invalidations"] || [], & &1["character_id"])
 
     Enum.map(inputs["characters"] || [], fn before ->
       id = before["id"]
@@ -23,6 +24,9 @@ defmodule AsyncWorlds.Ticks.ReviewProjection do
 
             result ->
               "Submitted"
+
+            MapSet.member?(invalidated, id) ->
+              "Invalidated choice · position unchanged"
 
             progression && progression["status"] in ["completed", "ended"] ->
               "Ending · no choice required"

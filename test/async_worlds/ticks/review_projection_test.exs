@@ -66,6 +66,21 @@ defmodule AsyncWorlds.Ticks.ReviewProjectionTest do
     assert missing.before == missing.after
     assert missing.downstream == []
     assert ending.state == "Ending · no choice required"
+
+    invalidated_snapshot =
+      put_in(snapshot.data["quest_inputs"]["invalidations"], [
+        %{"character_id" => 1},
+        %{"character_id" => 2}
+      ])
+
+    [submitted, invalidated, ending] = ReviewProjection.players(payload, invalidated_snapshot)
+    assert submitted.state == "Submitted · ending"
+    assert invalidated.state == "Invalidated choice · position unchanged"
+    refute invalidated.submitted?
+    assert invalidated.before == invalidated.after
+    assert invalidated.consequences == []
+    assert invalidated.downstream == []
+    assert ending.state == "Ending · no choice required"
   end
 
   test "recipient grouping preserves exact renderer payloads and chunk order, including separate DM copy routes" do

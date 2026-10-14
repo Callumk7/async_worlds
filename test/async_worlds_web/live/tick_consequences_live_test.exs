@@ -5,7 +5,7 @@ defmodule AsyncWorldsWeb.TickConsequencesLiveTest do
   alias AsyncWorlds.{Campaigns, Characters, Clocks, Deliveries, Quests, Repo, Ticks}
   alias AsyncWorlds.Quests.Submissions
 
-  setup %{conn: conn} do
+  setup %{conn: conn} = context do
     {:ok, campaign} =
       Campaigns.setup_campaign(%{
         discord_guild_id: "11001",
@@ -48,6 +48,20 @@ defmodule AsyncWorldsWeb.TickConsequencesLiveTest do
         ])
       )
 
+    choice =
+      if context[:invalidated_submission] do
+        Map.put(choice, "conditions", [
+          %{
+            "type" => "character_flag",
+            "key" => "ready",
+            "flag_type" => "boolean",
+            "value" => true
+          }
+        ])
+      else
+        choice
+      end
+
     {:ok, revision} =
       Quests.create_quest(
         campaign,
@@ -59,9 +73,18 @@ defmodule AsyncWorldsWeb.TickConsequencesLiveTest do
     for character <- [player, missing],
         do: Quests.assign(campaign, "22002", character.id, revision.id)
 
+    if context[:invalidated_submission] do
+      {:ok, _} = Characters.set_flag(campaign, "22002", player.id, "ready", flag())
+    end
+
     {:ok, tick} = Ticks.open_tick(campaign.id)
     {:ok, state} = Submissions.player_state("11001", "44004")
     {:ok, _} = Submissions.submit("11001", "44004", state.identity, "roll")
+
+    if context[:invalidated_submission] do
+      {:ok, _} = Characters.set_flag(campaign, "22002", player.id, "ready", flag(false))
+    end
+
     {:ok, %{snapshot: snapshot}} = Ticks.close_tick(campaign.id, tick.id)
     {:ok, dice} = Ticks.record_quest_rolls(campaign.id, tick.id, snapshot.revision, fn -> 1 end)
     {:ok, payload} = Ticks.WorldResolver.resolve(snapshot, %{}, dice)
@@ -76,6 +99,46 @@ defmodule AsyncWorldsWeb.TickConsequencesLiveTest do
       clock: clock,
       draft: draft
     }
+  end
+
+  @tag invalidated_submission: true
+  test "frozen ineligible submissions are invalidated, not missed choices", c do
+    {:ok, snapshot} = Ticks.fetch_snapshot(c.campaign.id, c.tick.id)
+    assert [%{"character_id" => id}] = snapshot.data["quest_inputs"]["invalidations"]
+    assert id == c.player.id
+    assert snapshot.data["quest_inputs"]["submissions"] == []
+
+    {:ok, view, _} = live(c.conn, ~p"/ticks/#{c.tick.id}/review")
+    row = "#player_consequences-#{c.player.id}"
+    assert has_element?(view, row, "Invalidated choice · position unchanged")
+    refute has_element?(view, row, "Missing choice")
+    refute has_element?(view, "#{row} a[href='#quest_review-#{c.player.id}']")
+    refute has_element?(view, "#quest_review-#{c.player.id}")
+    assert has_element?(view, "#player_consequences-#{c.missing.id}", "Missing choice")
+
+    [player | _] = AsyncWorlds.Ticks.ReviewProjection.players(c.draft.payload, snapshot)
+    assert player.before == player.after
+    refute player.submitted?
+  end
+
+  test "invalid previews do not claim the frozen roster has no players", c do
+    {:ok, snapshot} = Ticks.fetch_snapshot(c.campaign.id, c.tick.id)
+    assert snapshot.data["quest_inputs"]["characters"] != []
+
+    {:ok, _} =
+      Ticks.put_draft(
+        c.campaign.id,
+        c.tick.id,
+        snapshot.revision,
+        %{"clocks" => %{}, "world_news" => "invalid"},
+        c.draft.id
+      )
+
+    {:ok, view, _} = live(c.conn, ~p"/ticks/#{c.tick.id}/review")
+    assert has_element?(view, "#preview-error")
+    assert has_element?(view, "#publish-tick[disabled]")
+    assert has_element?(view, "#player-consequences-empty", "Player inspection is unavailable")
+    refute has_element?(view, "#player-consequences-empty", "No players in the frozen tick")
   end
 
   test "player states and canonical downstream traces update without changing live state", c do
