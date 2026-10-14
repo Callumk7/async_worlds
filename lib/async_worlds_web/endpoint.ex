@@ -46,6 +46,7 @@ defmodule AsyncWorldsWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  plug AsyncWorldsWeb.ApiAuth
   plug AsyncWorldsWeb.QuestImportRequest
 
   plug Plug.Parsers,

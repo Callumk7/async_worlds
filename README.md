@@ -81,6 +81,12 @@ Web and Discord interfaces share `AsyncWorlds.Campaigns`:
   data. The caller must obtain the user ID from a verified Discord interaction
   or authenticated web identity, not an untrusted form field.
 
+## HTTP APIs
+
+HTTP APIs use a manually configured DM bearer token shared with quest imports.
+See [HTTP API authentication](docs/http-api.md) for configuration,
+authorization boundaries and rotation.
+
 ## Discord bot
 
 The optional supervised Nostrum bot is disabled by default. See

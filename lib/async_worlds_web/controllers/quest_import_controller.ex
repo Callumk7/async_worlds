@@ -7,8 +7,8 @@ defmodule AsyncWorldsWeb.QuestImportController do
          {:ok, bindings} <- clock_bindings(conn.query_params),
          {:ok, results} <-
            Quests.import_json(
-             conn.assigns.import_campaign,
-             conn.assigns.import_dm_id,
+             conn.assigns.current_scope.campaign,
+             conn.assigns.current_scope.discord_user_id,
              conn.assigns.quest_import_json,
              clock_refs: bindings
            ) do

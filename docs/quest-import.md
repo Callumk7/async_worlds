@@ -19,8 +19,8 @@ Configure a trusted operator credential on the server before starting it:
 
 ```sh
 # Generate a random credential locally; never commit it.
-export QUEST_IMPORT_API_TOKEN="$(openssl rand -hex 32)"
-export QUEST_IMPORT_API_DM_USER_ID="456"
+export DM_API_TOKEN="$(openssl rand -hex 32)"
+export DM_API_DM_USER_ID="456"
 mix phx.server
 ```
 
@@ -33,6 +33,7 @@ that identity. Browser cookies do not authenticate this endpoint; it uses no
 cookie/session authentication and needs no CSRF token. Use HTTPS outside localhost.
 Rotate/revoke the credential by changing/removing the settings and restarting.
 This is a single operator credential, not a public token issuance service.
+Authentication is shared across all HTTP APIs; see [HTTP API authentication](http-api.md).
 
 Optional clock bindings are query parameters such as
 `?clock_refs[alarm]=1&clock_refs[danger]=2`. Values must be positive integer IDs;
@@ -79,7 +80,7 @@ The existing **Async Worlds** workspace has a **Quest JSON imports** folder with
 four requests: a minimal quest, a multi-quest/2d6 batch, Harbor with an `alarm`
 binding, and an intentional 422 validation failure. Select **Quest import examples**
 and set `BASE_URL`, `GUILD_ID`, and `ALARM_CLOCK_ID` to your local values. Keep
-`API_TOKEN` in a **private local environment** (copy the examples environment and
+`DM_API_TOKEN` in a **private local environment** (copy the examples environment and
 mark it private before filling in credentials). The checked-in examples contain
 no token. Do not export real credentials or commit secret environment files.
 

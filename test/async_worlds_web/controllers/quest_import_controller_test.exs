@@ -8,13 +8,13 @@ defmodule AsyncWorldsWeb.QuestImportControllerTest do
   @url "/api/campaigns/123/quests/import"
 
   setup do
-    previous = Application.get_env(:async_worlds, :quest_import_api)
-    Application.put_env(:async_worlds, :quest_import_api, token: @token, dm_user_id: "456")
+    previous = Application.get_env(:async_worlds, :dm_api)
+    Application.put_env(:async_worlds, :dm_api, token: @token, dm_user_id: "456")
 
     on_exit(fn ->
       if previous,
-        do: Application.put_env(:async_worlds, :quest_import_api, previous),
-        else: Application.delete_env(:async_worlds, :quest_import_api)
+        do: Application.put_env(:async_worlds, :dm_api, previous),
+        else: Application.delete_env(:async_worlds, :dm_api)
     end)
 
     {:ok, campaign} =
@@ -105,7 +105,7 @@ defmodule AsyncWorldsWeb.QuestImportControllerTest do
       })
 
     assert send_json(Jason.encode!(document())) |> json_response(404)
-    Application.delete_env(:async_worlds, :quest_import_api)
+    Application.delete_env(:async_worlds, :dm_api)
     assert send_json("{") |> json_response(401)
   end
 

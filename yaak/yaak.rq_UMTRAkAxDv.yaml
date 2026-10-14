@@ -18,7 +18,7 @@ headers:
   id: null
 - enabled: true
   name: Authorization
-  value: Bearer ${[ API_TOKEN ]}
+  value: Bearer ${[ DM_API_TOKEN ]}
   id: null
 method: POST
 name: 01 - Import a simple quest

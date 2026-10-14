@@ -13,7 +13,17 @@ defmodule AsyncWorlds.RuntimeConfigTest do
   }
 
   setup do
-    keys = Map.keys(@values) ++ ["DATABASE_CA_CERT", "DISCORD_BOT_TOKEN"]
+    keys =
+      Map.keys(@values) ++
+        [
+          "DATABASE_CA_CERT",
+          "DISCORD_BOT_TOKEN",
+          "DM_API_TOKEN",
+          "DM_API_DM_USER_ID",
+          "QUEST_IMPORT_API_TOKEN",
+          "QUEST_IMPORT_API_DM_USER_ID"
+        ]
+
     previous = Map.new(keys, &{&1, System.get_env(&1)})
     Enum.each(keys, &System.delete_env/1)
     System.put_env(@values)
@@ -74,6 +84,30 @@ defmodule AsyncWorlds.RuntimeConfigTest do
     System.put_env("DATABASE_URL", "postgres://user:private-db-password@db.example/worlds/extra")
     error = assert_raise RuntimeError, ~r/DATABASE_URL/, &runtime/0
     refute Exception.message(error) =~ "private-db-password"
+  end
+
+  test "DM API credentials are optional, validated and ignore obsolete import settings" do
+    refute runtime()[:async_worlds][:dm_api]
+    System.put_env("QUEST_IMPORT_API_TOKEN", String.duplicate("l", 32))
+    System.put_env("QUEST_IMPORT_API_DM_USER_ID", "456")
+    refute runtime()[:async_worlds][:dm_api]
+
+    System.put_env("DM_API_TOKEN", String.duplicate("n", 32))
+    assert_raise RuntimeError, ~r/DM_API_DM_USER_ID/, &runtime/0
+    System.put_env("DM_API_DM_USER_ID", "457")
+
+    assert runtime()[:async_worlds][:dm_api] == [
+             token: String.duplicate("n", 32),
+             dm_user_id: "457"
+           ]
+
+    for {key, value} <- [{"DM_API_TOKEN", "private-short"}, {"DM_API_DM_USER_ID", "invalid"}] do
+      previous = System.get_env(key)
+      System.put_env(key, value)
+      error = assert_raise RuntimeError, &runtime/0
+      refute Exception.message(error) =~ "private-short"
+      System.put_env(key, previous)
+    end
   end
 
   defp runtime, do: Config.Reader.read!("config/runtime.exs", env: :prod, target: :host)
