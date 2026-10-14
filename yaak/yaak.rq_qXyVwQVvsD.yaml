@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_qXyVwQVvsD
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_g5wi43HizF
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "confirm": true,
+      "delete_token": "${[ DELETE_TOKEN ]}"
+    }
+bodyType: application/json
+description: Copy signed token from read; expires after 24 hours, bound to target and campaign configuration.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: DELETE
+name: Confirm journal deletion
+sortPriority: 26.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/journals/${[ JOURNAL_ID ]}
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

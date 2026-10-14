@@ -1,0 +1,42 @@
+type: folder
+model: folder
+id: fl_RP2HRnsyv4
+createdAt: 2026-10-14T11:39:32.395171
+updatedAt: 2026-10-14T11:39:32.395172
+workspaceId: wk_gKCDaoQfbG
+folderId: null
+authentication: {}
+authenticationType: null
+description: Read-only saved history; character selection is explicitly DM-authorized.
+headers:
+- enabled: true
+  name: Authorization
+  value: Bearer ${[ DM_API_TOKEN ]}
+  id: null
+- enabled: true
+  name: Accept
+  value: application/json
+  id: null
+name: Published and personal history
+sortPriority: 2.0
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingRequestMessageSize:
+  enabled: false
+  value: 67108864
+settingHttpVersion:
+  enabled: false
+  value: auto

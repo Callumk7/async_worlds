@@ -1,0 +1,50 @@
+type: http_request
+model: http_request
+id: rq_hhravs2Hqc
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_FfRE5vkSo9
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "draft_id": "${[ DRAFT_ID ]}",
+      "reason": "Operator reviewed correction",
+      "operation": {
+        "type": "reroll",
+        "identity": "${[ DIE_IDENTITY ]}",
+        "old_value": 1
+      }
+    }
+bodyType: application/json
+description: Copy current DRAFT_ID from review; reroll old_value must match the selected die (edit the integer before sending).
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: Reroll selected die
+sortPriority: 11.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/ticks/${[ TICK_ID ]}/review/edits
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

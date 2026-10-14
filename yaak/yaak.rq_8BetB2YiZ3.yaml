@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_8BetB2YiZ3
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_RP2HRnsyv4
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: ''
+headers: []
+method: GET
+name: Published ticks
+sortPriority: 15.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/ticks/history?page=1
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto
