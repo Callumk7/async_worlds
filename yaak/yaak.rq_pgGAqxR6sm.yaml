@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_pgGAqxR6sm
+createdAt: 2026-10-14T11:39:56.369376
+updatedAt: 2026-10-14T11:39:56.369376
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Jhkgqh9KYx
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: Lists characters belonging to the selected campaign. Expected 200.
+headers: []
+method: GET
+name: 01 - List characters
+sortPriority: 0.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

@@ -1,0 +1,557 @@
+{
+  "yaakVersion": "0.1.0",
+  "yaakSchema": 4,
+  "timestamp": "2026-10-14T11:40:22.960875",
+  "resources": {
+    "workspaces": [
+      {
+        "model": "workspace",
+        "id": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-11T19:54:02.074980",
+        "updatedAt": "2026-10-11T19:54:02.074981",
+        "authentication": {},
+        "authenticationType": null,
+        "description": "",
+        "headers": [],
+        "name": "Async Worlds",
+        "encryptionKeyChallenge": null,
+        "settingValidateCertificates": true,
+        "settingFollowRedirects": true,
+        "settingRequestTimeout": 0,
+        "settingRequestMessageSize": 67108864,
+        "settingDnsOverrides": [],
+        "settingSendCookies": true,
+        "settingStoreCookies": true,
+        "settingHttpVersion": "auto"
+      }
+    ],
+    "environments": [
+      {
+        "model": "environment",
+        "id": "ev_695STXiQoH",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T11:39:56.311609",
+        "updatedAt": "2026-10-14T11:39:56.311610",
+        "name": "Global Variables",
+        "public": true,
+        "base": true,
+        "parentModel": "workspace",
+        "parentId": null,
+        "variables": [],
+        "color": null,
+        "sortPriority": 0.0
+      },
+      {
+        "model": "environment",
+        "id": "ev_zFzgucFLPX",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T11:39:56.311609",
+        "updatedAt": "2026-10-14T11:39:56.311610",
+        "name": "Character management examples",
+        "public": true,
+        "base": false,
+        "parentModel": "environment",
+        "parentId": "ev_695STXiQoH",
+        "variables": [
+          {
+            "enabled": true,
+            "name": "BASE_URL",
+            "value": "http://localhost:4000",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "GUILD_ID",
+            "value": "123",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "DM_API_TOKEN",
+            "value": "",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "CHARACTER_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "CHARACTER_STATE_VERSION",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "FLAG_KEY",
+            "value": "debt",
+            "id": null
+          }
+        ],
+        "color": null,
+        "sortPriority": 0.0
+      }
+    ],
+    "folders": [
+      {
+        "model": "folder",
+        "id": "fl_Jhkgqh9KYx",
+        "createdAt": "2026-10-14T11:39:32.395171",
+        "updatedAt": "2026-10-14T11:39:32.395172",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": null,
+        "authentication": {},
+        "authenticationType": null,
+        "description": "ENG-53: DM character and flag endpoints. Select Character management examples, configure credentials locally, and copy CHARACTER_ID / CHARACTER_STATE_VERSION from a read. Writes intentionally do not refresh stale versions automatically.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Authorization",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "Accept",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "name": "Character and flag management",
+        "sortPriority": 0.0,
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingRequestMessageSize": {
+          "enabled": false,
+          "value": 67108864
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "httpRequests": [
+      {
+        "model": "http_request",
+        "id": "rq_Z2cR3wD3KH",
+        "createdAt": "2026-10-14T11:39:56.754756",
+        "updatedAt": "2026-10-14T11:39:56.754756",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"state_version\": 0,\n  \"name\": \"Must not be saved\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 409 stale_character for an existing character; no write. Persisted character versions start at 1.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PATCH",
+        "name": "08 - Reject a stale version",
+        "sortPriority": 7.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_NKERt5RxpP",
+        "createdAt": "2026-10-14T11:39:56.700714",
+        "updatedAt": "2026-10-14T11:39:56.700714",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"Must not be saved\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 428 precondition_required; no write.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PATCH",
+        "name": "07 - Reject a missing version",
+        "sortPriority": 6.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_r698RDiLpX",
+        "createdAt": "2026-10-14T11:39:56.646178",
+        "updatedAt": "2026-10-14T11:39:56.646179",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"state_version\": ${[ CHARACTER_STATE_VERSION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Removes FLAG_KEY, preserving other facts. An absent key succeeds with a current version.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "DELETE",
+        "name": "06 - Clear a flag",
+        "sortPriority": 5.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}/flags/${[ FLAG_KEY ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_otvR4V2wXs",
+        "createdAt": "2026-10-14T11:39:56.589717",
+        "updatedAt": "2026-10-14T11:39:56.589717",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"state_version\": ${[ CHARACTER_STATE_VERSION ]},\n  \"type\": \"integer\",\n  \"value\": 5,\n  \"player_visible\": true\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Changes only FLAG_KEY. Values must be native JSON types and visibility explicit. Copy the returned state_version before clearing.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PUT",
+        "name": "05 - Set a flag",
+        "sortPriority": 4.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}/flags/${[ FLAG_KEY ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_b3oB75juL4",
+        "createdAt": "2026-10-14T11:39:56.533547",
+        "updatedAt": "2026-10-14T11:39:56.533548",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"state_version\": ${[ CHARACTER_STATE_VERSION ]},\n  \"name\": \"Yaak renamed character\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with a current version; omitted flags and ownership are preserved. Copy the new data.state_version before the next write.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PATCH",
+        "name": "04 - Update character",
+        "sortPriority": 3.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_mSr7amVx8e",
+        "createdAt": "2026-10-14T11:39:56.479199",
+        "updatedAt": "2026-10-14T11:39:56.479200",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"Yaak example character\",\n  \"flags\": {\n    \"debt\": {\n      \"type\": \"integer\",\n      \"value\": 3,\n      \"player_visible\": false\n    }\n  }\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 201. Creates a real character each time. Copy returned data.id and data.state_version to the example environment. Optional discord_user_id links ownership.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "03 - Create a DM-controlled character",
+        "sortPriority": 2.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_63hY46pPVm",
+        "createdAt": "2026-10-14T11:39:56.424337",
+        "updatedAt": "2026-10-14T11:39:56.424337",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200. Copy data.id and data.state_version into CHARACTER_ID and CHARACTER_STATE_VERSION before editing.",
+        "headers": [],
+        "method": "GET",
+        "name": "02 - Get character",
+        "sortPriority": 1.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_pgGAqxR6sm",
+        "createdAt": "2026-10-14T11:39:56.369376",
+        "updatedAt": "2026-10-14T11:39:56.369376",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Jhkgqh9KYx",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Lists characters belonging to the selected campaign. Expected 200.",
+        "headers": [],
+        "method": "GET",
+        "name": "01 - List characters",
+        "sortPriority": 0.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "grpcRequests": [],
+    "websocketRequests": []
+  }
+}

@@ -50,6 +50,13 @@ defmodule AsyncWorldsWeb.Router do
     pipe_through :api
 
     post "/campaigns/:guild_id/quests/import", QuestImportController, :create
+
+    get "/campaigns/:guild_id/characters", CharacterController, :index
+    get "/campaigns/:guild_id/characters/:id", CharacterController, :show
+    post "/campaigns/:guild_id/characters", CharacterController, :create
+    patch "/campaigns/:guild_id/characters/:id", CharacterController, :update
+    put "/campaigns/:guild_id/characters/:id/flags/:key", CharacterController, :set_flag
+    delete "/campaigns/:guild_id/characters/:id/flags/:key", CharacterController, :clear_flag
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

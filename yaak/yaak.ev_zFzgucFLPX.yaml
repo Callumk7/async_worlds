@@ -1,0 +1,38 @@
+type: environment
+model: environment
+id: ev_zFzgucFLPX
+workspaceId: wk_gKCDaoQfbG
+createdAt: 2026-10-14T11:39:56.311609
+updatedAt: 2026-10-14T11:39:56.311610
+name: Character management examples
+public: true
+base: false
+parentModel: environment
+parentId: ev_695STXiQoH
+variables:
+- enabled: true
+  name: BASE_URL
+  value: http://localhost:4000
+  id: null
+- enabled: true
+  name: GUILD_ID
+  value: '123'
+  id: null
+- enabled: true
+  name: DM_API_TOKEN
+  value: ''
+  id: null
+- enabled: true
+  name: CHARACTER_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: CHARACTER_STATE_VERSION
+  value: '1'
+  id: null
+- enabled: true
+  name: FLAG_KEY
+  value: debt
+  id: null
+color: null
+sortPriority: 0.0
