@@ -234,6 +234,21 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
     assert hd(review(c)["quests"])["narration_override"] == nil
   end
 
+  test "review audit history is attributed, projected and campaign isolated", c do
+    assert json_response(request(:get, c.url <> "/review/audits"), 200)["data"] == []
+    json_response(edit(c, c.draft.id, %{type: "world_news", text: ["Approved"]}), 200)
+    [audit] = json_response(request(:get, c.url <> "/review/audits"), 200)["data"]
+    assert audit["actor_id"] == "456"
+    assert audit["previous_draft_id"] == c.draft.id
+    assert audit["operation"] == %{"type" => "world_news", "text" => ["Approved"]}
+
+    error(
+      request(:get, String.replace(c.url, "/123/", "/124/") <> "/review/audits"),
+      404,
+      "not_found"
+    )
+  end
+
   test "publication requires explicit approval and atomically retains exact output", c do
     outputs = preview(c, c.draft.id)
     before = Deliveries.list_deliveries(c.campaign.id)

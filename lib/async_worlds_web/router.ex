@@ -90,6 +90,7 @@ defmodule AsyncWorldsWeb.Router do
          :release
 
     get "/campaigns/:guild_id/ticks/:id/review", TickReviewController, :show
+    get "/campaigns/:guild_id/ticks/:id/review/audits", TickReviewController, :audits
     get "/campaigns/:guild_id/ticks/:id/review/preview", TickReviewController, :preview
     post "/campaigns/:guild_id/ticks/:id/review/edits", TickReviewController, :edit
     post "/campaigns/:guild_id/ticks/:id/publish", TickReviewController, :publish

@@ -104,3 +104,5 @@ republication returns 409 `already_published`. Invalid lifecycle states return
 409 `invalid_transition`. Missing drafts return 404 `no_draft`; missing/foreign
 ticks or revoked ownership are concealed 404 `not_found`. Canonical corruption
 returns bounded 500 `internal_error`, never the stored payload or exception.
+
+Review audit history is available at `GET /api/campaigns/:guild_id/ticks/:id/review/audits`. It returns attributed edits with prior/current draft IDs, reason, timestamp and a whitelisted operation. No raw snapshots or internal records are serialized.

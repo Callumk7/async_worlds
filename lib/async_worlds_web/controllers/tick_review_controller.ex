@@ -18,6 +18,16 @@ defmodule AsyncWorldsWeb.TickReviewController do
     end
   end
 
+  def audits(conn, _params) do
+    with :ok <- query(conn, []),
+         {:ok, id} <- resource_id(conn),
+         {:ok, edits} <- Ticks.list_review_edits(conn.assigns.current_scope, id) do
+      ApiResponse.success(conn, Enum.map(edits, &project_audit/1))
+    else
+      {:error, reason} -> ApiResponse.domain_error(conn, reason)
+    end
+  end
+
   def preview(conn, _params) do
     with :ok <- query(conn, ["draft_id"]),
          {:ok, id} <- resource_id(conn),
