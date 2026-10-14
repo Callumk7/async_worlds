@@ -46,7 +46,10 @@ defmodule AsyncWorlds.Discord.Help do
   end
 
   defp section(entries, permission, title) do
-    case Enum.filter(entries, &(&1.permission == permission)) do
+    case Enum.filter(entries, fn entry ->
+           entry.permission == permission or
+             (permission == :player and entry.permission == :member)
+         end) do
       [] ->
         nil
 

@@ -209,11 +209,22 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   defp lookup(permission, guild_id, user_id) when permission in [:dm, :debug],
     do: Campaigns.authorize_dm(guild_id, user_id)
 
-  defp lookup(:player, guild_id, _user_id), do: Campaigns.fetch_campaign_by_guild(guild_id)
+  defp lookup(permission, guild_id, _user_id) when permission in [:player, :member],
+    do: Campaigns.fetch_campaign_by_guild(guild_id)
 
   # Debug is the escape hatch even if a selected character was deleted.
   defp command_context(:debug, campaign, actor),
     do: {:ok, %{campaign: campaign, user_id: actor, access: actor, role: :dm}}
+
+  # Campaign-readable commands must not depend on a character or debug persona.
+  defp command_context(:member, campaign, actor),
+    do:
+      {:ok,
+       %{
+         campaign: campaign,
+         user_id: actor,
+         role: if(Campaigns.dm?(campaign, actor), do: :dm, else: :player)
+       }}
 
   defp command_context(_, campaign, actor), do: AsyncWorlds.PlayerAccess.context(campaign, actor)
 
