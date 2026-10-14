@@ -53,6 +53,9 @@ defmodule AsyncWorlds.Deliveries do
       {:kind, kind}, {:ok, query} when kind in [:public, :private] ->
         {:cont, {:ok, from(d in query, where: d.kind == ^kind)}}
 
+      {:before_id, id}, {:ok, query} when is_integer(id) and id > 0 ->
+        {:cont, {:ok, from(d in query, where: d.id < ^id)}}
+
       {:tick_id, tick_id}, {:ok, query} when is_integer(tick_id) and tick_id > 0 ->
         {:cont, {:ok, from(d in query, where: d.tick_id == ^tick_id)}}
 

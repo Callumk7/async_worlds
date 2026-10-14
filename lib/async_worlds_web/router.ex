@@ -89,6 +89,10 @@ defmodule AsyncWorldsWeb.Router do
          QuestAuthoringController,
          :release
 
+    get "/campaigns/:guild_id/deliveries", DeliveryController, :index
+    get "/campaigns/:guild_id/deliveries/:id", DeliveryController, :show
+    post "/campaigns/:guild_id/deliveries/:id/retry", DeliveryController, :retry
+
     get "/campaigns/:guild_id/ticks/history", HistoryController, :index
     get "/campaigns/:guild_id/ticks/:id/history", HistoryController, :show
     get "/campaigns/:guild_id/characters/:id/history/result", HistoryController, :result

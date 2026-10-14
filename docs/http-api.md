@@ -59,3 +59,5 @@ Quest import uses this shared scope while retaining its bounded raw-body reader
 and duplicate-key validation. See [quest import](quest-import.md) for payloads.
 
 - [Published and personal history](http-history.md)
+
+- [Delivery inspection and retry](http-deliveries.md)
