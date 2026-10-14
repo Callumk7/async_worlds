@@ -66,6 +66,11 @@ defmodule AsyncWorlds.Quests.Definition do
             "Narrative text is required (maximum 8000 bytes)"
           )
           |> issue(
+            path <> ".public_summary",
+            public_summary?(node),
+            "Public activity summary must be valid text (maximum 1000 bytes); blank uses a generic summary"
+          )
+          |> issue(
             path <> ".choices",
             is_list(cs) and if(field(node, "ending") == true, do: cs == [], else: cs != []),
             "Endings have no choices; other nodes need choices"
@@ -344,8 +349,24 @@ defmodule AsyncWorlds.Quests.Definition do
 
   defp unique?(ids), do: length(ids) == length(Enum.uniq(ids))
 
+  @doc "Optional public-only node text. Missing or blank summaries use a generic projection."
+  def public_summary?(node) when is_map(node) do
+    case Map.fetch(node, "public_summary") do
+      :error ->
+        true
+
+      {:ok, text} ->
+        is_binary(text) and String.valid?(text) and byte_size(text) <= 1000 and
+          not String.contains?(text, <<0>>)
+    end
+  end
+
+  def public_summary?(_), do: false
+
   defp node_shape?(node) do
-    keys?(node, ~w(id text ending choices)) and id?(node["id"]) and text?(node["text"]) and
+    is_map(node) and not is_struct(node) and
+      keys?(Map.drop(node, ["public_summary"]), ~w(id text ending choices)) and
+      public_summary?(node) and id?(node["id"]) and text?(node["text"]) and
       is_boolean(node["ending"]) and is_list(node["choices"]) and
       if(node["ending"], do: node["choices"] == [], else: node["choices"] != []) and
       Enum.all?(node["choices"], &(is_map(&1) and not is_struct(&1)))

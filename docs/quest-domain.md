@@ -13,7 +13,10 @@ are protected against UPDATE/DELETE in PostgreSQL. No deletion API is offered.
 Definitions are strict string-keyed maps: `start_node`, `nodes`. ENG-15 adds a
 versioned, atomic JSON import envelope and trusted operator commands; see
 [quest-import.md](quest-import.md) and `priv/quests/harbor.json`.
-Nodes: `id`, `text`, `ending`, `choices`. Choices: `id`, `label`, `eligibility`
+Nodes: `id`, `text`, `ending`, `choices`, plus optional `public_summary` (valid
+UTF-8 text, at most 1000 bytes, no NUL). Missing or whitespace-only summaries use
+a generic public fallback; they never copy private narrative. This additive field
+is compatible with existing version-1 imports and frozen definitions. Choices: `id`, `label`, `eligibility`
 (`hidden` or `disabled`), `conditions`, `mode`, `outcomes`; rolled choices also
 require `dice` (1–3) and `critical_effects`. Fixed outcomes have exactly `fixed`;
 rolled outcomes exactly `success`, `partial`, `failure`. Outcomes: `text`,
@@ -60,6 +63,28 @@ included. Ending projections have no choices.
 authorized callers; it is DM-only. Authoring updates cannot affect those copies
 or pinned assignments. ENG-16 adds full v2 tick inputs via `Submissions.freeze/2`
 in the close transaction; see [quest-submissions.md](quest-submissions.md).
+
+## Public activity summaries (ENG-63)
+
+The node editor offers **Public activity summary (optional)**, independently of
+private narrative. Save/reopen and release use the existing stale-editor and
+immutable-revision boundaries; new releases never repin existing characters.
+Clearing the field removes it and restores the generic fallback. Keep secrets out
+of explicitly authored public text; it is not automatically redacted.
+
+`Quests.public_activities(campaign, dm_id)` is a freshly authorized, campaign-locked
+read for future DM briefing preparation. It returns a stable character-ID-ordered
+list containing only `character_id`, `name`, `summary`, and `decision_required`.
+Text comes from each character's pinned node, not the latest library revision.
+Missing summaries on active non-ending nodes say “A quest decision is required.”
+Endings, ended paths, and unassigned characters require no decision; absent public
+text says “No quest decision required.” Ending nodes may have explicit public text
+while still requiring no decision. The pure `PublicActivity.project/3` helper
+exposes only summary and decision requirement, never quest names, private text,
+choices, flags, effects or conditions. Existing private player projections are unchanged.
+
+No public posting, tick-opening preview, action announcements, or custom proposals
+are implemented by this issue; these summaries are groundwork for subsequent slices.
 
 ## DM operational controls
 

@@ -471,6 +471,50 @@ defmodule AsyncWorlds.Quests do
     end)
   end
 
+  @doc "Freshly authorized public-safe roster from pinned quest revisions, not latest library content."
+  def public_activities(campaign, dm_id) do
+    manage(campaign, dm_id, fn current ->
+      characters =
+        Repo.all(from c in Character, where: c.campaign_id == ^current.id, order_by: c.id)
+
+      progressions =
+        Repo.all(
+          from p in Progression,
+            where: p.campaign_id == ^current.id,
+            distinct: p.character_id,
+            order_by: [asc: p.character_id, desc: p.id]
+        )
+
+      revision_ids = Enum.map(progressions, & &1.revision_id)
+
+      definitions =
+        Repo.all(
+          from r in Revision,
+            where: r.campaign_id == ^current.id and r.id in ^revision_ids
+        )
+        |> Map.new(&{&1.id, &1.definition})
+
+      positions = Map.new(progressions, &{&1.character_id, &1})
+
+      Enum.map(characters, fn character ->
+        activity =
+          case positions[character.id] do
+            nil ->
+              AsyncWorlds.Quests.PublicActivity.project(nil, nil, nil)
+
+            progression ->
+              AsyncWorlds.Quests.PublicActivity.project(
+                definitions[progression.revision_id],
+                progression.node_id,
+                progression.status
+              )
+          end
+
+        Map.merge(activity, %{character_id: character.id, name: character.name})
+      end)
+    end)
+  end
+
   @doc "DM-only immutable definition copies. Tick close uses Submissions.freeze/2 for full inputs."
   def freeze_definitions(campaign, dm_id) do
     manage(campaign, dm_id, fn current ->
