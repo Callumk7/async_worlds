@@ -6,10 +6,10 @@ defmodule AsyncWorlds.Journals.CreationReceipt do
   schema "journal_creation_receipts" do
     field :campaign_id, :id
     field :character_id, :id
-    field :request_id, AsyncWorlds.Discord.Snowflake
+    field :request_id, :string
     field :actor_id, AsyncWorlds.Discord.Snowflake
     field :binding, :map
-    field :origin, Ecto.Enum, values: [:player, :dm_persona]
+    field :origin, Ecto.Enum, values: [:player, :dm_persona, :dm]
     field :visibility, Ecto.Enum, values: [:private, :public]
     field :expires_at, :utc_datetime_usec
 

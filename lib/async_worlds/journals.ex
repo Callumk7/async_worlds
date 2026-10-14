@@ -1,7 +1,7 @@
 defmodule AsyncWorlds.Journals do
   @moduledoc "Persistent character-owned journals, independent of ticks and Discord delivery."
   import Ecto.Query
-  alias AsyncWorlds.{Campaigns, PlayerAccess, Repo}
+  alias AsyncWorlds.{Campaigns, DMAccess, PlayerAccess, Repo}
   alias AsyncWorlds.Campaigns.Campaign
   alias AsyncWorlds.Characters.Character
   alias AsyncWorlds.Discord.{DebugSessions, Snowflake}
@@ -10,87 +10,147 @@ defmodule AsyncWorlds.Journals do
   @max_id 9_223_372_036_854_775_807
   @page_size 10
 
-  def begin_creation(context, request_id, visibility \\ "private") do
-    with {:ok, request_id} <- Snowflake.cast(request_id),
-         {:ok, visibility} <- visibility(visibility) do
-      player(context, fn campaign, character ->
-        binding = binding(campaign, character, context)
-
-        case Repo.get_by(CreationReceipt, campaign_id: campaign.id, request_id: request_id) do
-          nil ->
-            %CreationReceipt{
-              campaign_id: campaign.id,
-              character_id: character.id,
-              request_id: request_id,
-              actor_id: actor(context),
-              binding: binding,
-              origin: if(is_map(context.access), do: :dm_persona, else: :player),
-              visibility: visibility,
-              expires_at: DateTime.add(DateTime.utc_now(), 900, :second)
-            }
-            |> Repo.insert!()
-            |> receipt_payload()
-
-          receipt ->
-            unless receipt.binding == binding and receipt.visibility == visibility,
-              do: Repo.rollback(:stale_component)
-
-            receipt_payload(receipt)
-        end
+  @doc "Create a journal directly for a verified player/subject, with a generic idempotency key."
+  def create_entry(guild, access, key, attrs, visibility \\ "private") do
+    with :ok <- request_key(key),
+         {:ok, visibility} <- visibility(visibility),
+         {:ok, content} <- creation_content(attrs) do
+      PlayerAccess.run(guild, access, fn campaign, character ->
+        context = %{campaign: campaign, access: access}
+        enforce_role!(campaign, context, false)
+        {:ok, actor} = Snowflake.cast(actor(context))
+        origin = if is_map(access), do: :dm_persona, else: :player
+        create_direct(campaign, character, actor, origin, key, content, visibility)
       end)
     end
   end
 
-  def open_creation(context, receipt_id) do
-    player(context, fn campaign, character ->
-      receipt = receipt!(campaign, character, context, receipt_id)
-      pending!(receipt)
-      receipt_payload(receipt)
-    end)
+  @doc "Create for an explicitly selected campaign character as the current DM, without a Discord persona."
+  def create_dm_entry(scope, character_id, key, attrs, visibility \\ "private") do
+    with :ok <- request_key(key),
+         {:ok, visibility} <- visibility(visibility),
+         {:ok, content} <- creation_content(attrs) do
+      DMAccess.run(scope, fn campaign, actor ->
+        character =
+          Repo.get_by(Character, campaign_id: campaign.id, id: id!(character_id)) ||
+            Repo.rollback(:not_found)
+
+        {:ok, create_direct(campaign, character, actor, :dm, key, content, visibility)}
+      end)
+    end
   end
 
-  def submit(context, receipt_id, attrs) do
-    player(context, fn campaign, character ->
-      receipt = receipt!(campaign, character, context, receipt_id)
+  # A retained outcome, not a modal or expiring draft. Request identity is scoped
+  # to campaign + actor + creation origin. Reusing it for another target or payload
+  # conflicts, including after deletion, rather than creating a second entry.
+  defp create_direct(campaign, character, actor, origin, key, content, visibility) do
+    request_id = "direct:" <> digest([actor, origin, key])
 
-      case receipt.state do
-        state when state in [:completed, :deleted] ->
-          receipt_payload(receipt)
+    expected = %{
+      "type" => "direct",
+      "character" => character.id,
+      "owner" => character.discord_user_id,
+      "configuration" =>
+        Map.new(configuration(campaign), fn {key, value} -> {Atom.to_string(key), value} end),
+      "fingerprint" => digest([content.title, content.body, visibility])
+    }
 
-        _ ->
-          pending!(receipt)
+    receipt = Repo.get_by(CreationReceipt, campaign_id: campaign.id, request_id: request_id)
 
-          entry = %Entry{
+    receipt =
+      if receipt do
+        unless receipt.binding == expected, do: Repo.rollback(:idempotency_conflict)
+        receipt
+      else
+        Repo.insert!(
+          %CreationReceipt{
             campaign_id: campaign.id,
             character_id: character.id,
-            receipt_id: receipt.id,
-            author_discord_user_id: receipt.actor_id,
-            origin: receipt.origin,
-            visibility: receipt.visibility
-          }
-
-          case Repo.insert(Entry.changeset(entry, attrs), log: false) do
-            {:ok, entry} ->
-              receipt
-              |> Ecto.Changeset.change(state: :completed, entry_id: entry.id)
-              |> Repo.update!()
-              |> receipt_payload()
-
-            {:error, _changeset} ->
-              # Never return a draft-bearing changeset to the interaction/logger boundary.
-              Repo.rollback(:invalid_journal_input)
-          end
+            request_id: request_id,
+            actor_id: actor,
+            origin: origin,
+            binding: expected,
+            visibility: visibility,
+            # Required by the existing table; direct requests do not expire.
+            expires_at: DateTime.utc_now()
+          },
+          log: false
+        )
       end
+
+    persist_creation(receipt, content)
+  end
+
+  @doc false
+  # Trusted persistence primitive: caller holds the authorized campaign lock and
+  # has verified either the generic request binding or Discord's modal binding.
+  def persist_creation(receipt, attrs) do
+    if receipt.state in [:completed, :deleted] do
+      creation_outcome(receipt)
+    else
+      unless receipt.state == :pending, do: Repo.rollback(:stale_component)
+
+      entry = %Entry{
+        campaign_id: receipt.campaign_id,
+        character_id: receipt.character_id,
+        receipt_id: receipt.id,
+        author_discord_user_id: receipt.actor_id,
+        origin: receipt.origin,
+        visibility: receipt.visibility
+      }
+
+      case Repo.insert(Entry.changeset(entry, attrs), log: false) do
+        {:ok, entry} ->
+          receipt
+          |> Ecto.Changeset.change(state: :completed, entry_id: entry.id)
+          |> Repo.update!()
+          |> creation_outcome()
+
+        {:error, _changeset} ->
+          # Never return a draft-bearing changeset to an interface/logger.
+          Repo.rollback(:invalid_journal_input)
+      end
+    end
+  end
+
+  @doc false
+  # Adapter callbacks inherit fresh ownership/persona checks and the campaign lock.
+  def with_player(context, fun) do
+    player(context, fn campaign, character ->
+      fun.(campaign, character, binding(campaign, character, context))
     end)
   end
 
-  def cancel_creation(context, receipt_id) do
-    player(context, fn campaign, character ->
-      receipt = receipt!(campaign, character, context, receipt_id)
-      pending!(receipt)
-      receipt |> Ecto.Changeset.change(state: :canceled) |> Repo.update!() |> receipt_payload()
-    end)
+  defp request_key(key) when is_binary(key) and byte_size(key) in 1..200 do
+    if String.valid?(key) and String.trim(key) != "" and not String.contains?(key, <<0>>),
+      do: :ok,
+      else: {:error, :invalid_idempotency_key}
   end
+
+  defp request_key(_), do: {:error, :invalid_idempotency_key}
+
+  defp creation_content(attrs) when is_map(attrs) do
+    content = %{
+      title: Map.get(attrs, "title", Map.get(attrs, :title)),
+      body: Map.get(attrs, "body", Map.get(attrs, :body))
+    }
+
+    changeset = Entry.changeset(%Entry{}, content)
+
+    if changeset.valid?,
+      do:
+        {:ok,
+         %{
+           title: Ecto.Changeset.get_field(changeset, :title),
+           body: Ecto.Changeset.get_field(changeset, :body)
+         }},
+      else: {:error, :invalid_journal_input}
+  end
+
+  defp creation_content(_), do: {:error, :invalid_journal_input}
+
+  defp digest(value),
+    do: :crypto.hash(:sha256, Jason.encode!(value)) |> Base.encode16(case: :lower)
 
   def list_entries(context, scope \\ :mine, character_id \\ nil, cursor \\ nil) do
     with {:ok, cursor} <- cursor(cursor) do
@@ -270,24 +330,8 @@ defmodule AsyncWorlds.Journals do
 
   defp configuration(c), do: Map.take(c, [:discord_guild_id, :dm_user_id, :public_channel_id])
 
-  defp receipt!(campaign, character, context, receipt_id) do
-    with {:ok, id} <- Ecto.UUID.cast(receipt_id),
-         %CreationReceipt{} = receipt <-
-           Repo.get_by(CreationReceipt, campaign_id: campaign.id, id: id),
-         true <- receipt.binding == binding(campaign, character, context) do
-      receipt
-    else
-      _ -> Repo.rollback(:stale_component)
-    end
-  end
-
-  defp pending!(receipt) do
-    unless receipt.state == :pending and
-             DateTime.compare(receipt.expires_at, DateTime.utc_now()) == :gt,
-           do: Repo.rollback(:stale_component)
-  end
-
-  defp receipt_payload(r) do
+  @doc false
+  def creation_outcome(r) do
     state =
       if r.state == :completed and
            not Repo.exists?(

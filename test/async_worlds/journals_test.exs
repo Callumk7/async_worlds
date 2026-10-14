@@ -1,4 +1,5 @@
 defmodule AsyncWorlds.JournalsTest do
+  alias AsyncWorlds.Discord.JournalCreation
   use AsyncWorlds.DataCase, async: false
   alias AsyncWorlds.{Campaigns, Characters, Journals, PlayerAccess, Ticks}
   alias AsyncWorlds.Discord.DebugSessions
@@ -31,11 +32,11 @@ defmodule AsyncWorlds.JournalsTest do
   end
 
   defp begin(context, visibility \\ "private"),
-    do: Journals.begin_creation(context, System.unique_integer([:positive]), visibility)
+    do: JournalCreation.begin_creation(context, System.unique_integer([:positive]), visibility)
 
   defp save(context, visibility \\ "private", attrs \\ %{title: "Title", body: "Body"}) do
     {:ok, receipt} = begin(context, visibility)
-    {:ok, result} = Journals.submit(context, receipt.id, attrs)
+    {:ok, result} = JournalCreation.submit(context, receipt.id, attrs)
     Repo.get!(Entry, result.entry_id)
   end
 
@@ -47,9 +48,9 @@ defmodule AsyncWorlds.JournalsTest do
   test "default-private persistent flow and immutable trusted fields; duplicates never replace content",
        c do
     request = System.unique_integer([:positive])
-    assert {:ok, first} = Journals.begin_creation(c.player, request)
-    assert {:ok, ^first} = Journals.begin_creation(c.player, request)
-    assert {:ok, ^first} = Journals.open_creation(c.player, first.id)
+    assert {:ok, first} = JournalCreation.begin_creation(c.player, request)
+    assert {:ok, ^first} = JournalCreation.begin_creation(c.player, request)
+    assert {:ok, ^first} = JournalCreation.open_creation(c.player, first.id)
     assert Repo.aggregate(Entry, :count) == 0
 
     attrs = %{
@@ -63,7 +64,7 @@ defmodule AsyncWorlds.JournalsTest do
       id: 999
     }
 
-    assert {:ok, result} = Journals.submit(c.player, first.id, attrs)
+    assert {:ok, result} = JournalCreation.submit(c.player, first.id, attrs)
     entry = Repo.get!(Entry, result.entry_id)
     assert entry.campaign_id == c.campaign.id
     assert entry.character_id == c.a.id
@@ -73,12 +74,15 @@ defmodule AsyncWorlds.JournalsTest do
     assert entry.body == attrs.body
 
     assert {:ok, ^result} =
-             Journals.submit(c.player, first.id, %{title: "Different", body: "Ignored"})
+             JournalCreation.submit(c.player, first.id, %{title: "Different", body: "Ignored"})
 
     assert Repo.get!(Entry, entry.id) == entry
-    assert {:ok, ^result} = Journals.begin_creation(c.player, request)
-    assert {:error, :stale_component} = Journals.begin_creation(c.player, request, "public")
-    assert {:error, :stale_component} = Journals.begin_creation(c.other, request)
+    assert {:ok, ^result} = JournalCreation.begin_creation(c.player, request)
+
+    assert {:error, :stale_component} =
+             JournalCreation.begin_creation(c.player, request, "public")
+
+    assert {:error, :stale_component} = JournalCreation.begin_creation(c.other, request)
     assert save(c.player).id != entry.id
   end
 
@@ -216,7 +220,10 @@ defmodule AsyncWorlds.JournalsTest do
     assert {:ok, ^binding} = Journals.control_binding(context(c.campaign, "456"), true)
 
     assert {:ok, _} =
-             Journals.submit(context(c.campaign, "456"), flow.id, %{title: "Title", body: "Body"})
+             JournalCreation.submit(context(c.campaign, "456"), flow.id, %{
+               title: "Title",
+               body: "Body"
+             })
   end
 
   test "expired/canceled flows and subject/configuration ABA never create or retarget entries",
@@ -227,23 +234,23 @@ defmodule AsyncWorlds.JournalsTest do
     |> change(expires_at: DateTime.add(DateTime.utc_now(), -1))
     |> Repo.update!()
 
-    assert {:error, :stale_component} = Journals.open_creation(c.player, receipt.id)
+    assert {:error, :stale_component} = JournalCreation.open_creation(c.player, receipt.id)
 
     assert {:error, :stale_component} =
-             Journals.submit(c.player, receipt.id, %{title: "Title", body: "Body"})
+             JournalCreation.submit(c.player, receipt.id, %{title: "Title", body: "Body"})
 
     {:ok, canceled} = begin(c.player)
-    assert {:ok, %{state: :canceled}} = Journals.cancel_creation(c.player, canceled.id)
+    assert {:ok, %{state: :canceled}} = JournalCreation.cancel_creation(c.player, canceled.id)
 
     assert {:error, :stale_component} =
-             Journals.submit(c.player, canceled.id, %{title: "Title", body: "Body"})
+             JournalCreation.submit(c.player, canceled.id, %{title: "Title", body: "Body"})
 
     {:ok, stale} = begin(c.player)
     {:ok, _} = Characters.update_character(c.campaign, "456", c.a.id, %{discord_user_id: "993"})
     {:ok, _} = Characters.update_character(c.campaign, "456", c.a.id, %{discord_user_id: "991"})
 
     assert {:error, :stale_component} =
-             Journals.submit(c.player, stale.id, %{title: "Title", body: "Body"})
+             JournalCreation.submit(c.player, stale.id, %{title: "Title", body: "Body"})
 
     {:ok, _} = DebugSessions.transition("123", "456", {:player, c.a.id})
     persona = context(c.campaign, "456")
@@ -252,7 +259,10 @@ defmodule AsyncWorlds.JournalsTest do
     {:ok, _} = DebugSessions.transition("123", "456", {:player, c.a.id})
 
     assert {:error, :stale_component} =
-             Journals.submit(context(c.campaign, "456"), flow.id, %{title: "Title", body: "Body"})
+             JournalCreation.submit(context(c.campaign, "456"), flow.id, %{
+               title: "Title",
+               body: "Body"
+             })
 
     assert Repo.aggregate(Entry, :count) == 0
   end
@@ -268,7 +278,10 @@ defmodule AsyncWorlds.JournalsTest do
     assert {:ok, %{entries: []}} = Journals.list_entries(c.player)
 
     assert {:ok, %{state: :deleted, entry_id: id}} =
-             Journals.submit(c.player, receipt.id, %{title: "Resurrection", body: "Not saved"})
+             JournalCreation.submit(c.player, receipt.id, %{
+               title: "Resurrection",
+               body: "Not saved"
+             })
 
     assert id == entry.id
     stored = Repo.get!(CreationReceipt, receipt.id)
@@ -318,7 +331,7 @@ defmodule AsyncWorlds.JournalsTest do
     Repo.delete!(entry)
 
     assert {:ok, %{state: :deleted}} =
-             Journals.submit(c.player, entry.receipt_id, %{title: "New", body: "New"})
+             JournalCreation.submit(c.player, entry.receipt_id, %{title: "New", body: "New"})
 
     {:ok, binding} = Journals.control_binding(c.player)
 
@@ -390,7 +403,7 @@ defmodule AsyncWorlds.JournalsTest do
       {:ok, flow} = begin(c.player)
 
       assert {:error, :invalid_journal_input} =
-               Journals.submit(c.player, flow.id, %{title: title, body: body})
+               JournalCreation.submit(c.player, flow.id, %{title: title, body: body})
 
       assert Repo.get!(CreationReceipt, flow.id).state == :pending
     end

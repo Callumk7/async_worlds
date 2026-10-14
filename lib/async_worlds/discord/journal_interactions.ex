@@ -1,4 +1,5 @@
 defmodule AsyncWorlds.Discord.JournalInteractions do
+  alias AsyncWorlds.Discord.JournalCreation
   @moduledoc "Production journal commands and authenticated, freshly authorized controls."
   alias AsyncWorlds.Journals
   alias AsyncWorlds.Journals.Entry
@@ -137,13 +138,14 @@ defmodule AsyncWorlds.Discord.JournalInteractions do
 
   def open(id, context) do
     with {:ok, uuid} <- parse_creation(id, "write"),
-         {:ok, _} <- Journals.open_creation(context, uuid) do
+         {:ok, _} <- JournalCreation.open_creation(context, uuid) do
       {:ok, modal(creation_id("submit", uuid))}
     end
   end
 
   def execute({:journal_new, visibility}, context) do
-    with {:ok, receipt} <- Journals.begin_creation(context, context.interaction_id, visibility) do
+    with {:ok, receipt} <-
+           JournalCreation.begin_creation(context, context.interaction_id, visibility) do
       if receipt.state == :pending do
         {:ok,
          %{
@@ -160,7 +162,7 @@ defmodule AsyncWorlds.Discord.JournalInteractions do
   def execute({:journal_submit, id, components}, context) do
     with {:ok, uuid} <- parse_creation(id, "submit"),
          {:ok, attrs} <- inputs(components),
-         {:ok, receipt} <- Journals.submit(context, uuid, attrs) do
+         {:ok, receipt} <- JournalCreation.submit(context, uuid, attrs) do
       {:ok, creation_result(receipt)}
     end
   end
