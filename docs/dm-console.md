@@ -72,8 +72,9 @@ last refresh time and nothing updates live, so frozen and live data never mix.
 Clock editors pass the loaded record to a comparison made under the domain's
 campaign lock. Stale saves cannot overwrite another window's changes. Review
 forms carry the approved draft UUID, not just a tick ID. Stale edits disable
-editing/publication until explicit reload; stale publication attempts reload and
-reset confirmation so the DM must inspect the current preview again. Domain
+editing/publication until explicit reload, including stale publication attempts.
+They reset confirmation but retain the old preview with a stale warning; use
+**Reload review** to inspect the fresh revision before editing or approving again. Domain
 checks remain authoritative even if browser-disabled controls are bypassed.
 
 ## Quest turn review (ENG-20)
@@ -86,6 +87,33 @@ edit recomputes all frozen consequences, preserving unrelated dice. Inspect both
 **Exact public preview** and **Exact private preview**, including recipient IDs,
 before confirmation/publication. The transaction applies quest progression,
 flags, availability and world clocks together. See [quest-review.md](quest-review.md).
+
+## Consequence-first tick inspection (ENG-38)
+
+1. Inspect **Player consequences** for every frozen character: submitted, missing
+   choice, ending, or no active quest. Missing choices retain their position but
+   can still receive targeted world-trigger effects. Compare node/status/version
+   and flags before/after; these are DM-only diagnostics, not player messages.
+2. Follow a submitted player's control link to outcome, selective reroll and
+   narration forms. Supply a meaningful audit reason for each edit. Inspect the
+   new revision before confirming again; edits clear the approval checkbox.
+3. Inspect the player's **shared downstream trace** and **World consequences**.
+   Traces include recorded quest effects, background deltas, completion and fired
+   triggers in canonical order. Shared traces do not imply one player alone caused
+   completion. Overrides replace only the background delta, never quest effects
+   or final fill. Zero/clamped deltas may have no change record. Initial-full
+   completion latches, paused behavior and race rules remain engine-owned.
+4. Inspect **Exact private preview** separately for each recipient, character and
+   route (owner, DM-controlled or DM copy), and **Exact public preview** for the
+   channel. Each numbered message is one exact renderer chunk, not a reflowed
+   approximation. DM diagnostic messages intentionally include private world
+   information; owner messages do not inherit those diagnostics or other players'
+   results. Authored narration/news must still be safe for its intended audience.
+5. A failed preview blocks publication. An empty section explicitly says that no
+   messages are available. Publish only after inspecting all chunks of the current
+   revision. A stale tab cannot use a newer draft token to skip inspection: reload
+   explicitly, inspect again, then confirm. Duplicate publication is rejected by
+   the shared transaction; delivery failures must be retried, never republished.
 
 ## Personal quest operations
 

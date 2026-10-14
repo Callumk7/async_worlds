@@ -377,7 +377,9 @@ defmodule AsyncWorlds.Journals do
       if r.state == :completed and
            not Repo.exists?(
              from(e in Entry, where: e.id == ^r.entry_id and e.campaign_id == ^r.campaign_id)
-           ), do: :deleted, else: r.state
+           ),
+         do: :deleted,
+         else: r.state
 
     %{id: r.id, state: state, entry_id: r.entry_id, visibility: r.visibility}
   end
