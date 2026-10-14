@@ -1,4 +1,4 @@
-# HTTP API authentication (ENG-48)
+# HTTP API support
 
 All `/api` requests require a configured DM bearer credential. This is a single
 manually provisioned operator credential, not a player API or key-management service.
@@ -23,6 +23,9 @@ Character and flag routes are documented in [HTTP character management](http-cha
 Clock routes are documented in [HTTP clock management](http-clocks.md).
 Tick lifecycle, readiness and reminder routes are documented in [HTTP ticks](http-ticks.md).
 Draft review, previews, audited edits and publication are documented in [HTTP tick review](http-tick-review.md).
+Published ticks and personal results/submissions are documented in [HTTP history](http-history.md).
+Delivery inspection and retries are documented in [HTTP deliveries](http-deliveries.md).
+Journal creation, browsing and deletion are documented in [HTTP journals](http-journals.md).
 Quest library and authoring routes are documented in [HTTP quests](http-quests.md).
 Assignment and intervention routes are documented in [HTTP quest interventions](http-quest-interventions.md).
 
@@ -58,8 +61,55 @@ Browser/LiveView authentication is unchanged.
 Quest import uses this shared scope while retaining its bounded raw-body reader
 and duplicate-key validation. See [quest import](quest-import.md) for payloads.
 
-- [Published and personal history](http-history.md)
+## Reusable examples and verification
 
-- [Delivery inspection and retry](http-deliveries.md)
+Import `yaak/http-operations.json` into Yaak and select **HTTP operations examples**.
+It adds 30 requests for tick lifecycle/review/publication, published and personal
+history, delivery inspection/retry and journals. The token value is deliberately
+blank; fill it locally, never commit it. Existing `yaak/characters.json`,
+`clocks.json`, `quest-authoring.json`, `quest-interventions.json` and
+`quest-import.json` cover the earlier resources.
 
-- [Journal operations](http-journals.md)
+Read and mutation folders are separated. **Do not send the whole workspace or
+mutation folders as a batch**: opening/closing/publishing, rerolling, retrying and
+deleting have real effects. Use a disposable campaign and send writes individually.
+Copy draft IDs, quest input identities, die old values, delivery generations and
+journal deletion tokens from reads. Numeric preconditions in sample bodies are
+illustrative integers and must be replaced with the inspected values. Do not
+chain mutations to automatically refreshed reads: that defeats stale-edit safety.
+
+A safe manual sequence is:
+
+1. Read tick status and readiness. Open/close only when appropriate.
+2. Wait for resolution, read the review, and copy its current draft UUID.
+3. Preview that exact UUID. Make a reasoned edit, then copy the returned new UUID.
+4. Preview again and explicitly approve publication. An old UUID must fail with
+   `409 stale_draft`, never publish newer content implicitly.
+5. Browse saved tick/character history. Delivery failures do not change saved results.
+6. Inspect a failed delivery and copy its generation. Retry only that record;
+   ambiguous sends require explicit approval of possible duplicate delivery.
+7. Create a journal with a unique request key. Repeat the exact request to verify
+   the retained outcome, then read it and use its signed token for confirmed deletion.
+
+Check actual HTTP statuses and response bodies; a successful Yaak CLI exit code
+does not mean an HTTP request succeeded. Expected successful statuses vary (200,
+201, 202). Negative examples intentionally return 428, and stale mutations return
+409. Responses use `data`/optional `meta` or a fixed `error.code`, with `no-store`.
+
+## Automated regression coverage
+
+Run `mix precommit` for compilation, formatting and the complete suite. Focused files:
+
+| Behavior | Tests |
+| --- | --- |
+| All final resource routes authenticate before malformed bodies and conceal foreign campaigns | `test/async_worlds_web/http_api_coverage_test.exs` |
+| HTTP/Discord personal results agree; DM HTTP journals preserve player privacy without changing debug personas | `test/async_worlds_web/http_api_coverage_test.exs` |
+| Draft edits/rerolls, required reasons, stale tokens, approval, atomic publication and live drift | `test/async_worlds_web/controllers/tick_review_controller_test.exs` |
+| Published pagination, immutable saved content, explicit DM subjects and revoked ownership | `test/async_worlds_web/controllers/history_controller_test.exs` |
+| Filter/cursor bounds, redacted errors, generation checks and no republishing on retry | `test/async_worlds_web/controllers/delivery_controller_test.exs` |
+| Journal cursor ceilings, attribution, retained idempotency and signed target/configuration deletion | `test/async_worlds_web/controllers/journal_controller_test.exs` |
+| Credential-free Yaak requests resolve to real routes and contain valid JSON bodies | `test/async_worlds_web/api_examples_test.exs` |
+
+Existing domain and LiveView suites additionally exercise the same actor-aware tick,
+clock and delivery boundaries, publication concurrency, immutable history and
+Discord journal controls. HTTP adapters do not duplicate those state machines.
