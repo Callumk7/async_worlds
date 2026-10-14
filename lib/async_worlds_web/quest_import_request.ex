@@ -17,11 +17,11 @@ defmodule AsyncWorldsWeb.QuestImportRequest do
         if String.downcase(String.trim(hd(String.split(type, ";")))) == "application/json" do
           read_json(conn, [], 0)
         else
-          error(conn, 415, "unsupported_media_type")
+          error(conn, :unsupported_media_type)
         end
 
       _ ->
-        error(conn, 415, "unsupported_media_type")
+        error(conn, :unsupported_media_type)
     end
   end
 
@@ -34,7 +34,7 @@ defmodule AsyncWorldsWeb.QuestImportRequest do
 
         cond do
           size > @max_bytes ->
-            error(conn, 413, "payload_too_large")
+            error(conn, :payload_too_large)
 
           status == :more ->
             read_json(conn, [chunk | chunks], size)
@@ -46,14 +46,9 @@ defmodule AsyncWorldsWeb.QuestImportRequest do
         end
 
       {:error, _} ->
-        error(conn, 400, "body_read_failed")
+        error(conn, :body_read_failed)
     end
   end
 
-  defp error(conn, status, code) do
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(status, Jason.encode!(%{error: %{code: code}}))
-    |> halt()
-  end
+  defp error(conn, reason), do: conn |> AsyncWorldsWeb.ApiResponse.error(reason) |> halt()
 end

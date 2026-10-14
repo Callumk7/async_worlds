@@ -19,6 +19,9 @@ requests. Use HTTPS outside localhost. Rotate or revoke credentials by changing
 or removing the environment settings and restarting the application. There is
 no web-based key display, issuance or per-key permissions yet.
 
+See [HTTP conventions](http-conventions.md) for response envelopes, safe error
+codes, pagination and required concurrency/idempotency inputs.
+
 ## Controller contract
 
 `AsyncWorldsWeb.ApiAuth` runs in the endpoint before body parsing for every

@@ -19,10 +19,10 @@ defmodule AsyncWorldsWeb.ApiAuth do
       assign(conn, :current_scope, %{discord_user_id: dm_id, campaign: campaign})
     else
       {:error, :unauthenticated} ->
-        conn |> put_resp_header("www-authenticate", "Bearer") |> error(401, "unauthenticated")
+        conn |> AsyncWorldsWeb.ApiResponse.error(:unauthenticated) |> halt()
 
       {:error, _} ->
-        error(conn, 404, "not_found")
+        conn |> AsyncWorldsWeb.ApiResponse.error(:not_found) |> halt()
     end
   end
 
@@ -52,11 +52,4 @@ defmodule AsyncWorldsWeb.ApiAuth do
     do: Campaigns.authorize_dm(guild, dm_id)
 
   defp campaign(_, _), do: {:ok, nil}
-
-  defp error(conn, status, code) do
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(status, Jason.encode!(%{error: %{code: code}}))
-    |> halt()
-  end
 end

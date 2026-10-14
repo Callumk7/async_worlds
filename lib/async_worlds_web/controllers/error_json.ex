@@ -1,21 +1,26 @@
 defmodule AsyncWorldsWeb.ErrorJSON do
-  @moduledoc """
-  This module is invoked by your endpoint in case of errors on JSON requests.
+  @moduledoc "Safe JSON exception envelopes, consistent with API controller responses."
+  alias AsyncWorldsWeb.ApiResponse
 
-  See config/config.exs.
-  """
+  def render("400.json", %{reason: %Plug.Parsers.ParseError{}}),
+    do: ApiResponse.error_payload(:invalid_json)
 
-  # If you want to customize a particular status code,
-  # you may add your own clauses, such as:
-  #
-  # def render("500.json", _assigns) do
-  #   %{errors: %{detail: "Internal Server Error"}}
-  # end
-
-  # By default, Phoenix returns the status message from
-  # the template name. For example, "404.json" becomes
-  # "Not Found".
   def render(template, _assigns) do
-    %{errors: %{detail: Phoenix.Controller.status_message_from_template(template)}}
+    reason =
+      case template do
+        "400.json" -> :bad_request
+        "401.json" -> :unauthenticated
+        "403.json" -> :forbidden
+        "404.json" -> :not_found
+        "405.json" -> :method_not_allowed
+        "409.json" -> :invalid_transition
+        "413.json" -> :payload_too_large
+        "415.json" -> :unsupported_media_type
+        "422.json" -> :invalid_parameters
+        "428.json" -> :precondition_required
+        _ -> :internal_error
+      end
+
+    ApiResponse.error_payload(reason)
   end
 end
