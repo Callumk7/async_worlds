@@ -77,6 +77,13 @@ The registered command set is:
 - `/clocks` — private reply available to guild players: live public clock fills
   and known clock names only. Hidden clocks and known fills never appear. Draft
   state is never read. Large lists continue in private followups.
+- `/faction list`, `/faction show faction:<id>` — available to every verified
+  server member, including members without characters. List shows campaign faction
+  IDs and names; show includes the description. Names and descriptions are
+  campaign-readable, not DM secrets. Replies and long-content followups are private,
+  mentions are suppressed, and foreign IDs never reveal other campaigns. These
+  commands do not use a DM debug persona. Manage factions at `/factions`; see
+  [factions.md](factions.md). Re-register commands after deploying this addition.
 - `/tick open` — configured DM only; opens the next tick and atomically saves and
   queues a public roster briefing with `/quest` instructions and existing private
   prompts. No optional narration setup is required. Repeated opens do not create

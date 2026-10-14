@@ -71,7 +71,7 @@ defmodule AsyncWorlds.Discord.HelpTest do
       assert dm_help =~ "/#{path}"
       assert dm_help =~ description
 
-      if permission == :player do
+      if permission in [:player, :member] do
         assert player_help =~ "/#{path}"
         assert player_help =~ description
       else

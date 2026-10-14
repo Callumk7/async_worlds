@@ -38,6 +38,7 @@ defmodule AsyncWorldsWeb.Router do
       live "/dashboard", DashboardLive, :index
       live "/clocks", ClockLive, :index
       live "/characters", CharacterLive, :index
+      live "/factions", FactionLive, :index
       live "/quests", QuestLive, :index
       live "/quests/library", QuestLibraryLive, :index
       live "/ticks/history", TickHistoryLive, :index
@@ -126,6 +127,12 @@ defmodule AsyncWorldsWeb.Router do
     post "/campaigns/:guild_id/clocks/:id/reset", ClockController, :reset
     post "/campaigns/:guild_id/clocks/:id/pair", ClockController, :pair
     post "/campaigns/:guild_id/clocks/:id/unpair", ClockController, :unpair
+
+    get "/campaigns/:guild_id/factions", FactionController, :index
+    get "/campaigns/:guild_id/factions/:id", FactionController, :show
+    post "/campaigns/:guild_id/factions", FactionController, :create
+    patch "/campaigns/:guild_id/factions/:id", FactionController, :update
+    delete "/campaigns/:guild_id/factions/:id", FactionController, :delete
 
     get "/campaigns/:guild_id/characters", CharacterController, :index
     get "/campaigns/:guild_id/characters/:id", CharacterController, :show
