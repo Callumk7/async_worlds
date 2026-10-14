@@ -89,6 +89,11 @@ defmodule AsyncWorldsWeb.Router do
          QuestAuthoringController,
          :release
 
+    get "/campaigns/:guild_id/ticks/history", HistoryController, :index
+    get "/campaigns/:guild_id/ticks/:id/history", HistoryController, :show
+    get "/campaigns/:guild_id/characters/:id/history/result", HistoryController, :result
+    get "/campaigns/:guild_id/characters/:id/history/submission", HistoryController, :submission
+
     get "/campaigns/:guild_id/ticks/:id/review", TickReviewController, :show
     get "/campaigns/:guild_id/ticks/:id/review/audits", TickReviewController, :audits
     get "/campaigns/:guild_id/ticks/:id/review/preview", TickReviewController, :preview
