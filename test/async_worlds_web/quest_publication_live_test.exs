@@ -69,6 +69,14 @@ defmodule AsyncWorldsWeb.QuestPublicationLiveTest do
     {:ok, [audit]} = Ticks.list_review_edits(c.campaign.id, tick.id)
     assert audit.operation["type"] == "reroll"
     assert audit.operation["old_value"] == 1
+    {:ok, rerolled} = Ticks.fetch_draft(c.campaign.id, tick.id)
+    assert Enum.map(tl(rerolled.payload["rolls"]), & &1["value"]) == [1, 1]
+
+    assert has_element?(
+             view,
+             "#player-effects-#{c.character.id}",
+             "Recorded die: #{audit.operation["new_value"]}"
+           )
 
     view
     |> form("#quest-outcome-#{c.character.id}",
