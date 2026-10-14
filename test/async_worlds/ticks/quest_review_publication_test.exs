@@ -247,7 +247,8 @@ defmodule AsyncWorlds.Ticks.QuestReviewPublicationTest do
     deliveries =
       Enum.reject(
         Deliveries.list_deliveries(c.campaign.id),
-        &String.ends_with?(&1.key, ":opened")
+        &(String.ends_with?(&1.key, ":opened") or
+            String.starts_with?(&1.key, "tick:#{c.tick.id}:opened:"))
       )
 
     assert length(deliveries) == length(messages)

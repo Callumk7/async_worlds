@@ -73,8 +73,46 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
     assert Enum.count(results, &(&1 == {:error, :active_tick})) == 3
     assert db(fn -> Repo.aggregate(from(t in Tick, where: t.campaign_id == ^id), :count) end) == 1
 
-    assert [%{content: "Tick 1 is now open.", kind: :public}] =
-             db(fn -> Deliveries.list_deliveries(id) end)
+    assert [%{content: content, kind: :public}] = db(fn -> Deliveries.list_deliveries(id) end)
+    assert content =~ "Tick 1 is opening."
+    assert db(fn -> Repo.aggregate(AsyncWorlds.Ticks.Briefing, :count) end) == 1
+  end
+
+  test "concurrent inspected opens persist exactly one reviewed briefing", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    campaign = db(fn -> Repo.get!(Campaign, id) end)
+    scope = %{campaign: campaign, discord_user_id: "456"}
+
+    {:ok, prepared} =
+      db(fn ->
+        AsyncWorlds.DM.Ticks.prepare_opening(scope, %{"narration" => String.duplicate("🌍", 1000)})
+      end)
+
+    results =
+      race(
+        supervisor,
+        List.duplicate(
+          fn -> AsyncWorlds.DM.Ticks.open_prepared_tick(scope, prepared.token) end,
+          4
+        )
+      )
+
+    assert Enum.count(results, &match?({:ok, %Tick{}}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :active_tick})) == 3
+    deliveries = db(fn -> Deliveries.list_deliveries(id) end)
+    assert Enum.map(deliveries, & &1.content) == Enum.map(prepared.messages, & &1.content)
+    {:ok, tick} = Enum.find(results, &match?({:ok, %Tick{}}, &1))
+    {:ok, briefing} = db(fn -> AsyncWorlds.DM.Ticks.fetch_briefing(scope, tick.id) end)
+    assert briefing.narration == prepared.narration
+
+    assert db(fn ->
+             Repo.aggregate(
+               from(b in AsyncWorlds.Ticks.Briefing, where: b.tick_id == ^tick.id),
+               :count
+             )
+           end) == 1
   end
 
   test "concurrent close retries return one immutable snapshot", %{
@@ -276,7 +314,7 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
     case {edited, published} do
       {{:ok, %{draft: revised}}, {:error, :stale_draft}} ->
         assert [%{key: key}] = db(fn -> Deliveries.list_deliveries(id) end)
-        assert key == "tick:#{tick.id}:opened"
+        assert key == "tick:#{tick.id}:opened:1"
         assert {:ok, [_]} = db(fn -> Ticks.list_review_edits(id, tick.id) end)
         assert {:ok, _} = db(fn -> Ticks.publish_tick(id, tick.id, revised.id) end)
 

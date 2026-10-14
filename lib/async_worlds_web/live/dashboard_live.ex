@@ -97,7 +97,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
          |> clear_opening()
          |> complete(
            result,
-           "Tick opened using the existing opening flow. Briefing delivery is not implemented yet."
+           "Tick opened. Reviewed public briefing and private prompts queued; inspect deliveries for status or targeted retry."
          )}
 
       {:error, reason} ->
@@ -119,7 +119,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
      complete(
        clear_opening(socket),
        Ticks.open_tick(scope(socket)),
-       "Tick opened. Configure clocks before closing."
+       "Tick opened. Default public briefing and private prompts queued."
      )}
   end
 
@@ -389,10 +389,10 @@ defmodule AsyncWorldsWeb.DashboardLive do
               phx-click="open_tick"
               disabled={@tick != nil}
               phx-disable-with="Opening…"
-              data-confirm="Open without the prepared briefing? Only the existing short announcement and private prompts will be queued."
+              data-confirm="Open with the current roster briefing and no narration? Public briefing and private prompts will be queued."
               class="admin-button admin-secondary"
             >
-              Open without briefing (legacy)
+              Open with default briefing
             </button>
             <button
               :if={@tick}
@@ -425,8 +425,8 @@ defmodule AsyncWorldsWeb.DashboardLive do
           <div>
             <h2 class="text-lg font-semibold">Prepare next tick opening</h2>
             <p class="mt-2 text-sm text-slate-400">
-              Preview only: nothing is sent or saved. Briefing delivery is an ENG-65 follow-up;
-              opening still queues only the existing announcement and private prompts.
+              Preparation sends and saves nothing. Opening saves these exact public chunks and
+              queues their delivery together with existing private quest prompts.
             </p>
           </div>
           <.form
@@ -478,7 +478,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
             <.input
               field={@opening_confirmation[:confirm]}
               type="checkbox"
-              label="I inspected all current chunks and the destination. I understand briefing delivery is not shipped."
+              label="I inspected all current public chunks and the destination. Queue this briefing when opening."
             />
             <button
               id="open-prepared-tick"
@@ -486,7 +486,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
               class="admin-button"
               phx-disable-with="Opening…"
             >
-              Open inspected tick (existing delivery only)
+              Open & queue inspected briefing
             </button>
           </.form>
         </section>

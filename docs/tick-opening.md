@@ -1,4 +1,4 @@
-# Public tick-opening preparation (ENG-64)
+# Public tick opening (ENG-64 / ENG-65)
 
 ## Shipped boundary
 
@@ -9,12 +9,13 @@ world news: it never reads or writes resolution drafts, trigger news or publishe
 outcomes. Preparation and preview perform no delivery, job, tick, progression,
 audit or other game-state writes. There is no schedule or automatic open.
 
-**Briefing delivery is not shipped.** ENG-65 owns durable opening delivery. The
-inspected-open button explicitly says it still uses existing delivery only:
-`Tick N is now open.` plus the existing guarded private quest prompts. The
-existing **Open without briefing (legacy)** button is an explicit, browser-confirmed
-fallback, as are existing Discord/HTTP opening flows. No new opening narration
-is persisted or sent by these flows. Existing close/review/publication is unchanged.
+**Opening atomically saves and queues the public briefing** plus the existing
+guarded private quest prompts. The inspected-open button queues exactly the
+reviewed chunks; it does not also send the legacy `Tick N is now open.` message.
+The existing quick-open flow is now **Open with default briefing** (browser
+confirmation), as are Discord `/tick open` and HTTP opening: they capture the
+current public roster and `/quest` instructions with empty narration, requiring
+no narration configuration. Existing close/review/publication is unchanged.
 
 ## Context API
 
@@ -26,7 +27,11 @@ Use `AsyncWorlds.DM.Ticks` with a verified authenticated scope, not IDs from for
 - `preview_opening(scope, preparation.token)` returns the **same exact content**
   only if authorization, readiness and input version still match.
 - `open_prepared_tick(scope, preparation.token)` revalidates under the same campaign
-  lock and delegates the existing open transaction. This is not a briefing publisher.
+  lock and opens with that exact briefing, its durable outbox intents and jobs.
+- `open_tick(scope)` captures a default briefing under the same authorization lock.
+- `fetch_briefing(scope, tick_id)` reads the saved immutable briefing under fresh
+  authorization, scoped to the campaign. Legacy ticks without a briefing return
+  `:not_found`. No new HTTP routes or player access to this record are introduced.
 
 A preparation contains `campaign_id`, `tick_number`, `public_channel_id`,
 `narration`, `version`, `token`, and ordered `messages`. Each message has `kind:
@@ -55,8 +60,8 @@ foreign token or campaign ID cannot select another preparation/campaign.
 
 ## Public content and privacy
 
-`Ticks.OpeningOutput.render/4` is the shared pure renderer for preview and the
-future delivery path. Its roster comes from ENG-63's `Quests.public_activities/2`,
+`Ticks.OpeningOutput.render/4` is the shared pure renderer for preview and opening
+capture. Delivery workers send stored content, never render live inputs. Its roster comes from ENG-63's `Quests.public_activities/2`,
 using pinned public summaries, never private quest/node text or latest-library
 narration. It renders every character, including legacy-summary fallbacks,
 unassigned, ended/completed and DM-controlled characters, plus an explicit empty
@@ -72,33 +77,50 @@ and opening narration safe for everyone in the public channel; semantic secret
 redaction is not possible for deliberately authored public text.
 
 The opening renderer canonicalizes CRLF and standalone CR to LF across all public
-text (narration, names and summaries) before chunking. Signed narration retains its
-submitted value; preview and future transport use the same canonical message chunks.
+text (narration, names and summaries) before chunking. Signed and stored narration retain their trimmed submitted value; preview and
+transport use the same canonical message chunks. Spacing-only chunks are omitted
+by the shared renderer before numbering and preview, since Discord rejects blank
+content-only messages. Nonblank chunks retain their exact whitespace, including
+leading newlines. Outbox workers never drop or rewrite reviewed chunks.
 
 `Discord.Content.unicode_chunks/1` bounds new opening chunks to 1900 UTF-16 units,
 preserves ordinary Unicode graphemes, and splits only pathological oversized
 graphemes at codepoint boundaries. It is lossless and rejects invalid UTF-8.
 Existing `Content.chunks/1` and existing command pagination remain unchanged.
 Preview displays the exact chunk text, without truncation or reflow into a single
-approximate message. A future transport must suppress mentions, as existing
-Discord adapters already do.
+approximate message. The shared delivery worker suppresses mentions, as existing Discord adapters do.
 
-## ENG-65 integration contract (not implemented)
+## Durable opening and retries
 
-1. Reuse the signed preparation validation under the campaign authorization lock,
-   including readiness, actor/campaign and renderer/input version. Do not accept
-   arbitrary rendered chunks or a new version from a stale tab.
-2. Within the same transaction as opening, capture the validated preparation and
-   persist its **exact ordered chunks and destination** with stable per-tick,
-   per-chunk idempotency keys. Replace/integrate the legacy public announcement
-   deliberately; do not accidentally send both announcement formats.
-3. Enqueue durable outbox/job records atomically. Failure must roll back opening.
-   Workers send saved chunks, never re-render live roster/narration after commit.
-   Retries must not reopen ticks or regenerate changed content. Mention suppression
-   and route guards belong to delivery; no network I/O belongs in the transaction.
-4. Define immutable storage/history, delivery failure/retry and renderer migration
-   semantics in ENG-65. A preview token is not durable storage or a delivery receipt.
-   Bump `OpeningOutput.version/0` for content/chunk contract changes.
+`tick_briefings` stores one immutable record per tick: narration, renderer version,
+input digest, public destination and `outputs["messages"]` in reviewed order with
+one-based chunk indexes, public kind, recipient and exact content. Tokens and
+private input records are not saved in the briefing. There is no edit/regenerate
+operation, and existing ticks are not backfilled. Future renderer changes must
+bump `OpeningOutput.version/0`; they invalidate outstanding preparations, not
+rewrite saved briefings or queued deliveries.
+
+The same database transaction inserts the tick, briefing, all public intents,
+private prompt intents and Oban jobs. Any persistence failure rolls back all of
+these writes. Public keys are `tick:<tick_id>:opened:<chunk_index>`; private prompt
+keys and fresh-state guards are unchanged. Repeated/concurrent opens return
+`:active_tick`, never create another turn, briefing or logical announcement.
+Ordered indexes represent content order; separate Oban jobs are not a guarantee
+of network arrival order.
+
+No network I/O runs while opening. Offline delivery is paused; failed or ambiguous
+sends do not undo opening. Use the existing delivery inspection and targeted retry
+controls (`AsyncWorlds.DM.Deliveries`, dashboard or HTTP delivery routes). Retry
+checks the selected delivery generation under the authorization/campaign lock,
+queues only that saved chunk and does not open a tick, render again or resend
+unrelated public chunks/private prompts. Sent deliveries cannot be retried;
+interrupted sends become ambiguous rather than blindly resent. Explicit ambiguous
+retry confirmation retains the existing possible-duplicate warning.
+
+`/quest` remains the private guild retrieval path when a prompt DM is blocked.
+An opening briefing is immutable history, not a delivery receipt: inspect delivery
+status separately. No deadlines, resources, automatic close, or durable public
+activity-message edit/update contract is added.
 
 See [tick lifecycle](tick-lifecycle.md), [DM boundaries](dm-domain.md),
 [DM console](dm-console.md), [quest submissions](quest-submissions.md),

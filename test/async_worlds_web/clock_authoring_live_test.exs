@@ -273,7 +273,8 @@ defmodule AsyncWorldsWeb.ClockAuthoringLiveTest do
     deliveries =
       Enum.reject(
         AsyncWorlds.Deliveries.list_deliveries(c.campaign.id),
-        &String.ends_with?(&1.key, ":opened")
+        &(String.ends_with?(&1.key, ":opened") or
+            String.starts_with?(&1.key, "tick:#{tick.id}:opened:"))
       )
 
     assert Enum.sort(

@@ -49,6 +49,9 @@ defmodule AsyncWorlds.DM.Ticks do
   def fetch_publication(scope, id),
     do: DMAccess.run(scope, fn c, _ -> Ticks.fetch_publication(c.id, id) end)
 
+  def fetch_briefing(scope, id),
+    do: DMAccess.run(scope, fn c, _ -> Ticks.fetch_briefing(c.id, id) end)
+
   def prepare_opening(scope, attrs \\ %{}),
     do: AsyncWorlds.Ticks.Opening.prepare(scope, attrs)
 

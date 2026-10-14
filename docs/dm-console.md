@@ -25,9 +25,11 @@ never form fields. Tick, clock and delivery calls use the actor-aware
 3. **Overview:** use **Prepare / reload exact preview** to inspect the public
    opening destination and every chunk before opening. Opening narration is
    independent of world news; stale inputs require deliberate reinspection.
-   Briefing delivery is not shipped (ENG-65): inspected opening and the explicit
-   **Open without briefing (legacy)** fallback still use existing announcement
-   and private prompts only. See [opening preparation](tick-opening.md).
+   **Open & queue inspected briefing** saves and queues the exact reviewed public
+   chunks and existing private prompts atomically. The explicit **Open with default
+   briefing** flow uses the current roster without narration. Delivery failures do
+   not undo opening; use the existing targeted delivery retry controls, not open
+   again. See [tick opening](tick-opening.md).
    Open the next tick, then close it to freeze inputs and queue
    durable resolution. Closing asks for browser confirmation. All live clock
    management locks during resolution/review, including requests from old tabs.

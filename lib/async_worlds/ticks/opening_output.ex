@@ -2,7 +2,7 @@ defmodule AsyncWorlds.Ticks.OpeningOutput do
   @moduledoc "Pure public opening briefing renderer. Accepts only the public activity whitelist."
   alias AsyncWorlds.Discord.Content
 
-  @version 1
+  @version 2
   def version, do: @version
 
   def render(number, channel, activities, narration) do
@@ -21,6 +21,9 @@ defmodule AsyncWorlds.Ticks.OpeningOutput do
     |> String.replace("\r\n", "\n")
     |> String.replace("\r", "\n")
     |> Content.unicode_chunks()
+    # Discord rejects content-only blank messages. Omit spacing-only chunks
+    # before numbering/preview, never in the worker after content is reviewed.
+    |> Enum.reject(&(String.trim(&1) == ""))
     |> Enum.with_index(1)
     |> Enum.map(fn {content, index} ->
       %{id: index, chunk_index: index, kind: :public, recipient_id: channel, content: content}

@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.Ticks.Opening do
-  @moduledoc "Authorized, read-only opening preparation and stale-checked legacy opening. See docs/tick-opening.md."
+  @moduledoc "Authorized opening preparation and atomic, stale-checked briefing delivery. See docs/tick-opening.md."
   import Ecto.Query
   alias AsyncWorlds.{DMAccess, Quests, Repo, Ticks}
   alias AsyncWorlds.Characters.Character
@@ -27,13 +27,23 @@ defmodule AsyncWorlds.Ticks.Opening do
     DMAccess.run(scope, fn campaign, actor -> validate(campaign, actor, token) end)
   end
 
-  @doc "Requires the inspected preparation. Does not publish the briefing; retains existing opening deliveries."
+  @doc "Atomically opens with the inspected public briefing and existing private prompts."
   def open(scope, token) do
     DMAccess.run(scope, fn campaign, actor ->
-      with {:ok, _preparation} <- validate(campaign, actor, token) do
-        Ticks.open_tick(campaign.id)
+      with {:ok, preparation} <- validate(campaign, actor, token) do
+        Ticks.open_tick(campaign.id, preparation)
       end
     end)
+  end
+
+  @doc false
+  # Trusted default-open path; caller holds the campaign lock. No optional setup
+  # or network is required by Discord/HTTP opening.
+  def capture(campaign) do
+    with :ok <- ready(campaign),
+         {:ok, activities} <- activities(campaign, campaign.dm_user_id) do
+      {:ok, preparation(campaign, activities, "", input_version(campaign), nil)}
+    end
   end
 
   defp validate(campaign, actor, token) when is_binary(token) do

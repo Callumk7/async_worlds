@@ -91,11 +91,16 @@ defmodule AsyncWorlds.Discord.CommandsTest do
 
     tick = Ticks.active_tick(c.campaign.id)
     [announcement] = Deliveries.list_deliveries(c.campaign.id)
-    assert announcement.key == "tick:#{tick.id}:opened"
-    assert announcement.content == "Tick 1 is now open."
+    assert announcement.key == "tick:#{tick.id}:opened:1"
+    {:ok, briefing} = Ticks.fetch_briefing(c.campaign.id, tick.id)
+    assert announcement.content == hd(briefing.outputs["messages"])["content"]
+    assert announcement.content =~ "No characters"
+    assert announcement.content =~ "/quest"
     assert :ok = deliver(announcement)
     assert :ok = deliver(announcement)
-    assert_receive {:discord, :send_public, {"789", %{content: "Tick 1 is now open."}}}
+    assert_receive {:discord, :send_public, {"789", payload}}
+    assert payload.content == announcement.content
+    assert payload.allowed_mentions == %{parse: []}
     refute_receive {:discord, :send_public, _}
 
     assert {:ok, closed} = invoke(c, :close, 6)
@@ -189,7 +194,8 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     deliveries = Deliveries.list_deliveries(c.campaign.id)
     assert length(deliveries) == 3
     for delivery <- deliveries, do: assert(:ok == deliver(delivery))
-    assert_receive {:discord, :send_public, {"789", %{content: "Tick 1 is now open."}}}
+    assert_receive {:discord, :send_public, {"789", opening}}
+    assert opening.content =~ "Tick 1 is opening."
     assert_receive {:discord, :send_public, {"789", payload}}
     assert payload.content =~ "Approved news"
     assert payload.content =~ "Public: 1/4"
@@ -280,7 +286,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
 
   test "open and its outbox intent roll back together on an outbox failure", c do
     Repo.query!(
-      "ALTER TABLE discord_deliveries ADD CONSTRAINT reject_test_announcement CHECK (content <> 'Tick 1 is now open.') NOT VALID"
+      "ALTER TABLE discord_deliveries ADD CONSTRAINT reject_test_announcement CHECK (content NOT LIKE 'Tick 1 is opening.%') NOT VALID"
     )
 
     assert_raise Ecto.ConstraintError, fn ->
