@@ -30,6 +30,43 @@ defmodule AsyncWorlds.Deliveries do
     )
   end
 
+  @statuses [:pending, :sending, :sent, :failed, :ambiguous]
+
+  @doc """
+  DM-filtered delivery search by tick, recipient, kind and status. Callers
+  authorize the DM and pass whitelisted values; unknown filters are rejected
+  rather than silently widened.
+  """
+  def search_deliveries(campaign_id, filters \\ %{}, limit \\ 50) when is_map(filters) do
+    base =
+      from d in Delivery,
+        where: d.campaign_id == ^campaign_id,
+        order_by: [desc: d.id],
+        limit: ^limit
+
+    filters
+    |> Enum.reduce_while({:ok, base}, fn
+      {:status, status}, {:ok, query} when status in @statuses ->
+        {:cont, {:ok, from(d in query, where: d.status == ^status)}}
+
+      {:kind, kind}, {:ok, query} when kind in [:public, :private] ->
+        {:cont, {:ok, from(d in query, where: d.kind == ^kind)}}
+
+      {:tick_id, tick_id}, {:ok, query} when is_integer(tick_id) and tick_id > 0 ->
+        {:cont, {:ok, from(d in query, where: d.tick_id == ^tick_id)}}
+
+      {:recipient_id, recipient_id}, {:ok, query} when is_binary(recipient_id) ->
+        {:cont, {:ok, from(d in query, where: d.recipient_id == ^recipient_id)}}
+
+      _, {:ok, _query} ->
+        {:halt, {:error, :invalid_filter}}
+    end)
+    |> case do
+      {:ok, query} -> {:ok, Repo.all(query)}
+      {:error, _} = error -> error
+    end
+  end
+
   def fetch_delivery(campaign_id, id) do
     case Repo.get_by(Delivery, id: id, campaign_id: campaign_id) do
       nil -> {:error, :not_found}

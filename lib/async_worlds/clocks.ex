@@ -267,11 +267,23 @@ defmodule AsyncWorlds.Clocks do
     Repo.insert!(%Audit{
       campaign_id: after_clock.campaign_id,
       clock_id: after_clock.id,
+      tick_id: active_tick_id(after_clock.campaign_id),
       source: source,
       operation: operation,
       before: snapshot(before),
       after: snapshot(after_clock)
     })
+  end
+
+  # Recorded so dashboard/recent-change views can attribute an audit to the
+  # tick that was active when the change was written. Nil outside an open or
+  # resolving tick; never blocks the audited operation itself.
+  defp active_tick_id(campaign_id) do
+    Repo.one(
+      from t in AsyncWorlds.Ticks.Tick,
+        where: t.campaign_id == ^campaign_id and t.status != :published,
+        select: t.id
+    )
   end
 
   defp snapshot(nil), do: %{}

@@ -111,6 +111,76 @@ defmodule AsyncWorlds.Quests.Submissions do
     end)
   end
 
+  @doc """
+  DM-only operational roster for one tick: every character with its active
+  quest/node and a submitted/missing/no-active-quest state. Unassigned
+  (DM-controlled) characters and invalidated earlier choices are flagged
+  separately from genuinely missing player choices. Open ticks report live
+  inputs; closed ticks report only the frozen snapshot, so the view never
+  mixes frozen and live state. Counts always match `readiness/3`.
+  """
+  def readiness_roster(campaign, dm_id, tick_id) do
+    dm(campaign, dm_id, tick_id, fn current, tick ->
+      {inputs, frozen} =
+        if tick.status == :open do
+          {freeze(current.id, tick.id), false}
+        else
+          {:ok, snapshot} = Ticks.fetch_snapshot(current.id, tick.id)
+          {snapshot.data["quest_inputs"] || %{}, true}
+        end
+
+      %{
+        tick_number: tick.number,
+        frozen: frozen,
+        counts: counts(inputs),
+        rows: roster_rows(inputs)
+      }
+    end)
+  end
+
+  defp roster_rows(inputs) do
+    characters = inputs["characters"] || []
+    progressions = inputs["progressions"] || []
+    revisions = Map.new(inputs["revisions"] || [], &{&1["id"], &1})
+    quests = Map.new(inputs["quests"] || [], &{&1["id"], &1})
+    submitted = MapSet.new(inputs["submissions"] || [], & &1["character_id"])
+    invalidated = MapSet.new(inputs["invalidations"] || [], & &1["character_id"])
+
+    Enum.map(characters, fn character ->
+      progression = Enum.find(progressions, &(&1["character_id"] == character["id"]))
+
+      {quest_name, node_id} =
+        case progression do
+          nil ->
+            {nil, nil}
+
+          progression ->
+            revision = revisions[progression["revision_id"]]
+            quest = revision && quests[revision["quest_id"]]
+            {quest && quest["name"], progression["node_id"]}
+        end
+
+      state =
+        cond do
+          is_nil(progression) -> :no_active_quest
+          MapSet.member?(submitted, character["id"]) -> :submitted
+          true -> :missing
+        end
+
+      %{
+        id: character["id"],
+        character_id: character["id"],
+        name: character["name"],
+        discord_user_id: character["discord_user_id"],
+        unassigned: is_nil(character["discord_user_id"]),
+        invalidated: state == :missing and MapSet.member?(invalidated, character["id"]),
+        quest_name: quest_name,
+        node_id: node_id,
+        state: state
+      }
+    end)
+  end
+
   def list_submissions(campaign, dm_id, tick_id) do
     dm(campaign, dm_id, tick_id, fn current, tick ->
       if tick.status == :open do
@@ -123,8 +193,8 @@ defmodule AsyncWorlds.Quests.Submissions do
   end
 
   defp counts(inputs) do
-    active = length(inputs["progressions"])
-    submitted = length(inputs["submissions"])
+    active = length(inputs["progressions"] || [])
+    submitted = length(inputs["submissions"] || [])
     %{active: active, submitted: submitted, missing: active - submitted}
   end
 

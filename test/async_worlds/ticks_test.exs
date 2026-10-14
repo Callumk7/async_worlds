@@ -23,6 +23,28 @@ defmodule AsyncWorlds.TicksTest do
     %{campaign: campaign.id, other: other.id}
   end
 
+  test "numbered lookup bounds PostgreSQL integers and remains campaign scoped", c do
+    tick = open(c.campaign)
+    assert {:ok, ^tick} = Ticks.fetch_tick_by_number(c.campaign, tick.number)
+    assert {:error, :not_found} = Ticks.fetch_tick_by_number(c.other, tick.number)
+
+    for number <- [
+          0,
+          -1,
+          -2_147_483_649,
+          2_147_483_647,
+          2_147_483_648,
+          1_234_567_890_123_456_789,
+          "1",
+          nil
+        ] do
+      assert {:error, :not_found} = Ticks.fetch_tick_by_number(c.campaign, number)
+    end
+
+    boundary_tick = Repo.update!(Ecto.Changeset.change(tick, number: 2_147_483_647))
+    assert {:ok, ^boundary_tick} = Ticks.fetch_tick_by_number(c.campaign, 2_147_483_647)
+  end
+
   defp open(campaign) do
     {:ok, tick} = Ticks.open_tick(campaign)
     tick
