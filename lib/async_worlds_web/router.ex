@@ -51,6 +51,17 @@ defmodule AsyncWorldsWeb.Router do
 
     post "/campaigns/:guild_id/quests/import", QuestImportController, :create
 
+    get "/campaigns/:guild_id/clocks", ClockController, :index
+    get "/campaigns/:guild_id/clocks/:id", ClockController, :show
+    post "/campaigns/:guild_id/clocks", ClockController, :create
+    patch "/campaigns/:guild_id/clocks/:id", ClockController, :update
+    post "/campaigns/:guild_id/clocks/:id/adjust", ClockController, :adjust
+    post "/campaigns/:guild_id/clocks/:id/pause", ClockController, :pause
+    post "/campaigns/:guild_id/clocks/:id/resume", ClockController, :resume
+    post "/campaigns/:guild_id/clocks/:id/reset", ClockController, :reset
+    post "/campaigns/:guild_id/clocks/:id/pair", ClockController, :pair
+    post "/campaigns/:guild_id/clocks/:id/unpair", ClockController, :unpair
+
     get "/campaigns/:guild_id/characters", CharacterController, :index
     get "/campaigns/:guild_id/characters/:id", CharacterController, :show
     post "/campaigns/:guild_id/characters", CharacterController, :create

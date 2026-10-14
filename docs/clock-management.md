@@ -32,6 +32,15 @@ optionally accepts the previously loaded clock as its final argument, comparing 
 under the campaign lock and returning `:stale_clock` before any write if it has
 changed. `recent_audits/2` provides bounded descending-ID dashboard history.
 
+HTTP management is documented in [HTTP clocks](http-clocks.md). Actor-aware
+`DM.Clocks.get_clock/2` supplies scoped reads. Adjustment accepts an optional
+expected clock; reset, pair and unpair accept optional lists of expected members.
+When supplied, every affected record and the complete membership set are compared
+under the campaign lock before writes/audits. Existing trusted callers can omit
+these arguments. HTTP always supplies them after snapshot-token verification.
+Clock names and notification text reject NUL; background rates must fit a signed
+32-bit database integer.
+
 ## World-only triggers
 
 `triggers` is an ordered list of typed embeds:

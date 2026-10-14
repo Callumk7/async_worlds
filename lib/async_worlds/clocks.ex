@@ -19,6 +19,13 @@ defmodule AsyncWorlds.Clocks do
     Repo.all(from c in Clock, where: c.campaign_id == ^campaign_id, order_by: c.id)
   end
 
+  def get_clock(campaign_id, id) do
+    case Repo.get_by(Clock, id: id, campaign_id: campaign_id) do
+      nil -> {:error, :not_found}
+      clock -> {:ok, clock}
+    end
+  end
+
   def list_audits(campaign_id) do
     Repo.all(from a in Audit, where: a.campaign_id == ^campaign_id, order_by: a.id)
   end
@@ -52,9 +59,12 @@ defmodule AsyncWorlds.Clocks do
     end)
   end
 
-  def adjust_clock(campaign_id, clock_id, delta, source) when is_integer(delta) do
+  def adjust_clock(campaign_id, clock_id, delta, source, expected_clock \\ nil)
+
+  def adjust_clock(campaign_id, clock_id, delta, source, expected_clock) when is_integer(delta) do
     manage(campaign_id, source, fn ->
       clock = fetch!(campaign_id, clock_id)
+      expect_members!([clock], if(expected_clock, do: [expected_clock]))
       if clock.completed, do: Repo.rollback(:completed)
       updated = persist(Repo.update(change(clock, filled: Rules.adjust(clock, delta).filled)))
       audit(clock, updated, "adjust", source)
@@ -62,15 +72,17 @@ defmodule AsyncWorlds.Clocks do
     end)
   end
 
-  def adjust_clock(_, _, _, _), do: {:error, :invalid_delta}
+  def adjust_clock(_, _, _, _, _), do: {:error, :invalid_delta}
 
   @doc "Reset clears fill/completion, preserves pause/configuration, and resets both racing members."
-  def reset_clock(campaign_id, clock_id, source) do
+  def reset_clock(campaign_id, clock_id, source, expected_clocks \\ nil) do
     manage(campaign_id, source, fn ->
       clock = fetch!(campaign_id, clock_id)
 
       members =
         if clock.racing_group, do: race_members(campaign_id, clock.racing_group), else: [clock]
+
+      expect_members!(members, expected_clocks)
 
       updated =
         Enum.map(members, fn member ->
@@ -83,10 +95,11 @@ defmodule AsyncWorlds.Clocks do
     end)
   end
 
-  def pair_clocks(campaign_id, first_id, second_id, source) do
+  def pair_clocks(campaign_id, first_id, second_id, source, expected_clocks \\ nil) do
     manage(campaign_id, source, fn ->
       if first_id == second_id, do: Repo.rollback(:self_link)
       members = [fetch!(campaign_id, first_id), fetch!(campaign_id, second_id)]
+      expect_members!(members, expected_clocks)
       if Enum.any?(members, & &1.racing_group), do: Repo.rollback(:already_paired)
       if Enum.any?(members, & &1.completed), do: Repo.rollback(:completed)
       group = Ecto.UUID.generate()
@@ -99,12 +112,14 @@ defmodule AsyncWorlds.Clocks do
     end)
   end
 
-  def unpair_clock(campaign_id, clock_id, source) do
+  def unpair_clock(campaign_id, clock_id, source, expected_clocks \\ nil) do
     manage(campaign_id, source, fn ->
       clock = fetch!(campaign_id, clock_id)
 
       members =
         if clock.racing_group, do: race_members(campaign_id, clock.racing_group), else: [clock]
+
+      expect_members!(members, expected_clocks)
 
       Enum.map(members, fn member ->
         updated = persist(Repo.update(change(member, racing_group: nil)))
@@ -179,6 +194,13 @@ defmodule AsyncWorlds.Clocks do
 
   defp fetch!(campaign_id, id) do
     Repo.get_by(Clock, id: id, campaign_id: campaign_id) || Repo.rollback(:not_found)
+  end
+
+  defp expect_members!(_members, nil), do: :ok
+
+  defp expect_members!(members, expected) do
+    unless is_list(expected) and Enum.sort_by(members, & &1.id) == Enum.sort_by(expected, & &1.id),
+      do: Repo.rollback(:stale_clock)
   end
 
   defp race_members(campaign_id, group) do

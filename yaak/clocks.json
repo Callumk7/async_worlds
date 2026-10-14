@@ -1,0 +1,823 @@
+{
+  "yaakVersion": "0.1.0",
+  "yaakSchema": 4,
+  "timestamp": "2026-10-14T11:52:13.216846",
+  "resources": {
+    "workspaces": [
+      {
+        "model": "workspace",
+        "id": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-11T19:54:02.074980",
+        "updatedAt": "2026-10-11T19:54:02.074981",
+        "authentication": {},
+        "authenticationType": null,
+        "description": "",
+        "headers": [],
+        "name": "Async Worlds",
+        "encryptionKeyChallenge": null,
+        "settingValidateCertificates": true,
+        "settingFollowRedirects": true,
+        "settingRequestTimeout": 0,
+        "settingRequestMessageSize": 67108864,
+        "settingDnsOverrides": [],
+        "settingSendCookies": true,
+        "settingStoreCookies": true,
+        "settingHttpVersion": "auto"
+      }
+    ],
+    "environments": [
+      {
+        "model": "environment",
+        "id": "ev_695STXiQoH",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T11:39:56.311609",
+        "updatedAt": "2026-10-14T11:39:56.311610",
+        "name": "Global Variables",
+        "public": true,
+        "base": true,
+        "parentModel": "workspace",
+        "parentId": null,
+        "variables": [],
+        "color": null,
+        "sortPriority": 0.0
+      },
+      {
+        "model": "environment",
+        "id": "ev_ThMpTftbhz",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T11:52:12.342859",
+        "updatedAt": "2026-10-14T11:52:12.342860",
+        "name": "Clock management examples",
+        "public": true,
+        "base": false,
+        "parentModel": "environment",
+        "parentId": "ev_695STXiQoH",
+        "variables": [
+          {
+            "enabled": true,
+            "name": "BASE_URL",
+            "value": "http://localhost:4000",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "GUILD_ID",
+            "value": "123",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "DM_API_TOKEN",
+            "value": "",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "CLOCK_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "CLOCK_SNAPSHOT_TOKEN",
+            "value": "",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "PARTNER_CLOCK_ID",
+            "value": "2",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "PARTNER_SNAPSHOT_TOKEN",
+            "value": "",
+            "id": null
+          }
+        ],
+        "color": null,
+        "sortPriority": 0.0
+      }
+    ],
+    "folders": [
+      {
+        "model": "folder",
+        "id": "fl_7BVRCLoc9e",
+        "createdAt": "2026-10-14T11:51:32.045810",
+        "updatedAt": "2026-10-14T11:51:32.045810",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": null,
+        "authentication": {},
+        "authenticationType": null,
+        "description": "ENG-54: actor-authorized clock reads and writes. Select Clock management examples. Copy CLOCK_ID and CLOCK_SNAPSHOT_TOKEN from a read/create; racing writes also use partner snapshots. Writes never auto-refresh stale state.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Authorization",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "Accept",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "name": "Clock management",
+        "sortPriority": 0.0,
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingRequestMessageSize": {
+          "enabled": false,
+          "value": 67108864
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "httpRequests": [
+      {
+        "model": "http_request",
+        "id": "rq_RdsGpJLjg6",
+        "createdAt": "2026-10-14T11:52:13.141667",
+        "updatedAt": "2026-10-14T11:52:13.141667",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"invalid-snapshot\",\n  \"name\": \"Must not be saved\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 409 stale_clock for an existing clock; no write or audit.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PATCH",
+        "name": "13 - Reject an invalid snapshot",
+        "sortPriority": 12.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_DguUqXq2UB",
+        "createdAt": "2026-10-14T11:52:13.027287",
+        "updatedAt": "2026-10-14T11:52:13.027287",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"Must not be saved\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 428 precondition_required; no write or audit.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PATCH",
+        "name": "12 - Reject a missing snapshot",
+        "sortPriority": 11.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_w32T7MsTeP",
+        "createdAt": "2026-10-14T11:52:12.974451",
+        "updatedAt": "2026-10-14T11:52:12.974451",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\",\n  \"partner_snapshot_token\": \"${[ PARTNER_SNAPSHOT_TOKEN ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with both affected clocks. For an unpaired clock, remove partner_snapshot_token. Both snapshots must match current paired state.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "11 - Unpair clocks",
+        "sortPriority": 10.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/unpair",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_rhLYdrbBSU",
+        "createdAt": "2026-10-14T11:52:12.919830",
+        "updatedAt": "2026-10-14T11:52:12.919830",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\",\n  \"partner_id\": \"${[ PARTNER_CLOCK_ID ]}\",\n  \"partner_snapshot_token\": \"${[ PARTNER_SNAPSHOT_TOKEN ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with data array for both clocks. Both must be unpaired and incomplete. Refresh both snapshot variables from response.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "10 - Pair clocks",
+        "sortPriority": 9.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/pair",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_RqgK4JE32k",
+        "createdAt": "2026-10-14T11:52:12.865905",
+        "updatedAt": "2026-10-14T11:52:12.865905",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Resets fill/completion; preserves configuration and pause. When paired, add partner_snapshot_token: ${[ PARTNER_SNAPSHOT_TOKEN ]} (as a JSON string). Both clocks reset; reread partner.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "09 - Reset",
+        "sortPriority": 8.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/reset",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_aUrTDmRhBp",
+        "createdAt": "2026-10-14T11:52:12.812200",
+        "updatedAt": "2026-10-14T11:52:12.812200",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Resumes background rates. Refresh snapshot_token after success.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "08 - Resume",
+        "sortPriority": 7.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/resume",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_M5z69QqPH9",
+        "createdAt": "2026-10-14T11:52:12.758033",
+        "updatedAt": "2026-10-14T11:52:12.758033",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Pauses background rates, not explicit adjustments. Refresh snapshot_token after success.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "07 - Pause",
+        "sortPriority": 6.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/pause",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_UDUxezxeif",
+        "createdAt": "2026-10-14T11:52:12.696679",
+        "updatedAt": "2026-10-14T11:52:12.696680",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\",\n  \"delta\": 2\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Native signed integer delta clamps fill; reaching full does not auto-complete. Refresh snapshot_token after success.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "06 - Adjust fill",
+        "sortPriority": 5.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/adjust",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_vUP2Mrqz7L",
+        "createdAt": "2026-10-14T11:52:12.637332",
+        "updatedAt": "2026-10-14T11:52:12.637332",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"snapshot_token\": \"${[ CLOCK_SNAPSHOT_TOKEN ]}\",\n  \"name\": \"Yaak edited storm\",\n  \"segments\": 8,\n  \"background_rate\": -1\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with a current snapshot. Omitted triggers/fields are preserved. Copy returned snapshot_token before another write.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PATCH",
+        "name": "05 - Edit a clock",
+        "sortPriority": 4.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_nTDLaHsiJi",
+        "createdAt": "2026-10-14T11:52:12.579389",
+        "updatedAt": "2026-10-14T11:52:12.579389",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"Yaak shelter clock\",\n  \"segments\": 4,\n  \"visibility\": \"known\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 201. Copy data.id / data.snapshot_token to PARTNER_CLOCK_ID / PARTNER_SNAPSHOT_TOKEN.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "04 - Create a racing partner",
+        "sortPriority": 3.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_EL3UAPSq2W",
+        "createdAt": "2026-10-14T11:52:12.521172",
+        "updatedAt": "2026-10-14T11:52:12.521172",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"Yaak storm clock\",\n  \"segments\": 6,\n  \"filled\": 0,\n  \"visibility\": \"hidden\",\n  \"background_rate\": 1,\n  \"paused\": false,\n  \"triggers\": [\n    {\n      \"type\": \"notify_dm\",\n      \"text\": \"Storm ready\"\n    },\n    {\n      \"type\": \"world_news\",\n      \"text\": \"Storm clouds gather\"\n    }\n  ]\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 201; creates a real clock every send. Copy data.id / data.snapshot_token to CLOCK_ID / CLOCK_SNAPSHOT_TOKEN. Triggers are configuration only.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "03 - Create a clock",
+        "sortPriority": 2.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_EdY7AaP5y6",
+        "createdAt": "2026-10-14T11:52:12.462791",
+        "updatedAt": "2026-10-14T11:52:12.462791",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200. Copy data.snapshot_token into CLOCK_SNAPSHOT_TOKEN after reviewing current state.",
+        "headers": [],
+        "method": "GET",
+        "name": "02 - Get clock",
+        "sortPriority": 1.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_am7FLsQEpi",
+        "createdAt": "2026-10-14T11:52:12.403779",
+        "updatedAt": "2026-10-14T11:52:12.403779",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_7BVRCLoc9e",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200; DM view includes hidden clocks, ordered triggers and snapshot tokens.",
+        "headers": [],
+        "method": "GET",
+        "name": "01 - List clocks",
+        "sortPriority": 0.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "grpcRequests": [],
+    "websocketRequests": []
+  }
+}

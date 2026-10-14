@@ -24,6 +24,15 @@ defmodule AsyncWorlds.Clocks.Clock do
     |> cast_embed(:triggers)
     |> validate_required([:name, :segments, :filled, :visibility, :background_rate, :paused])
     |> validate_length(:name, max: 200)
+    |> validate_change(:name, fn :name, name ->
+      if String.valid?(name) and not String.contains?(name, <<0>>),
+        do: [],
+        else: [name: "must be valid UTF-8 without NUL characters"]
+    end)
+    |> validate_number(:background_rate,
+      greater_than_or_equal_to: -2_147_483_648,
+      less_than_or_equal_to: 2_147_483_647
+    )
     |> validate_inclusion(:segments, [4, 6, 8])
     |> clamp_fill()
     |> check_constraint(:segments, name: :valid_segments)

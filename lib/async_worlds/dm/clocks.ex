@@ -5,6 +5,9 @@ defmodule AsyncWorlds.DM.Clocks do
   def list_clocks(scope),
     do: DMAccess.run(scope, fn c, _ -> {:ok, Clocks.list_clocks(c.id)} end)
 
+  def get_clock(scope, id),
+    do: DMAccess.run(scope, fn c, _ -> Clocks.get_clock(c.id, id) end)
+
   def list_audits(scope),
     do: DMAccess.run(scope, fn c, _ -> {:ok, Clocks.list_audits(c.id)} end)
 
@@ -20,28 +23,28 @@ defmodule AsyncWorlds.DM.Clocks do
         Clocks.edit_clock(campaign_id, id, attrs, source, expected_clock)
       end)
 
-  def adjust_clock(scope, id, delta, origin \\ :http),
+  def adjust_clock(scope, id, delta, origin \\ :http, expected_clock \\ nil),
     do:
       manage(scope, origin, fn campaign_id, source ->
-        Clocks.adjust_clock(campaign_id, id, delta, source)
+        Clocks.adjust_clock(campaign_id, id, delta, source, expected_clock)
       end)
 
-  def reset_clock(scope, id, origin \\ :http),
+  def reset_clock(scope, id, origin \\ :http, expected_clocks \\ nil),
     do:
       manage(scope, origin, fn campaign_id, source ->
-        Clocks.reset_clock(campaign_id, id, source)
+        Clocks.reset_clock(campaign_id, id, source, expected_clocks)
       end)
 
-  def pair_clocks(scope, first, second, origin \\ :http),
+  def pair_clocks(scope, first, second, origin \\ :http, expected_clocks \\ nil),
     do:
       manage(scope, origin, fn campaign_id, source ->
-        Clocks.pair_clocks(campaign_id, first, second, source)
+        Clocks.pair_clocks(campaign_id, first, second, source, expected_clocks)
       end)
 
-  def unpair_clock(scope, id, origin \\ :http),
+  def unpair_clock(scope, id, origin \\ :http, expected_clocks \\ nil),
     do:
       manage(scope, origin, fn campaign_id, source ->
-        Clocks.unpair_clock(campaign_id, id, source)
+        Clocks.unpair_clock(campaign_id, id, source, expected_clocks)
       end)
 
   defp manage(scope, origin, fun) do

@@ -1,0 +1,42 @@
+type: environment
+model: environment
+id: ev_ThMpTftbhz
+workspaceId: wk_gKCDaoQfbG
+createdAt: 2026-10-14T11:52:12.342859
+updatedAt: 2026-10-14T11:52:12.342860
+name: Clock management examples
+public: true
+base: false
+parentModel: environment
+parentId: ev_695STXiQoH
+variables:
+- enabled: true
+  name: BASE_URL
+  value: http://localhost:4000
+  id: null
+- enabled: true
+  name: GUILD_ID
+  value: '123'
+  id: null
+- enabled: true
+  name: DM_API_TOKEN
+  value: ''
+  id: null
+- enabled: true
+  name: CLOCK_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: CLOCK_SNAPSHOT_TOKEN
+  value: ''
+  id: null
+- enabled: true
+  name: PARTNER_CLOCK_ID
+  value: '2'
+  id: null
+- enabled: true
+  name: PARTNER_SNAPSHOT_TOKEN
+  value: ''
+  id: null
+color: null
+sortPriority: 0.0

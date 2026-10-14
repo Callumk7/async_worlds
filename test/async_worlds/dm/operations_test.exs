@@ -53,6 +53,7 @@ defmodule AsyncWorlds.DM.OperationsTest do
       &Ticks.publish_tick(&1, tick.id, Ecto.UUID.generate()),
       &Ticks.remind(&1, "999"),
       &Clocks.list_clocks/1,
+      &Clocks.get_clock(&1, clock.id),
       &Clocks.list_audits/1,
       &Clocks.recent_audits/1,
       &Clocks.create_clock(&1, %{name: "No", segments: 4}),
@@ -156,6 +157,32 @@ defmodule AsyncWorlds.DM.OperationsTest do
     assert {:error, :active_tick} = Ticks.open_tick(scope)
     assert {:ok, _} = Ticks.close_tick(scope, tick.id)
     assert {:error, :tick_locked} = Clocks.adjust_clock(scope, clock.id, 1)
+  end
+
+  test "clock mutation snapshots are rechecked under the domain lock for every affected member",
+       %{scope: scope} do
+    {:ok, first} = Clocks.create_clock(scope, %{name: "First", segments: 4})
+    {:ok, second} = Clocks.create_clock(scope, %{name: "Second", segments: 4})
+    {:ok, updated} = Clocks.adjust_clock(scope, first.id, 1)
+    count = Repo.aggregate(Audit, :count)
+    assert {:error, :stale_clock} = Clocks.adjust_clock(scope, first.id, 1, :http, first)
+    assert {:error, :stale_clock} = Clocks.reset_clock(scope, first.id, :http, [first])
+    assert {:error, :stale_clock} = Clocks.unpair_clock(scope, first.id, :http, [first])
+
+    assert {:error, :stale_clock} =
+             Clocks.pair_clocks(scope, first.id, second.id, :http, [first, second])
+
+    assert Repo.aggregate(Audit, :count) == count
+    assert {:ok, _} = Clocks.pair_clocks(scope, first.id, second.id, :http, [updated, second])
+    {:ok, first} = Clocks.get_clock(scope, first.id)
+    {:ok, second} = Clocks.get_clock(scope, second.id)
+    {:ok, _} = Clocks.adjust_clock(scope, second.id, 1)
+    count = Repo.aggregate(Audit, :count)
+    assert {:error, :stale_clock} = Clocks.reset_clock(scope, first.id, :http, [first, second])
+    assert {:error, :stale_clock} = Clocks.unpair_clock(scope, first.id, :http, [first, second])
+    # A new racing membership cannot be silently reset from an old single-clock snapshot.
+    assert {:error, :stale_clock} = Clocks.reset_clock(scope, first.id, :http, [first])
+    assert Repo.aggregate(Audit, :count) == count
   end
 
   test "review and publication preserve actor attribution, draft concurrency and outbox behavior",

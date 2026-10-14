@@ -30,6 +30,11 @@ defmodule AsyncWorlds.Clocks.Trigger do
         changeset
         |> validate_required([:text])
         |> validate_length(:text, max: 2000)
+        |> validate_change(:text, fn :text, text ->
+          if String.valid?(text) and not String.contains?(text, <<0>>),
+            do: [],
+            else: [text: "must be valid UTF-8 without NUL characters"]
+        end)
         |> forbid_all([:clock_id, :character_id, :quest_id, :key, :flag])
 
       :start_clock ->
