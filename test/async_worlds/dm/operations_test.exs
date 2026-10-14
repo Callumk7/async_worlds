@@ -36,6 +36,7 @@ defmodule AsyncWorlds.DM.OperationsTest do
       &Ticks.fetch_ticks(&1, [tick.id]),
       &Ticks.fetch_snapshot(&1, tick.id),
       &Ticks.fetch_draft(&1, tick.id),
+      &Ticks.review(&1, tick.id),
       &Ticks.resolution_jobs(&1, tick.id),
       &Ticks.list_review_edits(&1, tick.id),
       &Ticks.fetch_publication(&1, tick.id),

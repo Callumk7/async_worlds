@@ -14,6 +14,17 @@ defmodule AsyncWorlds.DM.Ticks do
         {:ok, Ticks.active_tick(c.id) || Ticks.latest_published_tick(c.id)}
       end)
 
+  @doc "Read one canonically validated review revision and its frozen inputs under the authorization lock."
+  def review(scope, id) do
+    DMAccess.run(scope, fn c, _ ->
+      with {:ok, draft} <- Ticks.fetch_draft(c.id, id),
+           {:ok, snapshot} <- Ticks.fetch_snapshot(c.id, id),
+           {:ok, _outputs} <- Ticks.preview_draft(c.id, id, draft.id) do
+        {:ok, %{draft: draft, snapshot: snapshot}}
+      end
+    end)
+  end
+
   def fetch_tick(scope, id),
     do: DMAccess.run(scope, fn c, _ -> Ticks.fetch_tick(c.id, id) end)
 
