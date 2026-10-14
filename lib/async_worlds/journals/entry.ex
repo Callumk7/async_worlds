@@ -8,7 +8,7 @@ defmodule AsyncWorlds.Journals.Entry do
     field :character_id, :id
     field :receipt_id, Ecto.UUID
     field :author_discord_user_id, AsyncWorlds.Discord.Snowflake
-    field :origin, Ecto.Enum, values: [:player, :dm_persona]
+    field :origin, Ecto.Enum, values: [:player, :dm_persona, :dm]
     field :visibility, Ecto.Enum, values: [:private, :public], default: :private
     field :title, :string
     field :body, :string

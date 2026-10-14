@@ -1,0 +1,42 @@
+type: folder
+model: folder
+id: fl_g5wi43HizF
+createdAt: 2026-10-14T11:39:32.395171
+updatedAt: 2026-10-14T11:39:32.395172
+workspaceId: wk_gKCDaoQfbG
+folderId: null
+authentication: {}
+authenticationType: null
+description: Run individually. Same idempotency key and payload returns the retained outcome even after deletion; use a new key for a new entry.
+headers:
+- enabled: true
+  name: Authorization
+  value: Bearer ${[ DM_API_TOKEN ]}
+  id: null
+- enabled: true
+  name: Accept
+  value: application/json
+  id: null
+name: Journal writes
+sortPriority: 6.0
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingRequestMessageSize:
+  enabled: false
+  value: 67108864
+settingHttpVersion:
+  enabled: false
+  value: auto

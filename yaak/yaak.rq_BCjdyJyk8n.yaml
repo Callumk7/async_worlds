@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_BCjdyJyk8n
+createdAt: 2026-10-14T12:22:42.321460
+updatedAt: 2026-10-14T12:22:42.321460
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "revision_id": "${[ QUEST_REVISION_ID ]}",
+      "reason": "${[ QUEST_REASON ]}"
+    }
+bodyType: application/json
+description: Expected 428 precondition_required; no progression, submission or audit changes.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 09 - Reject a missing precondition
+sortPriority: 8.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/assign
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

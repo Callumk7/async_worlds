@@ -1,0 +1,44 @@
+type: http_request
+model: http_request
+id: rq_yRo9z6cc8a
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_feMMr56Tj5
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "generation": 0
+    }
+bodyType: application/json
+description: Replace generation with the integer from inspection.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: Retry failed delivery
+sortPriority: 21.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/deliveries/${[ DELIVERY_ID ]}/retry
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

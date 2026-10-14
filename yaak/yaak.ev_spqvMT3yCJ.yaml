@@ -1,0 +1,98 @@
+type: environment
+model: environment
+id: ev_spqvMT3yCJ
+workspaceId: wk_gKCDaoQfbG
+createdAt: 2026-10-14T11:39:56.311609
+updatedAt: 2026-10-14T11:39:56.311610
+name: HTTP operations examples
+public: true
+base: false
+parentModel: environment
+parentId: null
+variables:
+- enabled: true
+  name: BASE_URL
+  value: http://localhost:4000
+  id: null
+- enabled: true
+  name: GUILD_ID
+  value: '123'
+  id: null
+- enabled: true
+  name: DM_API_TOKEN
+  value: ''
+  id: null
+- enabled: true
+  name: CHARACTER_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: TICK_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: DRAFT_ID
+  value: ''
+  id: null
+- enabled: true
+  name: DELIVERY_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: DELIVERY_GENERATION
+  value: '0'
+  id: null
+- enabled: true
+  name: JOURNAL_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: DELETE_TOKEN
+  value: ''
+  id: null
+- enabled: true
+  name: JOURNAL_REQUEST_KEY
+  value: replace-with-a-unique-request-key
+  id: null
+- enabled: true
+  name: REMINDER_REQUEST_KEY
+  value: replace-with-a-unique-reminder-key
+  id: null
+- enabled: true
+  name: CLOCK_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: DIE_IDENTITY
+  value: ''
+  id: null
+- enabled: true
+  name: DIE_OLD_VALUE
+  value: '1'
+  id: null
+- enabled: true
+  name: INPUT_REVISION
+  value: ''
+  id: null
+- enabled: true
+  name: PROGRESSION_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: REVISION_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: NODE_ID
+  value: ''
+  id: null
+- enabled: true
+  name: CHOICE_ID
+  value: ''
+  id: null
+- enabled: true
+  name: POSITION_VERSION
+  value: '1'
+  id: null
+color: null
+sortPriority: 0.0

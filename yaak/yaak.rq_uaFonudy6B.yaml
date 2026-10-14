@@ -1,0 +1,47 @@
+type: http_request
+model: http_request
+id: rq_uaFonudy6B
+createdAt: 2026-10-14T12:10:42.393716
+updatedAt: 2026-10-14T12:10:42.393716
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Gy4Vpjtmjs
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "version": ${[ QUEST_WORKING_COPY_VERSION ]},
+      "name": "",
+      "content_id": "${[ QUEST_CONTENT_ID ]}",
+      "definition": ${[ QUEST_DEFINITION ]}
+    }
+bodyType: application/json
+description: Expected 422 invalid_document with a current version/base and safe definition; blank name cannot release. No draft/library writes survive.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 13 - Reject an incomplete release
+sortPriority: 12.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}/release
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

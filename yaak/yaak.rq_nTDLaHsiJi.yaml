@@ -1,0 +1,47 @@
+type: http_request
+model: http_request
+id: rq_nTDLaHsiJi
+createdAt: '2026-10-14T11:52:12.579389'
+updatedAt: '2026-10-14T11:52:12.579389'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_7BVRCLoc9e
+authentication: {}
+authenticationType: 
+body:
+  text: |-
+    {
+      "name": "Yaak shelter clock",
+      "segments": 4,
+      "visibility": "known"
+    }
+bodyType: application/json
+description: Expected 201. Copy data.id / data.snapshot_token to PARTNER_CLOCK_ID
+  / PARTNER_SNAPSHOT_TOKEN.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: POST
+name: 04 - Create a racing partner
+sortPriority: 3.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

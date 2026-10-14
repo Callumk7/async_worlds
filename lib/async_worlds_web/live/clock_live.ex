@@ -1,7 +1,8 @@
 defmodule AsyncWorldsWeb.ClockLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
-  alias AsyncWorlds.{Characters, Clocks, Quests, Ticks}
+  alias AsyncWorlds.{Characters, Quests}
+  alias AsyncWorlds.DM.{Clocks, Ticks}
   alias AsyncWorlds.Clocks.{Clock, Trigger, TriggerForm}
   import Ecto.Changeset, only: [get_field: 2, get_change: 3, put_embed: 3]
 
@@ -77,9 +78,9 @@ defmodule AsyncWorldsWeb.ClockLive do
 
     result =
       if clock = socket.assigns.editing do
-        Clocks.edit_clock(campaign_id(socket), clock.id, params, source(socket), clock)
+        Clocks.edit_clock(scope(socket), clock.id, params, :web, clock)
       else
-        Clocks.create_clock(campaign_id(socket), params, source(socket))
+        Clocks.create_clock(scope(socket), params, :web)
       end
 
     case result do
@@ -110,7 +111,7 @@ defmodule AsyncWorldsWeb.ClockLive do
     result =
       with {:ok, clock} <- find_clock(socket, id),
            {:ok, delta} <- integer(params["delta"]),
-           do: Clocks.adjust_clock(campaign_id(socket), clock.id, delta, source(socket))
+           do: Clocks.adjust_clock(scope(socket), clock.id, delta, :web)
 
     {:noreply, complete(socket, result, "Clock fill adjusted.")}
   end
@@ -121,10 +122,10 @@ defmodule AsyncWorldsWeb.ClockLive do
       with {:ok, clock} <- find_clock(socket, id),
            do:
              Clocks.edit_clock(
-               campaign_id(socket),
+               scope(socket),
                clock.id,
                %{paused: paused == "true"},
-               source(socket),
+               :web,
                clock
              )
 
@@ -134,7 +135,7 @@ defmodule AsyncWorldsWeb.ClockLive do
   def handle_event("reset", %{"id" => id}, socket) do
     result =
       with {:ok, clock} <- find_clock(socket, id),
-           do: Clocks.reset_clock(campaign_id(socket), clock.id, source(socket))
+           do: Clocks.reset_clock(scope(socket), clock.id, :web)
 
     {:noreply, complete(socket, result, "Clock reset (including its racing partner, if paired).")}
   end
@@ -143,7 +144,7 @@ defmodule AsyncWorldsWeb.ClockLive do
     result =
       with {:ok, first} <- integer(params["first_id"]),
            {:ok, second} <- integer(params["second_id"]),
-           do: Clocks.pair_clocks(campaign_id(socket), first, second, source(socket))
+           do: Clocks.pair_clocks(scope(socket), first, second, :web)
 
     {:noreply,
      complete(socket, result, "Racing clocks linked. Only the winning clock fires its triggers.")}
@@ -152,7 +153,7 @@ defmodule AsyncWorldsWeb.ClockLive do
   def handle_event("unpair", %{"id" => id}, socket) do
     result =
       with {:ok, clock} <- find_clock(socket, id),
-           do: Clocks.unpair_clock(campaign_id(socket), clock.id, source(socket))
+           do: Clocks.unpair_clock(scope(socket), clock.id, :web)
 
     {:noreply, complete(socket, result, "Racing clocks unlinked.")}
   end
@@ -196,13 +197,12 @@ defmodule AsyncWorldsWeb.ClockLive do
     )
   end
 
-  defp campaign_id(socket), do: socket.assigns.current_scope.campaign.id
-  defp source(socket), do: "dm:web:#{socket.assigns.current_scope.discord_user_id}"
+  defp scope(socket), do: socket.assigns.current_scope
 
   defp find_clock(socket, id) do
     with {:ok, id} <- integer(id),
-         clock when not is_nil(clock) <-
-           Enum.find(Clocks.list_clocks(campaign_id(socket)), &(&1.id == id)) do
+         {:ok, clocks} <- Clocks.list_clocks(scope(socket)),
+         clock when not is_nil(clock) <- Enum.find(clocks, &(&1.id == id)) do
       {:ok, clock}
     else
       _ -> {:error, :not_found}
@@ -213,10 +213,9 @@ defmodule AsyncWorldsWeb.ClockLive do
     do: assign(socket, editing: nil, form: to_form(Clock.changeset(%Clock{}, %{})))
 
   defp refresh(socket) do
-    id = campaign_id(socket)
-    tick = Ticks.active_tick(id)
-    clocks = Clocks.list_clocks(id)
-    scope = socket.assigns.current_scope
+    scope = scope(socket)
+    {:ok, tick} = Ticks.active_tick(scope)
+    {:ok, clocks} = Clocks.list_clocks(scope)
     {:ok, characters} = Characters.list_characters(scope.campaign, scope.discord_user_id)
     {:ok, quests} = Quests.trigger_targets(scope.campaign, scope.discord_user_id)
 

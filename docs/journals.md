@@ -1,8 +1,10 @@
 # Player journals (ENG-42 / ENG-47)
 
 Persistent journals belong to campaign characters. PostgreSQL is the source of
-truth; Discord is the creation/retrieval frontend. Journals do not participate in
-ticks, snapshots, resolution, quests or the delivery outbox.
+truth; Discord is the current creation/retrieval frontend. Transport-neutral
+creation APIs and explicit authorized DM character selection are also available;
+see [journal creation](journal-creation.md). Journals do not participate in ticks,
+snapshots, resolution, quests or the delivery outbox.
 
 ## Owner-approved policy
 
@@ -77,7 +79,8 @@ submit replay returns the original ID/outcome, not changed content or another in
 
 ## Transport, deadlines and logging
 
-Legacy construction/parsing is isolated in `JournalInteractions`, supported by
+Legacy construction/parsing is isolated in `JournalInteractions`, with modal
+receipt lifecycle in `Discord.JournalCreation` and shared persistence in `Journals`, supported by
 installed Nostrum 0.10.4 without upgrades. Modal-open callback type 9 is the initial
 acknowledgment, never preceded by a defer. Submission type 5 defers privately first.
 All normal commands/components defer before DB work; failed initial acknowledgment

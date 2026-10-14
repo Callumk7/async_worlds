@@ -1,0 +1,48 @@
+type: http_request
+model: http_request
+id: rq_vUP2Mrqz7L
+createdAt: '2026-10-14T11:52:12.637332'
+updatedAt: '2026-10-14T11:52:12.637332'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_7BVRCLoc9e
+authentication: {}
+authenticationType: 
+body:
+  text: |-
+    {
+      "snapshot_token": "${[ CLOCK_SNAPSHOT_TOKEN ]}",
+      "name": "Yaak edited storm",
+      "segments": 8,
+      "background_rate": -1
+    }
+bodyType: application/json
+description: Expected 200 with a current snapshot. Omitted triggers/fields are preserved.
+  Copy returned snapshot_token before another write.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: PATCH
+name: 05 - Edit a clock
+sortPriority: 4.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

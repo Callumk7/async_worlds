@@ -1,0 +1,61 @@
+type: environment
+model: environment
+id: ev_ySr5DZ9zJd
+workspaceId: wk_gKCDaoQfbG
+createdAt: '2026-10-14T12:10:41.626829'
+updatedAt: '2026-10-14T12:10:41.626829'
+name: Quest authoring examples
+public: true
+base: false
+parentModel: environment
+parentId: ev_695STXiQoH
+variables:
+- enabled: true
+  name: BASE_URL
+  value: http://localhost:4000
+  id: 
+- enabled: true
+  name: GUILD_ID
+  value: '123'
+  id: 
+- enabled: true
+  name: DM_API_TOKEN
+  value: ''
+  id: 
+- enabled: true
+  name: QUEST_REVISION_ID
+  value: '1'
+  id: 
+- enabled: true
+  name: QUEST_WORKING_COPY_ID
+  value: '1'
+  id: 
+- enabled: true
+  name: QUEST_WORKING_COPY_VERSION
+  value: '1'
+  id: 
+- enabled: true
+  name: QUEST_NAME
+  value: Yaak example quest
+  id: 
+- enabled: true
+  name: QUEST_CONTENT_ID
+  value: ''
+  id: 
+- enabled: true
+  name: QUEST_DEFINITION
+  value: |-
+    {
+      "start_node": "node_00000000-0000-4000-8000-000000000001",
+      "nodes": [
+        {
+          "id": "node_00000000-0000-4000-8000-000000000001",
+          "text": "The journey ends here.",
+          "ending": true,
+          "choices": []
+        }
+      ]
+    }
+  id: 
+color: 
+sortPriority: 0.0

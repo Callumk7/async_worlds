@@ -1,0 +1,46 @@
+type: http_request
+model: http_request
+id: rq_RqgK4JE32k
+createdAt: '2026-10-14T11:52:12.865905'
+updatedAt: '2026-10-14T11:52:12.865905'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_7BVRCLoc9e
+authentication: {}
+authenticationType: 
+body:
+  text: |-
+    {
+      "snapshot_token": "${[ CLOCK_SNAPSHOT_TOKEN ]}"
+    }
+bodyType: application/json
+description: 'Expected 200. Resets fill/completion; preserves configuration and pause.
+  When paired, add partner_snapshot_token: ${[ PARTNER_SNAPSHOT_TOKEN ]} (as a JSON
+  string). Both clocks reset; reread partner.'
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: POST
+name: '09 - Reset'
+sortPriority: 8.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/reset"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

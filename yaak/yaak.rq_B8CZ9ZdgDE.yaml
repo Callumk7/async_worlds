@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_B8CZ9ZdgDE
+createdAt: 2026-10-14T12:22:42.044255
+updatedAt: 2026-10-14T12:22:42.044255
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: 'Expected 200: up to ten latest DM-only audits with reasons, actor, tick, before/after positions and invalidated-submission count.'
+headers: []
+method: GET
+name: 04 - Recent interventions
+sortPriority: 3.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/interventions
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

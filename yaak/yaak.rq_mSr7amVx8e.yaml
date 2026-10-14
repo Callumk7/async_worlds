@@ -1,0 +1,51 @@
+type: http_request
+model: http_request
+id: rq_mSr7amVx8e
+createdAt: 2026-10-14T11:39:56.479199
+updatedAt: 2026-10-14T11:39:56.479200
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Jhkgqh9KYx
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "name": "Yaak example character",
+      "flags": {
+        "debt": {
+          "type": "integer",
+          "value": 3,
+          "player_visible": false
+        }
+      }
+    }
+bodyType: application/json
+description: Expected 201. Creates a real character each time. Copy returned data.id and data.state_version to the example environment. Optional discord_user_id links ownership.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 03 - Create a DM-controlled character
+sortPriority: 2.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

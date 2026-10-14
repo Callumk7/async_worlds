@@ -58,7 +58,7 @@
           },
           {
             "enabled": true,
-            "name": "API_TOKEN",
+            "name": "DM_API_TOKEN",
             "value": "",
             "id": null
           }
@@ -139,7 +139,7 @@
           },
           {
             "name": "Authorization",
-            "value": "Bearer ${[ API_TOKEN ]}",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
             "enabled": true
           }
         ],
@@ -200,7 +200,7 @@
           },
           {
             "name": "Authorization",
-            "value": "Bearer ${[ API_TOKEN ]}",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
             "enabled": true
           }
         ],
@@ -261,7 +261,7 @@
           },
           {
             "name": "Authorization",
-            "value": "Bearer ${[ API_TOKEN ]}",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
             "enabled": true
           }
         ],
@@ -328,7 +328,7 @@
           },
           {
             "name": "Authorization",
-            "value": "Bearer ${[ API_TOKEN ]}",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
             "enabled": true
           }
         ],

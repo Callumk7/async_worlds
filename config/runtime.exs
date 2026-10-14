@@ -37,16 +37,16 @@ config :async_worlds, AsyncWorldsWeb.Endpoint,
 
 # Optional trusted operator API credential. Disabled unless both values are set.
 if config_env() != :test do
-  token = System.get_env("QUEST_IMPORT_API_TOKEN")
-  dm_id = System.get_env("QUEST_IMPORT_API_DM_USER_ID")
+  token = System.get_env("DM_API_TOKEN")
+  dm_id = System.get_env("DM_API_DM_USER_ID")
 
   if token || dm_id do
     unless is_binary(token) and byte_size(token) >= 32 and
              match?({:ok, _}, AsyncWorlds.Discord.Snowflake.cast(dm_id)) do
-      raise "QUEST_IMPORT_API_TOKEN (at least 32 bytes) and QUEST_IMPORT_API_DM_USER_ID (Discord ID) are required together"
+      raise "DM_API_TOKEN (at least 32 bytes) and DM_API_DM_USER_ID (Discord ID) are required together"
     end
 
-    config :async_worlds, :quest_import_api, token: token, dm_user_id: dm_id
+    config :async_worlds, :dm_api, token: token, dm_user_id: dm_id
   end
 end
 

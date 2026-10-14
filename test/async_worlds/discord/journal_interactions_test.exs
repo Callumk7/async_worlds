@@ -1,4 +1,5 @@
 defmodule AsyncWorlds.Discord.JournalInteractionsTest do
+  alias AsyncWorlds.Discord.JournalCreation
   use AsyncWorlds.DataCase, async: false
   import ExUnit.CaptureLog
   alias AsyncWorlds.{Campaigns, Characters, Deliveries, Journals}
@@ -371,10 +372,10 @@ defmodule AsyncWorlds.Discord.JournalInteractionsTest do
 
     entries =
       for _ <- 1..25 do
-        {:ok, flow} = Journals.begin_creation(context, System.unique_integer([:positive]))
+        {:ok, flow} = JournalCreation.begin_creation(context, System.unique_integer([:positive]))
 
         {:ok, result} =
-          Journals.submit(context, flow.id, %{title: "Repeated title", body: "Not in list"})
+          JournalCreation.submit(context, flow.id, %{title: "Repeated title", body: "Not in list"})
 
         result.entry_id
       end

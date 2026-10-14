@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_3E4oToGgX5
+createdAt: '2026-10-14T12:10:41.983256'
+updatedAt: '2026-10-14T12:10:41.983256'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Gy4Vpjtmjs
+authentication: {}
+authenticationType: 
+body:
+  text: |-
+    {
+      "revision_id": "${[ QUEST_REVISION_ID ]}"
+    }
+bodyType: application/json
+description: Expected 201. Copy all returned fields into your local snapshot variables,
+  including the full definition; preserve imported opaque fields and stable IDs.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: POST
+name: 06 - Create working copy from revision
+sortPriority: 5.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_WX6Wd5dpuV
+createdAt: 2026-10-14T12:22:41.989534
+updatedAt: 2026-10-14T12:22:41.989534
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: 'Expected 200: published availability for this character, not an assignment. DM assignments are not restricted to this list.'
+headers: []
+method: GET
+name: 03 - List unlocked quests
+sortPriority: 2.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/unlocked
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

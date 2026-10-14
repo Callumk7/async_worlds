@@ -1,0 +1,707 @@
+{
+  "yaakVersion": "0.1.0",
+  "yaakSchema": 4,
+  "timestamp": "2026-10-14T12:22:42.481779",
+  "resources": {
+    "workspaces": [
+      {
+        "model": "workspace",
+        "id": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-11T19:54:02.074980",
+        "updatedAt": "2026-10-11T19:54:02.074981",
+        "authentication": {},
+        "authenticationType": null,
+        "description": "",
+        "headers": [],
+        "name": "Async Worlds",
+        "encryptionKeyChallenge": null,
+        "settingValidateCertificates": true,
+        "settingFollowRedirects": true,
+        "settingRequestTimeout": 0,
+        "settingRequestMessageSize": 67108864,
+        "settingDnsOverrides": [],
+        "settingSendCookies": true,
+        "settingStoreCookies": true,
+        "settingHttpVersion": "auto"
+      }
+    ],
+    "environments": [
+      {
+        "model": "environment",
+        "id": "ev_695STXiQoH",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T11:39:56.311609",
+        "updatedAt": "2026-10-14T11:39:56.311610",
+        "name": "Global Variables",
+        "public": true,
+        "base": true,
+        "parentModel": "workspace",
+        "parentId": null,
+        "variables": [],
+        "color": null,
+        "sortPriority": 0.0
+      },
+      {
+        "model": "environment",
+        "id": "ev_TAB5da4dZ5",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T12:22:41.806580",
+        "updatedAt": "2026-10-14T12:22:41.806580",
+        "name": "Quest intervention examples",
+        "public": true,
+        "base": false,
+        "parentModel": "environment",
+        "parentId": "ev_695STXiQoH",
+        "variables": [
+          {
+            "enabled": true,
+            "name": "BASE_URL",
+            "value": "http://localhost:4000",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "GUILD_ID",
+            "value": "123",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "DM_API_TOKEN",
+            "value": "",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_CHARACTER_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_REVISION_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_EXPECTED_PROGRESSION",
+            "value": "null",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_REASON",
+            "value": "Manual development intervention",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_NODE_ID",
+            "value": "end",
+            "id": null
+          }
+        ],
+        "color": null,
+        "sortPriority": 0.0
+      }
+    ],
+    "folders": [
+      {
+        "model": "folder",
+        "id": "fl_YxW6BDNaaw",
+        "createdAt": "2026-10-14T12:21:52.996525",
+        "updatedAt": "2026-10-14T12:21:52.996525",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": null,
+        "authentication": {},
+        "authenticationType": null,
+        "description": "ENG-56: operational reads and explicit DM interventions. Select Quest intervention examples. Copy selected.progression as a full JSON object, or null after reviewing absence. Reasons are required; writes never auto-refresh state and may clear player choices.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Authorization",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "Accept",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "name": "Quest assignments and interventions",
+        "sortPriority": 0.0,
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingRequestMessageSize": {
+          "enabled": false,
+          "value": 67108864
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "httpRequests": [
+      {
+        "model": "http_request",
+        "id": "rq_9uWXJ2wm5S",
+        "createdAt": "2026-10-14T12:22:42.424559",
+        "updatedAt": "2026-10-14T12:22:42.424559",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"expected_progression\": ${[ QUEST_EXPECTED_PROGRESSION ]},\n  \"revision_id\": \"${[ QUEST_REVISION_ID ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 422 invalid_reason when the explicit progression precondition matches current state; no write. Refresh only after reviewing management state.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "11 - Reject a missing reason",
+        "sortPriority": 10.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/assign",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_iuuenmC7cA",
+        "createdAt": "2026-10-14T12:22:42.373368",
+        "updatedAt": "2026-10-14T12:22:42.373368",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"expected_progression\": {\n    \"id\": \"9223372036854775807\",\n    \"campaign_id\": \"1\",\n    \"character_id\": \"${[ QUEST_CHARACTER_ID ]}\",\n    \"revision_id\": \"${[ QUEST_REVISION_ID ]}\",\n    \"node_id\": \"hub\",\n    \"position_version\": 0,\n    \"status\": \"active\"\n  },\n  \"reason\": \"${[ QUEST_REASON ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 409 stale_progression for an existing selected character: deliberately mismatched progression identity/version. No write or audit.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "10 - Reject a mismatched progression",
+        "sortPriority": 9.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/end",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_BCjdyJyk8n",
+        "createdAt": "2026-10-14T12:22:42.321460",
+        "updatedAt": "2026-10-14T12:22:42.321460",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"revision_id\": \"${[ QUEST_REVISION_ID ]}\",\n  \"reason\": \"${[ QUEST_REASON ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 428 precondition_required; no progression, submission or audit changes.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "09 - Reject a missing precondition",
+        "sortPriority": 8.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/assign",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_9kZXqEXbpG",
+        "createdAt": "2026-10-14T12:22:42.267736",
+        "updatedAt": "2026-10-14T12:22:42.267737",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"expected_progression\": ${[ QUEST_EXPECTED_PROGRESSION ]},\n  \"reason\": \"${[ QUEST_REASON ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with the full active precondition. Stops without completing and clears the open choice. Management progression becomes null; do not reuse the returned ended record as an active precondition.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "08 - End the active assignment",
+        "sortPriority": 7.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/end",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_5SudzaiWE3",
+        "createdAt": "2026-10-14T12:22:42.215715",
+        "updatedAt": "2026-10-14T12:22:42.215715",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"expected_progression\": ${[ QUEST_EXPECTED_PROGRESSION ]},\n  \"reason\": \"${[ QUEST_REASON ]}\",\n  \"node_id\": \"${[ QUEST_NODE_ID ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with the current full active precondition. Only pinned-revision nodes are valid. Same-node moves are no-ops; actual movement clears the open choice and increments position_version. Ending nodes complete; reread management after completion.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "07 - Move within the pinned revision",
+        "sortPriority": 6.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/move",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_vfG99ckSDW",
+        "createdAt": "2026-10-14T12:22:42.152685",
+        "updatedAt": "2026-10-14T12:22:42.152685",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"expected_progression\": ${[ QUEST_EXPECTED_PROGRESSION ]},\n  \"reason\": \"${[ QUEST_REASON ]}\",\n  \"revision_id\": \"${[ QUEST_REVISION_ID ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Requires the full current active progression (or explicit absence, as permitted by the domain). Ends prior active work, clears this character's open choice, and starts a new assignment ID even for the same revision. Refresh the precondition after success.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "06 - Replace the active assignment",
+        "sortPriority": 5.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/replace",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_2cUAUxFusd",
+        "createdAt": "2026-10-14T12:22:42.098400",
+        "updatedAt": "2026-10-14T12:22:42.098400",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"expected_progression\": ${[ QUEST_EXPECTED_PROGRESSION ]},\n  \"reason\": \"${[ QUEST_REASON ]}\",\n  \"revision_id\": \"${[ QUEST_REVISION_ID ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Use explicit null only after reviewing that no active quest exists. Creates an independent assignment; an ending start node completes immediately. Copy the returned active progression before another write.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "05 - Assign a revision",
+        "sortPriority": 4.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/assign",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_B8CZ9ZdgDE",
+        "createdAt": "2026-10-14T12:22:42.044255",
+        "updatedAt": "2026-10-14T12:22:42.044255",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: up to ten latest DM-only audits with reasons, actor, tick, before/after positions and invalidated-submission count.",
+        "headers": [],
+        "method": "GET",
+        "name": "04 - Recent interventions",
+        "sortPriority": 3.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/interventions",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_WX6Wd5dpuV",
+        "createdAt": "2026-10-14T12:22:41.989534",
+        "updatedAt": "2026-10-14T12:22:41.989534",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: published availability for this character, not an assignment. DM assignments are not restricted to this list.",
+        "headers": [],
+        "method": "GET",
+        "name": "03 - List unlocked quests",
+        "sortPriority": 2.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/unlocked",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_ebB8dtB5Mb",
+        "createdAt": "2026-10-14T12:22:41.929188",
+        "updatedAt": "2026-10-14T12:22:41.929188",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200. Review selected.progression and copy the full seven-field JSON object (or null) into QUEST_EXPECTED_PROGRESSION. Includes pinned revision definition and recent audits.",
+        "headers": [],
+        "method": "GET",
+        "name": "02 - Selected character quest management",
+        "sortPriority": 1.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_BrhwseMwZF",
+        "createdAt": "2026-10-14T12:22:41.869211",
+        "updatedAt": "2026-10-14T12:22:41.869212",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_YxW6BDNaaw",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: character roster, released revisions and lock state. This is a DM-only operational view.",
+        "headers": [],
+        "method": "GET",
+        "name": "01 - Campaign quest management",
+        "sortPriority": 0.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/management",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "grpcRequests": [],
+    "websocketRequests": []
+  }
+}

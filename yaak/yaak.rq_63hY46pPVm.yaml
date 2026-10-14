@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_63hY46pPVm
+createdAt: 2026-10-14T11:39:56.424337
+updatedAt: 2026-10-14T11:39:56.424337
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Jhkgqh9KYx
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: Expected 200. Copy data.id and data.state_version into CHARACTER_ID and CHARACTER_STATE_VERSION before editing.
+headers: []
+method: GET
+name: 02 - Get character
+sortPriority: 1.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

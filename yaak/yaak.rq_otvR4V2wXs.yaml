@@ -1,0 +1,47 @@
+type: http_request
+model: http_request
+id: rq_otvR4V2wXs
+createdAt: 2026-10-14T11:39:56.589717
+updatedAt: 2026-10-14T11:39:56.589717
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Jhkgqh9KYx
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "state_version": ${[ CHARACTER_STATE_VERSION ]},
+      "type": "integer",
+      "value": 5,
+      "player_visible": true
+    }
+bodyType: application/json
+description: Expected 200. Changes only FLAG_KEY. Values must be native JSON types and visibility explicit. Copy the returned state_version before clearing.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: PUT
+name: 05 - Set a flag
+sortPriority: 4.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}/flags/${[ FLAG_KEY ]}
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

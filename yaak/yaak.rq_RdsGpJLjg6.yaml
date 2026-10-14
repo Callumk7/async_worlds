@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_RdsGpJLjg6
+createdAt: 2026-10-14T11:52:13.141667
+updatedAt: 2026-10-14T11:52:13.141667
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_7BVRCLoc9e
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "snapshot_token": "invalid-snapshot",
+      "name": "Must not be saved"
+    }
+bodyType: application/json
+description: Expected 409 stale_clock for an existing clock; no write or audit.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: PATCH
+name: 13 - Reject an invalid snapshot
+sortPriority: 12.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

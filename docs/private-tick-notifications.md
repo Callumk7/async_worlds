@@ -8,6 +8,10 @@
 
 All commands are ephemeral, scoped to the verified guild member or the actual DM's freshly authorized `/debug` persona. They do not depend on DMs succeeding and do not enqueue outbound messages. Normal historical reads require both current character ownership and matching historical character ID/Discord owner; transferring a character does not give the new owner its previous owner's private history. A current DM persona may inspect the selected character's approved history, including previous ownership. v3 retrieval selects that character's primary output rather than all messages sharing the DM recipient or duplicate DM copies.
 
+History queries now live in `Ticks.PersonalHistory`; the Discord adapter only
+formats the structured result. See [shared personal history](personal-history.md)
+for player ownership rules and explicit authorized DM character selection.
+
 ## Durable notifications
 
 Opening a tick atomically records public announcement and private prompts for active quest characters. Accountless characters receive labelled prompts at the DM account. Explicitly enabled linked-player copies are additive; an owner who is already the DM is not copied twice. Prompt/reminder routing is captured when the intent is created, independently of whichever persona is selected. Publication atomically applies the selected approved draft once, saves exact outgoing output, and records personal result deliveries. No network call runs inside either game-state transaction. Even if every Discord recipient blocks messages, publication succeeds.

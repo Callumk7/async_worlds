@@ -50,6 +50,89 @@ defmodule AsyncWorldsWeb.Router do
     pipe_through :api
 
     post "/campaigns/:guild_id/quests/import", QuestImportController, :create
+
+    get "/campaigns/:guild_id/quests/management", QuestInterventionController, :management
+    get "/campaigns/:guild_id/characters/:id/quests", QuestInterventionController, :management
+
+    get "/campaigns/:guild_id/characters/:id/quests/unlocked",
+        QuestInterventionController,
+        :unlocked
+
+    get "/campaigns/:guild_id/characters/:id/quests/interventions",
+        QuestInterventionController,
+        :interventions
+
+    post "/campaigns/:guild_id/characters/:id/quests/assign",
+         QuestInterventionController,
+         :assign_quest
+
+    post "/campaigns/:guild_id/characters/:id/quests/replace",
+         QuestInterventionController,
+         :replace
+
+    post "/campaigns/:guild_id/characters/:id/quests/move", QuestInterventionController, :move
+    post "/campaigns/:guild_id/characters/:id/quests/end", QuestInterventionController, :end_quest
+
+    get "/campaigns/:guild_id/quests", QuestAuthoringController, :index
+    get "/campaigns/:guild_id/quests/revisions", QuestAuthoringController, :revisions
+    get "/campaigns/:guild_id/quests/revisions/:id", QuestAuthoringController, :revision
+    get "/campaigns/:guild_id/quests/working-copies", QuestAuthoringController, :working_copies
+    post "/campaigns/:guild_id/quests/working-copies", QuestAuthoringController, :create
+    get "/campaigns/:guild_id/quests/working-copies/:id", QuestAuthoringController, :show
+    put "/campaigns/:guild_id/quests/working-copies/:id", QuestAuthoringController, :save
+
+    post "/campaigns/:guild_id/quests/working-copies/:id/recover",
+         QuestAuthoringController,
+         :recover
+
+    post "/campaigns/:guild_id/quests/working-copies/:id/release",
+         QuestAuthoringController,
+         :release
+
+    get "/campaigns/:guild_id/characters/:id/journals", JournalController, :index
+    post "/campaigns/:guild_id/characters/:id/journals", JournalController, :create
+    get "/campaigns/:guild_id/journals/:id", JournalController, :show
+    delete "/campaigns/:guild_id/journals/:id", JournalController, :delete
+
+    get "/campaigns/:guild_id/deliveries", DeliveryController, :index
+    get "/campaigns/:guild_id/deliveries/:id", DeliveryController, :show
+    post "/campaigns/:guild_id/deliveries/:id/retry", DeliveryController, :retry
+
+    get "/campaigns/:guild_id/ticks/history", HistoryController, :index
+    get "/campaigns/:guild_id/ticks/:id/history", HistoryController, :show
+    get "/campaigns/:guild_id/characters/:id/history/result", HistoryController, :result
+    get "/campaigns/:guild_id/characters/:id/history/submission", HistoryController, :submission
+
+    get "/campaigns/:guild_id/ticks/:id/review", TickReviewController, :show
+    get "/campaigns/:guild_id/ticks/:id/review/audits", TickReviewController, :audits
+    get "/campaigns/:guild_id/ticks/:id/review/preview", TickReviewController, :preview
+    post "/campaigns/:guild_id/ticks/:id/review/edits", TickReviewController, :edit
+    post "/campaigns/:guild_id/ticks/:id/publish", TickReviewController, :publish
+
+    get "/campaigns/:guild_id/ticks/status", TickController, :status
+    post "/campaigns/:guild_id/ticks/open", TickController, :open
+    post "/campaigns/:guild_id/ticks/remind", TickController, :remind
+    post "/campaigns/:guild_id/ticks/:id/close", TickController, :close
+    get "/campaigns/:guild_id/ticks/:id/readiness", TickController, :readiness
+    get "/campaigns/:guild_id/ticks/:id/readiness/roster", TickController, :roster
+
+    get "/campaigns/:guild_id/clocks", ClockController, :index
+    get "/campaigns/:guild_id/clocks/:id", ClockController, :show
+    post "/campaigns/:guild_id/clocks", ClockController, :create
+    patch "/campaigns/:guild_id/clocks/:id", ClockController, :update
+    post "/campaigns/:guild_id/clocks/:id/adjust", ClockController, :adjust
+    post "/campaigns/:guild_id/clocks/:id/pause", ClockController, :pause
+    post "/campaigns/:guild_id/clocks/:id/resume", ClockController, :resume
+    post "/campaigns/:guild_id/clocks/:id/reset", ClockController, :reset
+    post "/campaigns/:guild_id/clocks/:id/pair", ClockController, :pair
+    post "/campaigns/:guild_id/clocks/:id/unpair", ClockController, :unpair
+
+    get "/campaigns/:guild_id/characters", CharacterController, :index
+    get "/campaigns/:guild_id/characters/:id", CharacterController, :show
+    post "/campaigns/:guild_id/characters", CharacterController, :create
+    patch "/campaigns/:guild_id/characters/:id", CharacterController, :update
+    put "/campaigns/:guild_id/characters/:id/flags/:key", CharacterController, :set_flag
+    delete "/campaigns/:guild_id/characters/:id/flags/:key", CharacterController, :clear_flag
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

@@ -1,0 +1,50 @@
+type: http_request
+model: http_request
+id: rq_jiVv9ffmR4
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_g5wi43HizF
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "title": "Operator notes",
+      "body": "Remember this",
+      "visibility": "private"
+    }
+bodyType: application/json
+description: ''
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+- enabled: true
+  name: Idempotency-Key
+  value: ${[ JOURNAL_REQUEST_KEY ]}
+  id: null
+method: POST
+name: Create private DM journal
+sortPriority: 25.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}/journals
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

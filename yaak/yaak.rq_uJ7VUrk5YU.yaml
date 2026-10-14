@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_uJ7VUrk5YU
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_KqoFzcpk6D
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: ''
+headers: []
+method: GET
+name: Review draft
+sortPriority: 3.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/ticks/${[ TICK_ID ]}/review
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

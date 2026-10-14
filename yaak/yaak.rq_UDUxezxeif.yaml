@@ -1,0 +1,46 @@
+type: http_request
+model: http_request
+id: rq_UDUxezxeif
+createdAt: '2026-10-14T11:52:12.696679'
+updatedAt: '2026-10-14T11:52:12.696680'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_7BVRCLoc9e
+authentication: {}
+authenticationType: 
+body:
+  text: |-
+    {
+      "snapshot_token": "${[ CLOCK_SNAPSHOT_TOKEN ]}",
+      "delta": 2
+    }
+bodyType: application/json
+description: Expected 200. Native signed integer delta clamps fill; reaching full
+  does not auto-complete. Refresh snapshot_token after success.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: POST
+name: 06 - Adjust fill
+sortPriority: 5.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}/adjust"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

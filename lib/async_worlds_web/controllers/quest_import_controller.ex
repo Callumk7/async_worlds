@@ -1,14 +1,15 @@
 defmodule AsyncWorldsWeb.QuestImportController do
   use AsyncWorldsWeb, :controller
   alias AsyncWorlds.Quests
+  alias AsyncWorldsWeb.ApiResponse
 
   def create(conn, _params) do
     with :ok <- valid_json(conn.assigns.quest_import_json),
          {:ok, bindings} <- clock_bindings(conn.query_params),
          {:ok, results} <-
            Quests.import_json(
-             conn.assigns.import_campaign,
-             conn.assigns.import_dm_id,
+             conn.assigns.current_scope.campaign,
+             conn.assigns.current_scope.discord_user_id,
              conn.assigns.quest_import_json,
              clock_refs: bindings
            ) do
@@ -22,21 +23,19 @@ defmodule AsyncWorldsWeb.QuestImportController do
           }
         end)
 
-      json(conn, %{data: data})
+      ApiResponse.success(conn, data)
     else
       {:error, errors} when is_list(errors) ->
-        conn |> put_status(422) |> json(%{error: %{code: "invalid_document", details: errors}})
+        ApiResponse.error(conn, :invalid_document, details: errors)
 
       {:error, {:invalid_json, message}} ->
-        conn
-        |> put_status(400)
-        |> json(%{error: %{code: "invalid_json", details: [%{path: "$", message: message}]}})
+        ApiResponse.error(conn, :invalid_json, details: [%{path: "$", message: message}])
 
       {:error, :invalid_bindings} ->
-        conn |> put_status(422) |> json(%{error: %{code: "invalid_clock_refs"}})
+        ApiResponse.error(conn, :invalid_clock_refs)
 
-      {:error, _} ->
-        conn |> put_status(404) |> json(%{error: %{code: "not_found"}})
+      {:error, reason} ->
+        ApiResponse.domain_error(conn, reason)
     end
   end
 

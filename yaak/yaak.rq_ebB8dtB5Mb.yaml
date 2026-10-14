@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_ebB8dtB5Mb
+createdAt: 2026-10-14T12:22:41.929188
+updatedAt: 2026-10-14T12:22:41.929188
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body: {}
+bodyType: null
+description: Expected 200. Review selected.progression and copy the full seven-field JSON object (or null) into QUEST_EXPECTED_PROGRESSION. Includes pinned revision definition and recent audits.
+headers: []
+method: GET
+name: 02 - Selected character quest management
+sortPriority: 1.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

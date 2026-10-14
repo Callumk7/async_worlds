@@ -1,0 +1,44 @@
+type: http_request
+model: http_request
+id: rq_nEvpwdvpQj
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_jGsuAz9zVx
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "confirm": true
+    }
+bodyType: application/json
+description: ''
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: Reject missing draft ID
+sortPriority: 29.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/ticks/${[ TICK_ID ]}/publish
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

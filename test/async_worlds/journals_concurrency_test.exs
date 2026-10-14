@@ -1,4 +1,5 @@
 defmodule AsyncWorlds.JournalsConcurrencyTest do
+  alias AsyncWorlds.Discord.JournalCreation
   use ExUnit.Case, async: false
   import Ecto.Query
   alias AsyncWorlds.{Campaigns, Characters, Journals, PlayerAccess, Repo}
@@ -80,23 +81,67 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
     Enum.map(tasks, &Task.await(&1, 10_000))
   end
 
-  defp flow(context), do: Journals.begin_creation(context, System.unique_integer([:positive]))
+  defp flow(context),
+    do: JournalCreation.begin_creation(context, System.unique_integer([:positive]))
+
+  test "direct generic-key retries serialize across connections and survive a fresh process", c do
+    attrs = %{title: "Direct", body: "Content"}
+
+    create = fn ->
+      Journals.create_entry(c.campaign.discord_guild_id, "991", "request/uuid-like", attrs)
+    end
+
+    [{:ok, result}, {:ok, duplicate}] = race(c.supervisor, [create, create])
+    assert result == duplicate
+    [{:ok, persisted}] = race(c.supervisor, [create])
+    assert persisted == result
+
+    assert db(fn ->
+             Repo.aggregate(from(e in Entry, where: e.campaign_id == ^c.campaign.id), :count)
+           end) == 1
+  end
+
+  test "concurrent direct writes with the same key but different content conflict without duplicate entries",
+       c do
+    results =
+      race(c.supervisor, [
+        fn ->
+          Journals.create_entry(c.campaign.discord_guild_id, "991", "same-key", %{
+            title: "First",
+            body: "A"
+          })
+        end,
+        fn ->
+          Journals.create_entry(c.campaign.discord_guild_id, "991", "same-key", %{
+            title: "Second",
+            body: "B"
+          })
+        end
+      ])
+
+    assert Enum.count(results, &match?({:ok, _}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :idempotency_conflict})) == 1
+
+    assert db(fn ->
+             Repo.aggregate(from(e in Entry, where: e.campaign_id == ^c.campaign.id), :count)
+           end) == 1
+  end
 
   test "duplicate initiation and concurrent submissions serialize to one durable entry", c do
     request = System.unique_integer([:positive])
 
     [{:ok, first}, {:ok, same}] =
       race(c.supervisor, [
-        fn -> Journals.begin_creation(c.context, request) end,
-        fn -> Journals.begin_creation(c.context, request) end
+        fn -> JournalCreation.begin_creation(c.context, request) end,
+        fn -> JournalCreation.begin_creation(c.context, request) end
       ])
 
     assert first == same
 
     [{:ok, result}, {:ok, duplicate}] =
       race(c.supervisor, [
-        fn -> Journals.submit(c.context, first.id, %{title: "First", body: "A"}) end,
-        fn -> Journals.submit(c.context, first.id, %{title: "Second", body: "B"}) end
+        fn -> JournalCreation.submit(c.context, first.id, %{title: "First", body: "A"}) end,
+        fn -> JournalCreation.submit(c.context, first.id, %{title: "Second", body: "B"}) end
       ])
 
     assert result == duplicate
@@ -110,7 +155,7 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
       race(c.supervisor, [
         fn ->
           {:ok, context} = PlayerAccess.context(c.campaign, "991")
-          Journals.submit(context, first.id, %{title: "Restart", body: "Ignored"})
+          JournalCreation.submit(context, first.id, %{title: "Restart", body: "Ignored"})
         end
       ])
 
@@ -122,7 +167,10 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
     {receipt, result, target} =
       db(fn ->
         {:ok, receipt} = flow(c.context)
-        {:ok, result} = Journals.submit(c.context, receipt.id, %{title: "Title", body: "Body"})
+
+        {:ok, result} =
+          JournalCreation.submit(c.context, receipt.id, %{title: "Title", body: "Body"})
+
         {:ok, target} = Journals.prepare_delete(c.context, result.entry_id)
         {receipt, result, target}
       end)
@@ -137,7 +185,7 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
 
     assert {:ok, %{state: :deleted}} =
              db(fn ->
-               Journals.submit(c.context, receipt.id, %{title: "Resurrect", body: "No"})
+               JournalCreation.submit(c.context, receipt.id, %{title: "Resurrect", body: "No"})
              end)
 
     assert db(fn -> Repo.get(Entry, result.entry_id) end) == nil
@@ -154,7 +202,7 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
 
     [submitted, {:ok, _}] =
       race(c.supervisor, [
-        fn -> Journals.submit(c.context, flow.id, %{title: "Title", body: "Body"}) end,
+        fn -> JournalCreation.submit(c.context, flow.id, %{title: "Title", body: "Body"}) end,
         fn ->
           Characters.update_character(c.campaign, "456", character.id, %{discord_user_id: "992"})
         end
@@ -188,7 +236,7 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
 
     [result, {:ok, _}] =
       race(c.supervisor, [
-        fn -> Journals.submit(persona, receipt.id, %{title: "Title", body: "Body"}) end,
+        fn -> JournalCreation.submit(persona, receipt.id, %{title: "Title", body: "Body"}) end,
         fn ->
           DebugSessions.transition(c.campaign.discord_guild_id, "456", {:player, other.id})
         end
@@ -230,13 +278,13 @@ defmodule AsyncWorlds.JournalsConcurrencyTest do
 
     assert {:error, :modal_deadline} =
              ModalDeadline.run(started + 150, fn ->
-               db(fn -> Journals.open_creation(c.context, receipt.id) end)
+               db(fn -> JournalCreation.open_creation(c.context, receipt.id) end)
              end)
 
     assert System.monotonic_time(:millisecond) - started < 1000
     send(holder.pid, :release)
     assert {:ok, :ok} = Task.await(holder, 5000)
     assert db(fn -> Repo.get!(CreationReceipt, receipt.id).state end) == :pending
-    assert {:ok, _} = db(fn -> Journals.open_creation(c.context, receipt.id) end)
+    assert {:ok, _} = db(fn -> JournalCreation.open_creation(c.context, receipt.id) end)
   end
 end

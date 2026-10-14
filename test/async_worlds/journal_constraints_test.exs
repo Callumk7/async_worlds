@@ -1,6 +1,7 @@
 defmodule AsyncWorlds.JournalConstraintsTest do
+  alias AsyncWorlds.Discord.JournalCreation
   use AsyncWorlds.DataCase, async: false
-  alias AsyncWorlds.{Campaigns, Characters, Journals, PlayerAccess}
+  alias AsyncWorlds.{Campaigns, Characters, PlayerAccess}
   alias AsyncWorlds.Journals.Entry
 
   setup do
@@ -15,8 +16,8 @@ defmodule AsyncWorlds.JournalConstraintsTest do
       Characters.create_character(campaign, "456", %{name: "Player", discord_user_id: "991"})
 
     {:ok, context} = PlayerAccess.context(campaign, "991")
-    {:ok, receipt} = Journals.begin_creation(context, "1000")
-    {:ok, result} = Journals.submit(context, receipt.id, %{title: "Title", body: "Body"})
+    {:ok, receipt} = JournalCreation.begin_creation(context, "1000")
+    {:ok, result} = JournalCreation.submit(context, receipt.id, %{title: "Title", body: "Body"})
 
     %{
       campaign: campaign,

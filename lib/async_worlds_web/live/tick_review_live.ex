@@ -1,7 +1,7 @@
 defmodule AsyncWorldsWeb.TickReviewLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
-  alias AsyncWorlds.Ticks
+  alias AsyncWorlds.DM.Ticks
 
   @impl true
   def mount(_params, _session, socket),
@@ -101,7 +101,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
 
   def handle_event("publish", %{"publish" => params}, socket) do
     if params["confirm"] == "true" do
-      case Ticks.publish_tick(campaign_id(socket), socket.assigns.tick.id, params["draft_id"]) do
+      case Ticks.publish_tick(scope(socket), socket.assigns.tick.id, params["draft_id"]) do
         {:ok, _} ->
           {:noreply,
            socket
@@ -121,16 +121,15 @@ defmodule AsyncWorldsWeb.TickReviewLive do
   def handle_event(_, _, socket),
     do: {:noreply, put_flash(socket, :error, "Invalid action. Reload the review and try again.")}
 
-  defp campaign_id(socket), do: socket.assigns.current_scope.campaign.id
+  defp scope(socket), do: socket.assigns.current_scope
 
   defp edit(socket, draft_id, operation, reason),
     do:
       Ticks.edit_draft(
-        campaign_id(socket),
+        scope(socket),
         socket.assigns.tick.id,
         draft_id,
         operation,
-        socket.assigns.current_scope.discord_user_id,
         reason
       )
 
@@ -170,13 +169,13 @@ defmodule AsyncWorldsWeb.TickReviewLive do
       |> push_navigate(to: ~p"/dashboard")
 
   defp load(socket, id) do
-    campaign = campaign_id(socket)
+    scope = scope(socket)
 
-    with {:ok, %{status: :in_review} = tick} <- Ticks.fetch_tick(campaign, id),
-         {:ok, draft} <- Ticks.fetch_draft(campaign, id),
-         {:ok, snapshot} <- Ticks.fetch_snapshot(campaign, id),
-         {:ok, edits} <- Ticks.list_review_edits(campaign, id) do
-      preview = Ticks.preview_draft(campaign, id, draft.id)
+    with {:ok, %{status: :in_review} = tick} <- Ticks.fetch_tick(scope, id),
+         {:ok, draft} <- Ticks.fetch_draft(scope, id),
+         {:ok, snapshot} <- Ticks.fetch_snapshot(scope, id),
+         {:ok, edits} <- Ticks.list_review_edits(scope, id) do
+      preview = Ticks.preview_draft(scope, id, draft.id)
 
       messages =
         case preview do

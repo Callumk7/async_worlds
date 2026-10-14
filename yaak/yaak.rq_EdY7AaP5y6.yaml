@@ -1,20 +1,21 @@
 type: http_request
 model: http_request
-id: rq_uxiAnpqZS5
-createdAt: 2026-10-11T19:54:53.878648
-updatedAt: 2026-10-11T19:54:53.878649
+id: rq_EdY7AaP5y6
+createdAt: '2026-10-14T11:52:12.462791'
+updatedAt: '2026-10-14T11:52:12.462791'
 workspaceId: wk_gKCDaoQfbG
-folderId: null
+folderId: fl_7BVRCLoc9e
 authentication: {}
-authenticationType: null
+authenticationType: 
 body: {}
-bodyType: null
-description: ''
+bodyType: 
+description: Expected 200. Copy data.snapshot_token into CLOCK_SNAPSHOT_TOKEN after
+  reviewing current state.
 headers: []
 method: GET
-name: ''
-sortPriority: -1791748493877.0
-url: ''
+name: 02 - Get clock
+sortPriority: 1.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks/${[ CLOCK_ID ]}"
 urlParameters: []
 settingSendCookies:
   enabled: false

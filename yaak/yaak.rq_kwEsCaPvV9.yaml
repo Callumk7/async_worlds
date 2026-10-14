@@ -1,0 +1,43 @@
+type: http_request
+model: http_request
+id: rq_kwEsCaPvV9
+createdAt: '2026-10-14T12:10:41.926865'
+updatedAt: '2026-10-14T12:10:41.926866'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Gy4Vpjtmjs
+authentication: {}
+authenticationType: 
+body:
+  text: "{}"
+bodyType: application/json
+description: Expected 201; each send creates new work. Copy returned id/version/name/content_id
+  into the environment. QUEST_DEFINITION defaults to a small ending-node demo for
+  new work only.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: POST
+name: 05 - Create blank working copy
+sortPriority: 4.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

@@ -1,0 +1,60 @@
+type: http_request
+model: http_request
+id: rq_EL3UAPSq2W
+createdAt: '2026-10-14T11:52:12.521172'
+updatedAt: '2026-10-14T11:52:12.521172'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_7BVRCLoc9e
+authentication: {}
+authenticationType: 
+body:
+  text: |-
+    {
+      "name": "Yaak storm clock",
+      "segments": 6,
+      "filled": 0,
+      "visibility": "hidden",
+      "background_rate": 1,
+      "paused": false,
+      "triggers": [
+        {
+          "type": "notify_dm",
+          "text": "Storm ready"
+        },
+        {
+          "type": "world_news",
+          "text": "Storm clouds gather"
+        }
+      ]
+    }
+bodyType: application/json
+description: Expected 201; creates a real clock every send. Copy data.id / data.snapshot_token
+  to CLOCK_ID / CLOCK_SNAPSHOT_TOKEN. Triggers are configuration only.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: 
+method: POST
+name: 03 - Create a clock
+sortPriority: 2.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/clocks"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

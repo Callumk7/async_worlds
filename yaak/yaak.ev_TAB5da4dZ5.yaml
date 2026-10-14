@@ -1,0 +1,46 @@
+type: environment
+model: environment
+id: ev_TAB5da4dZ5
+workspaceId: wk_gKCDaoQfbG
+createdAt: 2026-10-14T12:22:41.806580
+updatedAt: 2026-10-14T12:22:41.806580
+name: Quest intervention examples
+public: true
+base: false
+parentModel: environment
+parentId: ev_695STXiQoH
+variables:
+- enabled: true
+  name: BASE_URL
+  value: http://localhost:4000
+  id: null
+- enabled: true
+  name: GUILD_ID
+  value: '123'
+  id: null
+- enabled: true
+  name: DM_API_TOKEN
+  value: ''
+  id: null
+- enabled: true
+  name: QUEST_CHARACTER_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: QUEST_REVISION_ID
+  value: '1'
+  id: null
+- enabled: true
+  name: QUEST_EXPECTED_PROGRESSION
+  value: 'null'
+  id: null
+- enabled: true
+  name: QUEST_REASON
+  value: Manual development intervention
+  id: null
+- enabled: true
+  name: QUEST_NODE_ID
+  value: end
+  id: null
+color: null
+sortPriority: 0.0

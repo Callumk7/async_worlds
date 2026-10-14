@@ -1,0 +1,46 @@
+type: http_request
+model: http_request
+id: rq_2cUAUxFusd
+createdAt: 2026-10-14T12:22:42.098400
+updatedAt: 2026-10-14T12:22:42.098400
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_YxW6BDNaaw
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "expected_progression": ${[ QUEST_EXPECTED_PROGRESSION ]},
+      "reason": "${[ QUEST_REASON ]}",
+      "revision_id": "${[ QUEST_REVISION_ID ]}"
+    }
+bodyType: application/json
+description: Expected 200. Use explicit null only after reviewing that no active quest exists. Creates an independent assignment; an ending start node completes immediately. Copy the returned active progression before another write.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: POST
+name: 05 - Assign a revision
+sortPriority: 4.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ QUEST_CHARACTER_ID ]}/quests/assign
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

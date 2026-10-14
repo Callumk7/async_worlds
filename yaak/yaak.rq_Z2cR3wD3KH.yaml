@@ -1,0 +1,45 @@
+type: http_request
+model: http_request
+id: rq_Z2cR3wD3KH
+createdAt: 2026-10-14T11:39:56.754756
+updatedAt: 2026-10-14T11:39:56.754756
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Jhkgqh9KYx
+authentication: {}
+authenticationType: null
+body:
+  text: |-
+    {
+      "state_version": 0,
+      "name": "Must not be saved"
+    }
+bodyType: application/json
+description: Expected 409 stale_character for an existing character; no write. Persisted character versions start at 1.
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+  id: null
+method: PATCH
+name: 08 - Reject a stale version
+sortPriority: 7.0
+url: ${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/characters/${[ CHARACTER_ID ]}
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

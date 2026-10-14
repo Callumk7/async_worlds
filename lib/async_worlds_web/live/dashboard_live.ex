@@ -1,7 +1,8 @@
 defmodule AsyncWorldsWeb.DashboardLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
-  alias AsyncWorlds.{Campaigns, Clocks, Deliveries, Ticks}
+  alias AsyncWorlds.Campaigns
+  alias AsyncWorlds.DM.{Clocks, Deliveries, Ticks}
   alias AsyncWorlds.Quests.Submissions
 
   @filter_fields [:status, :kind, :tick, :recipient]
@@ -32,7 +33,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
   def handle_event("refresh_authorization", _params, socket), do: {:noreply, refresh(socket)}
 
   def handle_event("filter_deliveries", %{"filter" => params}, socket) do
-    filters = parse_filters(campaign_id(socket), params)
+    filters = parse_filters(scope(socket), params)
 
     {:noreply,
      socket
@@ -44,13 +45,13 @@ defmodule AsyncWorldsWeb.DashboardLive do
     {:noreply,
      complete(
        socket,
-       Ticks.open_tick(campaign_id(socket)),
+       Ticks.open_tick(scope(socket)),
        "Tick opened. Configure clocks before closing."
      )}
   end
 
   def handle_event("close_tick", %{"id" => id}, socket) do
-    result = with {:ok, id} <- integer(id), do: Ticks.close_tick(campaign_id(socket), id)
+    result = with {:ok, id} <- integer(id), do: Ticks.close_tick(scope(socket), id)
 
     {:noreply,
      complete(socket, result, "Inputs frozen. Resolution is queued; refresh to see progress.")}
@@ -59,7 +60,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
   def handle_event("retry_delivery", %{"id" => id, "retry" => params}, socket) do
     result =
       with {:ok, id} <- integer(id), {:ok, generation} <- integer(params["generation"]) do
-        Deliveries.retry_delivery(campaign_id(socket), id, generation,
+        Deliveries.retry_delivery(scope(socket), id, generation,
           confirm_ambiguous: params["confirm"] == "true"
         )
       end
@@ -75,7 +76,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
   defp complete(socket, {:error, reason}, _),
     do: socket |> put_flash(:error, error_message(reason)) |> refresh()
 
-  defp campaign_id(socket), do: socket.assigns.current_scope.campaign.id
+  defp scope(socket), do: socket.assigns.current_scope
 
   defp refresh(socket) do
     scope = socket.assigns.current_scope
@@ -84,10 +85,10 @@ defmodule AsyncWorldsWeb.DashboardLive do
       Campaigns.authorize_dm(scope.campaign.discord_guild_id, scope.discord_user_id)
 
     socket = assign(socket, :current_scope, %{scope | campaign: campaign})
-    id = campaign.id
-    tick = Ticks.active_tick(id)
-    clocks = Clocks.list_clocks(id)
-    jobs = if tick, do: elem(Ticks.resolution_jobs(id, tick.id), 1), else: []
+    scope = scope(socket)
+    {:ok, tick} = Ticks.active_tick(scope)
+    {:ok, clocks} = Clocks.list_clocks(scope)
+    jobs = if tick, do: elem(Ticks.resolution_jobs(scope, tick.id), 1), else: []
 
     roster =
       if tick do
@@ -97,15 +98,17 @@ defmodule AsyncWorldsWeb.DashboardLive do
         end
       end
 
+    {:ok, recent_audits} = Clocks.recent_audits(scope)
+
     audits =
-      Enum.map(Clocks.recent_audits(id), fn audit ->
+      Enum.map(recent_audits, fn audit ->
         %{id: audit.id, audit: audit}
       end)
 
-    records = deliveries_raw(socket, id)
+    records = deliveries_raw(socket, scope)
 
     ticks =
-      tick_map(id, Enum.map(records, & &1.tick_id) ++ Enum.map(audits, & &1.audit.tick_id))
+      tick_map(scope, Enum.map(records, & &1.tick_id) ++ Enum.map(audits, & &1.audit.tick_id))
 
     deliveries =
       Enum.map(records, fn delivery ->
@@ -140,7 +143,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
     |> stream(:roster, (roster && roster.rows) || [], reset: true)
   end
 
-  defp deliveries_raw(socket, campaign_id) do
+  defp deliveries_raw(socket, scope) do
     filters = socket.assigns.delivery_filters
 
     case filters do
@@ -148,18 +151,19 @@ defmodule AsyncWorldsWeb.DashboardLive do
         []
 
       filters ->
-        case Deliveries.search_deliveries(campaign_id, filters) do
+        case Deliveries.search_deliveries(scope, filters) do
           {:ok, deliveries} -> deliveries
           {:error, :invalid_filter} -> []
         end
     end
   end
 
-  defp tick_map(_campaign_id, []), do: %{}
+  defp tick_map(_scope, []), do: %{}
 
-  defp tick_map(campaign_id, tick_ids) do
+  defp tick_map(scope, tick_ids) do
     ids = tick_ids |> Enum.reject(&is_nil/1) |> Enum.uniq()
-    Map.new(Ticks.fetch_ticks(campaign_id, ids), &{&1.id, &1})
+    {:ok, ticks} = Ticks.fetch_ticks(scope, ids)
+    Map.new(ticks, &{&1.id, &1})
   end
 
   defp filter_form(params),
@@ -172,18 +176,18 @@ defmodule AsyncWorldsWeb.DashboardLive do
   # Parses the DM-facing filter form into whitelisted domain filters. A tick
   # number that does not resolve in this campaign yields the `:unknown` marker,
   # which shows an empty result instead of widening the search.
-  defp parse_filters(campaign_id, params) do
+  defp parse_filters(scope, params) do
     %{}
     |> put_filter(:status, @status_filters[params["status"] || ""])
     |> put_filter(:kind, @kind_filters[params["kind"] || ""])
-    |> put_tick_filter(campaign_id, params["tick"])
+    |> put_tick_filter(scope, params["tick"])
     |> put_recipient_filter(params["recipient"])
   end
 
   defp put_filter(filters, _key, nil), do: filters
   defp put_filter(filters, key, value), do: Map.put(filters, key, value)
 
-  defp put_tick_filter(filters, campaign_id, value) do
+  defp put_tick_filter(filters, scope, value) do
     case String.trim(value || "") do
       "" ->
         filters
@@ -191,7 +195,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
       trimmed ->
         case Integer.parse(trimmed) do
           {number, ""} when number in 1..2_147_483_647 ->
-            case Ticks.fetch_tick_by_number(campaign_id, number) do
+            case Ticks.fetch_tick_by_number(scope, number) do
               {:ok, tick} -> Map.put(filters, :tick_id, tick.id)
               {:error, _} -> Map.put(filters, :tick_id, :unknown)
             end
