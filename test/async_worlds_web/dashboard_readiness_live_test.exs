@@ -184,10 +184,24 @@ defmodule AsyncWorldsWeb.DashboardReadinessLiveTest do
     view |> form("#delivery-filters", filter: %{all | tick: "1"}) |> render_change()
     assert has_element?(view, "#delivery-status-#{failed_public.id}")
 
-    # Unknown tick numbers narrow to nothing instead of widening the search.
-    view |> form("#delivery-filters", filter: %{all | tick: "99"}) |> render_change()
-    refute has_element?(view, "#delivery-status-#{failed_public.id}")
-    refute has_element?(view, "#delivery-status-#{failed_private.id}")
+    # Unknown, malformed and out-of-range numbers narrow to nothing without crashing.
+    for value <- [
+          "99",
+          "2147483647",
+          "2147483648",
+          "1234567890123456789",
+          "-2147483649",
+          "0",
+          "abc"
+        ] do
+      view |> form("#delivery-filters", filter: %{all | tick: value}) |> render_change()
+      refute has_element?(view, "#delivery-status-#{failed_public.id}")
+      refute has_element?(view, "#delivery-status-#{failed_private.id}")
+    end
+
+    view |> form("#delivery-filters", filter: all) |> render_change()
+    assert has_element?(view, "#delivery-status-#{failed_public.id}")
+    assert has_element?(view, "#delivery-status-#{failed_private.id}")
   end
 
   test "a targeted retry resends only that record through the delivery adapter", c do

@@ -24,7 +24,8 @@ defmodule AsyncWorlds.Ticks do
   end
 
   @doc "Numbered lookup for DM-facing filters; numbers are assigned on open."
-  def fetch_tick_by_number(campaign_id, number) when is_integer(number) and number > 0 do
+  def fetch_tick_by_number(campaign_id, number)
+      when is_integer(number) and number in 1..2_147_483_647 do
     case Repo.get_by(Tick, campaign_id: campaign_id, number: number) do
       nil -> {:error, :not_found}
       tick -> {:ok, tick}

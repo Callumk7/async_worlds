@@ -190,7 +190,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
 
       trimmed ->
         case Integer.parse(trimmed) do
-          {number, ""} when number > 0 ->
+          {number, ""} when number in 1..2_147_483_647 ->
             case Ticks.fetch_tick_by_number(campaign_id, number) do
               {:ok, tick} -> Map.put(filters, :tick_id, tick.id)
               {:error, _} -> Map.put(filters, :tick_id, :unknown)
@@ -561,7 +561,7 @@ defmodule AsyncWorldsWeb.DashboardLive do
                 <div>
                   <p class="font-medium">
                     <span :if={item.tick}>Tick {item.tick.number}</span>
-                    <span :if={is_nil(item.tick)}>Tick #{item.delivery.tick_id}</span>
+                    <span :if={is_nil(item.tick)}>Tick {item.delivery.tick_id}</span>
                     · {item.delivery.kind} ·
                     <span
                       id={"delivery-status-#{item.id}"}
