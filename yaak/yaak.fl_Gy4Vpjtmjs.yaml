@@ -1,0 +1,44 @@
+type: folder
+model: folder
+id: fl_Gy4Vpjtmjs
+createdAt: '2026-10-14T12:10:00.949196'
+updatedAt: '2026-10-14T12:10:00.949196'
+workspaceId: wk_gKCDaoQfbG
+folderId: 
+authentication: {}
+authenticationType: 
+description: 'ENG-55: DM library/revision reads and versioned working-copy create/save/recover/release.
+  Select Quest authoring examples and configure credentials locally. Submit explicit
+  full local snapshots; never auto-refresh versions. Release appends immutable content.'
+headers:
+- enabled: true
+  name: Authorization
+  value: Bearer ${[ DM_API_TOKEN ]}
+  id: 
+- enabled: true
+  name: Accept
+  value: application/json
+  id: 
+name: Quest library and authoring
+sortPriority: 0.0
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingRequestMessageSize:
+  enabled: false
+  value: 67108864
+settingHttpVersion:
+  enabled: false
+  value: auto

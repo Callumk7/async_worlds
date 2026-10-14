@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_jaF2nGB6oB
+createdAt: '2026-10-14T12:10:41.690134'
+updatedAt: '2026-10-14T12:10:41.690135'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Gy4Vpjtmjs
+authentication: {}
+authenticationType: 
+body: {}
+bodyType: 
+description: 'Expected 200: revision and working-copy summaries, scoped to this campaign.'
+headers: []
+method: GET
+name: 01 - Get quest library
+sortPriority: 0.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

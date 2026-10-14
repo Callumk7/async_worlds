@@ -20,6 +20,10 @@ Alternatively, use a character's **Quests** link on `/characters`.
 5. **End quest** stops an active assignment without marking it completed.
    The character can then receive a new assignment.
 
+The same library and authoring boundaries are exposed over the DM-only
+[HTTP quest API](http-quests.md), with versioned full working-copy snapshots,
+immutable revision reads and explicit recovery as separate content.
+
 ## Branching/cyclic quest authoring (no JSON required)
 
 Open **Quest library & editor** from `/quests` (`/quests/library`). Empty libraries

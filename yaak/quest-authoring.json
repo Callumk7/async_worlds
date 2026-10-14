@@ -1,0 +1,808 @@
+{
+  "yaakVersion": "0.1.0",
+  "yaakSchema": 4,
+  "timestamp": "2026-10-14T12:10:42.456847",
+  "resources": {
+    "workspaces": [
+      {
+        "model": "workspace",
+        "id": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-11T19:54:02.074980",
+        "updatedAt": "2026-10-11T19:54:02.074981",
+        "authentication": {},
+        "authenticationType": null,
+        "description": "",
+        "headers": [],
+        "name": "Async Worlds",
+        "encryptionKeyChallenge": null,
+        "settingValidateCertificates": true,
+        "settingFollowRedirects": true,
+        "settingRequestTimeout": 0,
+        "settingRequestMessageSize": 67108864,
+        "settingDnsOverrides": [],
+        "settingSendCookies": true,
+        "settingStoreCookies": true,
+        "settingHttpVersion": "auto"
+      }
+    ],
+    "environments": [
+      {
+        "model": "environment",
+        "id": "ev_695STXiQoH",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T11:39:56.311609",
+        "updatedAt": "2026-10-14T11:39:56.311610",
+        "name": "Global Variables",
+        "public": true,
+        "base": true,
+        "parentModel": "workspace",
+        "parentId": null,
+        "variables": [],
+        "color": null,
+        "sortPriority": 0.0
+      },
+      {
+        "model": "environment",
+        "id": "ev_ySr5DZ9zJd",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "createdAt": "2026-10-14T12:10:41.626829",
+        "updatedAt": "2026-10-14T12:10:41.626829",
+        "name": "Quest authoring examples",
+        "public": true,
+        "base": false,
+        "parentModel": "environment",
+        "parentId": "ev_695STXiQoH",
+        "variables": [
+          {
+            "enabled": true,
+            "name": "BASE_URL",
+            "value": "http://localhost:4000",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "GUILD_ID",
+            "value": "123",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "DM_API_TOKEN",
+            "value": "",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_REVISION_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_WORKING_COPY_ID",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_WORKING_COPY_VERSION",
+            "value": "1",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_NAME",
+            "value": "Yaak example quest",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_CONTENT_ID",
+            "value": "",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "QUEST_DEFINITION",
+            "value": "{\n  \"start_node\": \"node_00000000-0000-4000-8000-000000000001\",\n  \"nodes\": [\n    {\n      \"id\": \"node_00000000-0000-4000-8000-000000000001\",\n      \"text\": \"The journey ends here.\",\n      \"ending\": true,\n      \"choices\": []\n    }\n  ]\n}",
+            "id": null
+          }
+        ],
+        "color": null,
+        "sortPriority": 0.0
+      }
+    ],
+    "folders": [
+      {
+        "model": "folder",
+        "id": "fl_Gy4Vpjtmjs",
+        "createdAt": "2026-10-14T12:10:00.949196",
+        "updatedAt": "2026-10-14T12:10:00.949196",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": null,
+        "authentication": {},
+        "authenticationType": null,
+        "description": "ENG-55: DM library/revision reads and versioned working-copy create/save/recover/release. Select Quest authoring examples and configure credentials locally. Submit explicit full local snapshots; never auto-refresh versions. Release appends immutable content.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Authorization",
+            "value": "Bearer ${[ DM_API_TOKEN ]}",
+            "id": null
+          },
+          {
+            "enabled": true,
+            "name": "Accept",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "name": "Quest library and authoring",
+        "sortPriority": 0.0,
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingRequestMessageSize": {
+          "enabled": false,
+          "value": 67108864
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "httpRequests": [
+      {
+        "model": "http_request",
+        "id": "rq_uaFonudy6B",
+        "createdAt": "2026-10-14T12:10:42.393716",
+        "updatedAt": "2026-10-14T12:10:42.393716",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": ${[ QUEST_WORKING_COPY_VERSION ]},\n  \"name\": \"\",\n  \"content_id\": \"${[ QUEST_CONTENT_ID ]}\",\n  \"definition\": ${[ QUEST_DEFINITION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 422 invalid_document with a current version/base and safe definition; blank name cannot release. No draft/library writes survive.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "13 - Reject an incomplete release",
+        "sortPriority": 12.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}/release",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_aFPw6wL86H",
+        "createdAt": "2026-10-14T12:10:42.318058",
+        "updatedAt": "2026-10-14T12:10:42.318058",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": 0,\n  \"name\": \"${[ QUEST_NAME ]}\",\n  \"content_id\": \"${[ QUEST_CONTENT_ID ]}\",\n  \"definition\": ${[ QUEST_DEFINITION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 409 stale_working_copy for an existing draft with valid local snapshot variables; versions start at 1.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PUT",
+        "name": "12 - Reject a stale version",
+        "sortPriority": 11.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_GfRqJCdb9f",
+        "createdAt": "2026-10-14T12:10:42.260837",
+        "updatedAt": "2026-10-14T12:10:42.260837",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"${[ QUEST_NAME ]}\",\n  \"content_id\": \"${[ QUEST_CONTENT_ID ]}\",\n  \"definition\": ${[ QUEST_DEFINITION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 428 precondition_required; no write. Configure full snapshot variables before sending.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PUT",
+        "name": "11 - Reject a missing version",
+        "sortPriority": 10.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_wjVxc5nEbk",
+        "createdAt": "2026-10-14T12:10:42.207078",
+        "updatedAt": "2026-10-14T12:10:42.207078",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"name\": \"${[ QUEST_NAME ]}\",\n  \"content_id\": \"${[ QUEST_CONTENT_ID ]}\",\n  \"definition\": ${[ QUEST_DEFINITION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 201. Creates a new identity from your explicit client-preserved local snapshot, without requiring latest version/base. Original work stays untouched. Repeated sends create additional forks.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "10 - Recover local work as separate quest",
+        "sortPriority": 9.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}/recover",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_KAv6N7Vq3u",
+        "createdAt": "2026-10-14T12:10:42.147120",
+        "updatedAt": "2026-10-14T12:10:42.147120",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": ${[ QUEST_WORKING_COPY_VERSION ]},\n  \"name\": \"${[ QUEST_NAME ]}\",\n  \"content_id\": \"${[ QUEST_CONTENT_ID ]}\",\n  \"definition\": ${[ QUEST_DEFINITION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200 with working_copy and immutable revision. Requires a valid complete definition and current version/base. Updates never repin assignments. Each successful release appends a revision; refresh version from working_copy.version.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "09 - Release full working snapshot",
+        "sortPriority": 8.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}/release",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_sfc92AV2WG",
+        "createdAt": "2026-10-14T12:10:42.093078",
+        "updatedAt": "2026-10-14T12:10:42.093079",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"version\": ${[ QUEST_WORKING_COPY_VERSION ]},\n  \"name\": \"${[ QUEST_NAME ]}\",\n  \"content_id\": \"${[ QUEST_CONTENT_ID ]}\",\n  \"definition\": ${[ QUEST_DEFINITION ]}\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 200. Requires explicit current version plus full name/content_id/definition. Incomplete content can be saved. Replace the demo definition with your full content when editing existing quests; refresh version after success.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "PUT",
+        "name": "08 - Save full working snapshot",
+        "sortPriority": 7.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_24b7Ei42mS",
+        "createdAt": "2026-10-14T12:10:42.038678",
+        "updatedAt": "2026-10-14T12:10:42.038679",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200. Review current content and copy id/version/name/content_id/definition into your environment. Do not overwrite preserved local work after a conflict.",
+        "headers": [],
+        "method": "GET",
+        "name": "07 - Get working copy",
+        "sortPriority": 6.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies/${[ QUEST_WORKING_COPY_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_3E4oToGgX5",
+        "createdAt": "2026-10-14T12:10:41.983256",
+        "updatedAt": "2026-10-14T12:10:41.983256",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{\n  \"revision_id\": \"${[ QUEST_REVISION_ID ]}\"\n}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 201. Copy all returned fields into your local snapshot variables, including the full definition; preserve imported opaque fields and stable IDs.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "06 - Create working copy from revision",
+        "sortPriority": 5.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_kwEsCaPvV9",
+        "createdAt": "2026-10-14T12:10:41.926865",
+        "updatedAt": "2026-10-14T12:10:41.926866",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {
+          "text": "{}"
+        },
+        "bodyType": "application/json",
+        "description": "Expected 201; each send creates new work. Copy returned id/version/name/content_id into the environment. QUEST_DEFINITION defaults to a small ending-node demo for new work only.",
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json",
+            "id": null
+          }
+        ],
+        "method": "POST",
+        "name": "05 - Create blank working copy",
+        "sortPriority": 4.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_mi7z99Hw97",
+        "createdAt": "2026-10-14T12:10:41.870080",
+        "updatedAt": "2026-10-14T12:10:41.870080",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: incomplete drafts included; summaries omit definitions and internal source snapshots.",
+        "headers": [],
+        "method": "GET",
+        "name": "04 - List working copies",
+        "sortPriority": 3.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/working-copies",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_dcCb72AaFT",
+        "createdAt": "2026-10-14T12:10:41.807186",
+        "updatedAt": "2026-10-14T12:10:41.807186",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: full definition, preserving the native content format. Released revisions never change.",
+        "headers": [],
+        "method": "GET",
+        "name": "03 - Get immutable revision",
+        "sortPriority": 2.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/revisions/${[ QUEST_REVISION_ID ]}",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_ngLZKK6RBz",
+        "createdAt": "2026-10-14T12:10:41.748124",
+        "updatedAt": "2026-10-14T12:10:41.748124",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: current quest labels, content identities and revision numbers. Copy a revision id to QUEST_REVISION_ID.",
+        "headers": [],
+        "method": "GET",
+        "name": "02 - List revisions",
+        "sortPriority": 1.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/revisions",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      },
+      {
+        "model": "http_request",
+        "id": "rq_jaF2nGB6oB",
+        "createdAt": "2026-10-14T12:10:41.690134",
+        "updatedAt": "2026-10-14T12:10:41.690135",
+        "workspaceId": "wk_gKCDaoQfbG",
+        "folderId": "fl_Gy4Vpjtmjs",
+        "authentication": {},
+        "authenticationType": null,
+        "body": {},
+        "bodyType": null,
+        "description": "Expected 200: revision and working-copy summaries, scoped to this campaign.",
+        "headers": [],
+        "method": "GET",
+        "name": "01 - Get quest library",
+        "sortPriority": 0.0,
+        "url": "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests",
+        "urlParameters": [],
+        "settingSendCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingStoreCookies": {
+          "enabled": false,
+          "value": true
+        },
+        "settingValidateCertificates": {
+          "enabled": false,
+          "value": true
+        },
+        "settingFollowRedirects": {
+          "enabled": false,
+          "value": true
+        },
+        "settingRequestTimeout": {
+          "enabled": false,
+          "value": 0
+        },
+        "settingHttpVersion": {
+          "enabled": false,
+          "value": "auto"
+        }
+      }
+    ],
+    "grpcRequests": [],
+    "websocketRequests": []
+  }
+}

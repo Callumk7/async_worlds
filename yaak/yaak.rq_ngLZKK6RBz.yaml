@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_ngLZKK6RBz
+createdAt: '2026-10-14T12:10:41.748124'
+updatedAt: '2026-10-14T12:10:41.748124'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Gy4Vpjtmjs
+authentication: {}
+authenticationType: 
+body: {}
+bodyType: 
+description: 'Expected 200: current quest labels, content identities and revision
+  numbers. Copy a revision id to QUEST_REVISION_ID.'
+headers: []
+method: GET
+name: 02 - List revisions
+sortPriority: 1.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/revisions"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

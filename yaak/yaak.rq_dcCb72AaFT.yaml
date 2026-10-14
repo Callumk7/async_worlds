@@ -1,0 +1,38 @@
+type: http_request
+model: http_request
+id: rq_dcCb72AaFT
+createdAt: '2026-10-14T12:10:41.807186'
+updatedAt: '2026-10-14T12:10:41.807186'
+workspaceId: wk_gKCDaoQfbG
+folderId: fl_Gy4Vpjtmjs
+authentication: {}
+authenticationType: 
+body: {}
+bodyType: 
+description: 'Expected 200: full definition, preserving the native content format.
+  Released revisions never change.'
+headers: []
+method: GET
+name: 03 - Get immutable revision
+sortPriority: 2.0
+url: "${[ BASE_URL ]}/api/campaigns/${[ GUILD_ID ]}/quests/revisions/${[ QUEST_REVISION_ID
+  ]}"
+urlParameters: []
+settingSendCookies:
+  enabled: false
+  value: true
+settingStoreCookies:
+  enabled: false
+  value: true
+settingValidateCertificates:
+  enabled: false
+  value: true
+settingFollowRedirects:
+  enabled: false
+  value: true
+settingRequestTimeout:
+  enabled: false
+  value: 0
+settingHttpVersion:
+  enabled: false
+  value: auto

@@ -21,6 +21,7 @@ no web-based key display, issuance or per-key permissions yet.
 
 Character and flag routes are documented in [HTTP character management](http-characters.md).
 Clock routes are documented in [HTTP clock management](http-clocks.md).
+Quest library and authoring routes are documented in [HTTP quests](http-quests.md).
 
 See [HTTP conventions](http-conventions.md) for response envelopes, safe error
 codes, pagination and required concurrency/idempotency inputs.
