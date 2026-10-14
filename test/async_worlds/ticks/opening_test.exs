@@ -120,10 +120,9 @@ defmodule AsyncWorlds.Ticks.OpeningTest do
     assert {:ok, tick} = Ticks.open_prepared_tick(scope, fresh.token)
     assert tick.number == fresh.tick_number
     assert {:error, :active_tick} = Ticks.open_prepared_tick(scope, fresh.token)
-    # ENG-64 does not enqueue the prepared briefing.
-    deliveries = Repo.all(AsyncWorlds.Deliveries.Delivery)
-    assert Enum.any?(deliveries, &(&1.content == "Tick 1 is now open."))
-    refute Enum.any?(deliveries, &String.contains?(&1.content, "No resource assignment command"))
+    deliveries = Repo.all(AsyncWorlds.Deliveries.Delivery) |> Enum.filter(&(&1.kind == :public))
+    assert Enum.map(deliveries, & &1.content) == Enum.map(fresh.messages, & &1.content)
+    refute Enum.any?(deliveries, &(&1.content == "Tick 1 is now open."))
   end
 
   test "readiness/version detects assignments, flag eligibility and clock changes", %{

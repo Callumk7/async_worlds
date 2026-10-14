@@ -25,6 +25,23 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
     view |> form("#opening-form", opening: %{narration: text}) |> render_submit()
   end
 
+  defp open_and_assert_chunks(view, c, expected) do
+    view |> form("#opening-approval", approval: %{confirm: true}) |> render_submit()
+    tick = Ticks.active_tick(c.campaign.id)
+    assert tick.number == expected.tick_number
+
+    outgoing =
+      AsyncWorlds.Deliveries.list_deliveries(c.campaign.id) |> Enum.filter(&(&1.kind == :public))
+
+    assert Enum.map(outgoing, & &1.content) == Enum.map(expected.messages, & &1.content)
+    {:ok, briefing} = AsyncWorlds.DM.Ticks.fetch_briefing(c.scope, tick.id)
+
+    assert Enum.map(briefing.outputs["messages"], & &1["content"]) ==
+             Enum.map(expected.messages, & &1.content)
+
+    assert has_element?(view, "#flash-info", "Reviewed public briefing")
+  end
+
   test "empty roster preparation shows destination and every exact chunk without writes", c do
     {:ok, view, _} = live(c.conn, ~p"/dashboard")
     assert has_element?(view, "#opening-form")
@@ -50,6 +67,7 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
     assert Repo.aggregate(AsyncWorlds.Deliveries.Delivery, :count) == 0
     assert Repo.aggregate(Oban.Job, :count) == 0
     assert Ticks.active_tick(c.campaign.id) == nil
+    open_and_assert_chunks(view, c, expected)
   end
 
   test "a chunk-leading newline survives parsed preview text", c do
@@ -66,6 +84,8 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
              |> LazyHTML.from_fragment()
              |> LazyHTML.text() == chunk.content
     end
+
+    open_and_assert_chunks(view, c, expected)
   end
 
   test "CRLF and CR narration has exact canonical context and parsed preview chunks", c do
@@ -86,6 +106,8 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
              |> LazyHTML.from_fragment()
              |> LazyHTML.text() == chunk.content
     end
+
+    open_and_assert_chunks(view, c, expected)
   end
 
   test "mixed roster preview includes player, DM-controlled and no-decision states", c do

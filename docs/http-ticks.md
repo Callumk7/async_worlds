@@ -27,8 +27,9 @@ Tick projections contain only `id`, `campaign_id`, `number`, `status`,
 `opened_at`, `closed_at`, `reviewed_at` and `published_at`. Absent timestamps
 are null. Status is `open`, `resolving`, `in_review` or `published`.
 
-Open invokes the shared domain operation, committing announcements and private
-prompts with the tick. An already active tick returns 409 `active_tick`.
+Open invokes the shared domain operation, saving and queuing the default public
+roster briefing and private prompts with the tick. It needs no narration setup;
+its request/response contract is unchanged. See [tick opening](tick-opening.md). An already active tick returns 409 `active_tick`.
 Close freezes world/quest inputs, locks management, and queues resolution in
 one transaction. Missing submissions are informational and do **not** block
 close. Repeated closes while resolving/in review return 202 with the existing

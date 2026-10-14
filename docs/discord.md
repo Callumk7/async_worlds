@@ -77,9 +77,11 @@ The registered command set is:
 - `/clocks` — private reply available to guild players: live public clock fills
   and known clock names only. Hidden clocks and known fills never appear. Draft
   state is never read. Large lists continue in private followups.
-- `/tick open` — configured DM only; opens the next tick and atomically queues
-  one public `Tick N is now open.` announcement. Repeated opens do not create
-  another tick or announcement. Web opens use the same transaction.
+- `/tick open` — configured DM only; opens the next tick and atomically saves and
+  queues a public roster briefing with `/quest` instructions and existing private
+  prompts. No optional narration setup is required. Repeated opens do not create
+  another tick or logical announcement. Web opens use the same transaction, with
+  exact reviewed narration/chunks when prepared. See [tick opening](tick-opening.md).
 - `/tick close` — configured DM only; freezes the world and queues resolution
   into a **private draft**, without publication. Repeated closes reuse the same
   snapshot/job. Review and approve in the web console.

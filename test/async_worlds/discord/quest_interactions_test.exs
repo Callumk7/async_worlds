@@ -59,6 +59,41 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
   defp buttons(payload), do: Enum.flat_map(payload.components, & &1.components)
   defp button(payload, label), do: Enum.find(buttons(payload), &String.contains?(&1.label, label))
 
+  test "Discord opens a default briefing without setup and quest retrieval survives blocked prompt DMs",
+       c do
+    previous = Application.fetch_env!(:async_worlds, :discord)
+    Application.put_env(:async_worlds, :discord, enabled: true, adapter: FakeAdapter)
+    on_exit(fn -> Application.put_env(:async_worlds, :discord, previous) end)
+
+    assert {:ok, _} = invoke(c, %{name: "tick", options: [%{type: 1, name: "open"}]}, 456)
+    tick = Ticks.active_tick(c.campaign.id)
+    {:ok, briefing} = Ticks.fetch_briefing(c.campaign.id, tick.id)
+    assert briefing.narration == ""
+    deliveries = AsyncWorlds.Deliveries.list_deliveries(c.campaign.id)
+    public = Enum.filter(deliveries, &(&1.kind == :public))
+
+    assert Enum.map(public, & &1.content) ==
+             Enum.map(briefing.outputs["messages"], & &1["content"])
+
+    assert hd(public).content =~ "Rook"
+    FakeAdapter.fail(:send_private, {:error, {:permanent, :forbidden}})
+
+    for prompt <- Enum.filter(deliveries, &(&1.kind == :private)) do
+      assert {:cancel, :forbidden} =
+               AsyncWorlds.Workers.DeliverDiscord.perform(%Oban.Job{
+                 args: %{"delivery_id" => prompt.id, "generation" => prompt.generation}
+               })
+    end
+
+    assert {:ok, payload} = invoke(c, %{name: "quest"})
+    assert payload.content =~ "Hub"
+    assert button(payload, "loop")
+    assert {:ok, _} = click(c, button(payload, "loop"))
+    assert {:ok, %{choice_id: "loop"}} = Submissions.player_state("123", "999")
+    assert Ticks.active_tick(c.campaign.id).id == tick.id
+    refute_receive {:discord, :send_public, _}
+  end
+
   test "DM personas use real independent submissions and generation-bound controls", c do
     alias AsyncWorlds.Discord.DebugSessions
     {:ok, _} = Ticks.open_tick(c.campaign.id)

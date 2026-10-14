@@ -155,12 +155,18 @@ defmodule AsyncWorlds.Ticks do
     end
   end
 
-  @doc "Opens the next numbered tick. Duplicate opens return :active_tick, not another turn."
-  def open_tick(campaign_id) do
+  @doc "Opens with a default public briefing and private prompts. Duplicate opens return :active_tick."
+  def open_tick(campaign_id), do: open_tick(campaign_id, nil)
+
+  @doc false
+  # Trusted prepared path: Opening.open/2 validates signed content under DMAccess's
+  # campaign lock. Interface callers must never supply rendered messages here.
+  def open_tick(campaign_id, preparation) do
     Repo.transaction(fn ->
       campaign = lock_campaign!(campaign_id)
       if active_tick(campaign_id), do: Repo.rollback(:active_tick)
       if campaign.clock_mutations_locked, do: Repo.rollback(:tick_locked)
+      preparation = preparation || AsyncWorlds.Ticks.Opening.capture(campaign) |> persist!()
 
       tick =
         %Tick{
@@ -174,18 +180,51 @@ defmodule AsyncWorlds.Ticks do
         |> Repo.insert()
         |> persist!()
 
-      # Shared by web and Discord: commit the announcement with the open, never
-      # perform network I/O here or enqueue from an interface after committing.
-      Deliveries.enqueue(campaign_id, tick.id, %{
-        key: "tick:#{tick.id}:opened",
-        kind: :public,
-        recipient_id: campaign.public_channel_id,
-        content: "Tick #{tick.number} is now open."
-      })
-      |> persist!()
+      persist_briefing!(tick, preparation)
 
       AsyncWorlds.Ticks.PrivateNotifications.opened(campaign, tick)
       tick
+    end)
+  end
+
+  @doc "Trusted DM read of immutable opening content, scoped to the owning campaign."
+  def fetch_briefing(campaign_id, tick_id) do
+    with {:ok, _} <- fetch_tick(campaign_id, tick_id) do
+      case Repo.get_by(AsyncWorlds.Ticks.Briefing, tick_id: tick_id) do
+        nil -> {:error, :not_found}
+        briefing -> {:ok, briefing}
+      end
+    end
+  end
+
+  defp persist_briefing!(tick, preparation) do
+    messages =
+      Enum.map(preparation.messages, fn message ->
+        %{
+          "chunk_index" => message.chunk_index,
+          "kind" => "public",
+          "recipient_id" => message.recipient_id,
+          "content" => message.content
+        }
+      end)
+
+    Repo.insert!(%AsyncWorlds.Ticks.Briefing{
+      tick_id: tick.id,
+      narration: preparation.narration,
+      renderer_version: AsyncWorlds.Ticks.OpeningOutput.version(),
+      input_version: preparation.version,
+      public_channel_id: preparation.public_channel_id,
+      outputs: %{"messages" => messages}
+    })
+
+    Enum.each(messages, fn message ->
+      Deliveries.enqueue(tick.campaign_id, tick.id, %{
+        key: "tick:#{tick.id}:opened:#{message["chunk_index"]}",
+        kind: :public,
+        recipient_id: message["recipient_id"],
+        content: message["content"]
+      })
+      |> persist!()
     end)
   end
 

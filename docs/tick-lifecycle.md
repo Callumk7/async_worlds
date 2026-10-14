@@ -3,22 +3,24 @@
 `AsyncWorlds.Ticks` is the shared domain API. Web/Discord handlers must authorize
 with `Campaigns.authorize_dm/2` before calling it. There are no timers, submission
 requirements, automatic closes or Discord network calls in this module. Opening
-atomically queues a public announcement; closing atomically queues durable
+atomically saves and queues a public briefing and private prompts; closing queues durable
 resolution into a private draft, never public output. Workers perform delivery
 outside lifecycle transactions; see [durable work](durable-work.md).
 
 For the new read-only public briefing preparation, exact chunk preview, and
-stale-checked inspected opening, see [tick-opening.md](tick-opening.md). ENG-64
-adds no briefing delivery; the existing opening announcement below is unchanged.
+stale-checked inspected opening with durable briefing delivery, see
+[tick-opening.md](tick-opening.md).
 
 ## Lifecycle API
 
 1. `open_tick(campaign_id)` opens tick `current_tick_number + 1`. The campaign
    counter is the last **published** tick number, not the open turn number.
-   Opening from web or Discord commits one public `Tick N is now open.` outbox
-   record with key `tick:<id>:opened` and its delivery job in the same transaction.
-   An outbox failure rolls back the open. Repeated/concurrent opens return
-   `{:error, :active_tick}` without another announcement. A partial unique
+   Opening captures the default public briefing without optional narration setup.
+   The prepared DM path uses validated reviewed chunks. Both commit an immutable
+   briefing, public outbox chunks (`tick:<id>:opened:<chunk_index>`), guarded private
+   prompts and delivery jobs in the same transaction. An outbox failure rolls back
+   the open and briefing. Repeated/concurrent opens return
+   `{:error, :active_tick}` without another logical announcement. A partial unique
    database index also prohibits multiple non-published ticks per campaign.
 2. `close_tick(campaign_id, tick_id)` locks clock management, captures inputs and
    moves `open` to `resolving` and queues an Oban resolution job in one transaction. Returns
