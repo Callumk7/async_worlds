@@ -95,6 +95,19 @@ defmodule AsyncWorldsWeb.AdminComponents do
 
   def error_message(%Ecto.Changeset{}), do: "Check the highlighted fields and try again."
 
+  def error_message(:stale_preparation),
+    do: "Opening inputs changed. Prepare again and inspect all chunks before opening."
+
+  def error_message(:invalid_preparation),
+    do: "Opening preparation is invalid or expired. Deliberately prepare again."
+
+  def error_message(:invalid_opening),
+    do:
+      "Use valid public narration (at most 8000 bytes), without control characters or extra fields."
+
+  def error_message(:stale_campaign),
+    do: "Campaign configuration changed. Refresh and deliberately prepare again."
+
   def error_message(:stale_character),
     do:
       "Character changed in another tab or published tick. Reopen the character and inspect it before saving; your changes were not applied."

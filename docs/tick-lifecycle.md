@@ -7,6 +7,10 @@ atomically queues a public announcement; closing atomically queues durable
 resolution into a private draft, never public output. Workers perform delivery
 outside lifecycle transactions; see [durable work](durable-work.md).
 
+For the new read-only public briefing preparation, exact chunk preview, and
+stale-checked inspected opening, see [tick-opening.md](tick-opening.md). ENG-64
+adds no briefing delivery; the existing opening announcement below is unchanged.
+
 ## Lifecycle API
 
 1. `open_tick(campaign_id)` opens tick `current_tick_number + 1`. The campaign
