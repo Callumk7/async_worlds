@@ -2,7 +2,8 @@
 
 `AsyncWorlds.Memberships` manages current character–faction memberships and their
 retained link history. This is a DM-only shared domain API, also used by the DM
-dashboard (ENG-86). HTTP operations (ENG-87) remain follow-up work.
+dashboard (ENG-86) and authenticated DM HTTP API (ENG-87). See
+[HTTP memberships](http-memberships.md) for routes, DTOs and request/error contracts.
 
 ## Operations
 
@@ -111,6 +112,10 @@ history. No archival, retention administration or lifecycle framework is added.
   role edit/clear, confirmed leave/rejoin, validation, endpoint injection,
   campaign/panel isolation, removed targets, revocation, retained tick attribution
   and unchanged ownership, flags, quests, submissions, deliveries and jobs.
-- Existing faction controller/LiveView tests cover the new delete conflict.
+- `test/async_worlds_web/controllers/world_relationship_controller_test.exs`:
+  HTTP transitions, strict DTOs/input whitelists, missing/foreign targets,
+  spoofed identity, reauthorization after configuration/DM changes, history
+  failure rollback, no-ops, durable future-tick association and reference safety.
+- Existing faction controller/LiveView tests cover the delete conflict.
 
 See [World model design](world-model-design.md) for the first-slice scope.

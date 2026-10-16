@@ -31,6 +31,8 @@ defmodule AsyncWorldsWeb.ApiResponse do
     :idempotency_conflict,
     :delivery_conflict,
     :location_linked,
+    :location_cycle,
+    :hierarchy_too_deep,
     :faction_has_memberships
   ]
   @invalid [

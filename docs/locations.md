@@ -78,8 +78,9 @@ existing cascade behaviour. This is basic reference safety, not archival or a
 general entity lifecycle design.
 
 Hierarchy operations and kind editing are also available in the DM dashboard
-(ENG-85). HTTP hierarchy controls remain follow-up work. Existing HTTP and
-Discord field projections remain unchanged.
+(ENG-85) and authenticated DM HTTP API (ENG-87). HTTP location DTOs additionally
+include nullable kind and parent ID; existing Discord/member projections remain
+unchanged. See [HTTP locations](http-locations.md).
 
 ## Interfaces
 

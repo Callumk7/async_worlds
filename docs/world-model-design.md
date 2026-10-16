@@ -2,8 +2,8 @@
 
 Status: **First-slice direction agreed. ENG-81 history foundation and ENG-82
 shared location hierarchy, ENG-83 shared memberships, ENG-85 DM hierarchy and
-ENG-86 membership dashboards implemented; relationship HTTP features remain
-follow-up work.**
+ENG-86 membership dashboards, and ENG-87 DM hierarchy/membership HTTP operations
+implemented. The first slice is complete; deferred work remains out of scope.**
 
 Sources: [entity consolidation evaluation](entity-consolidation-evaluation.md)
 and the owner decisions recorded in ENG-80. This document supersedes the earlier,
@@ -87,7 +87,8 @@ accepts kind but never casts parent IDs. Linked locations must have their links
 explicitly cleared before deletion; whole-campaign deletion still cascades.
 ENG-85 adds DM-only kind editing, a separate explicit parent save, breadcrumbs,
 and root/child navigation in the existing dashboard. See [Locations](locations.md)
-for errors and query contracts.
+for errors and query contracts. ENG-87 exposes these same DM operations through
+HTTP, including explicit parent changes and whitelisted kind/parent reads.
 
 ## 5. Faction membership
 
@@ -116,7 +117,8 @@ ENG-83 implements `Memberships.join/4`, `edit_role/3`, `leave/2`,
 by the context, with database pair uniqueness and same-campaign foreign keys.
 Explicitly leave current memberships before deleting a faction; character deletion
 is also protected by foreign keys. See [Memberships](memberships.md) for role
-validation, history, query contracts and basic reference safety.
+validation, history, query contracts and basic reference safety. ENG-87 adds
+DM-only HTTP membership lists, joins, role edits and leaves over these operations.
 
 ## 6. Retained link state changes
 
