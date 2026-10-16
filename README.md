@@ -120,6 +120,15 @@ only the invoking member's permitted state. See [character APIs and security
 boundaries](docs/characters.md). Apply migrations and re-register guild commands
 when upgrading; no quest/resource or full authoring admin is included yet.
 
+## Link history foundation
+
+`AsyncWorlds.LinkHistory` retains DM-only, tick-linked entity-link state changes
+for future timelines. Trusted domain callbacks commit current-state writes and
+history atomically; changes belong to the open tick or otherwise the next tick,
+even before its row exists. See [the writer/query contract](docs/link-history.md).
+Run `mix ecto.migrate` when upgrading. Membership and location hierarchy interfaces
+remain follow-up work; this foundation adds no player outputs or gameplay effects.
+
 ## Local development credentials
 
 To avoid terminal exports, fill in `config/dev.secret.exs`. This ignored local
