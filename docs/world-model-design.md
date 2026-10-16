@@ -1,9 +1,9 @@
 # World model design — first slice
 
 Status: **First-slice direction agreed. ENG-81 history foundation and ENG-82
-shared location hierarchy, ENG-83 shared memberships and ENG-85 DM hierarchy
-dashboard implemented; membership dashboard and relationship HTTP features
-remain follow-up work.**
+shared location hierarchy, ENG-83 shared memberships, ENG-85 DM hierarchy and
+ENG-86 membership dashboards implemented; relationship HTTP features remain
+follow-up work.**
 
 Sources: [entity consolidation evaluation](entity-consolidation-evaluation.md)
 and the owner decisions recorded in ENG-80. This document supersedes the earlier,
