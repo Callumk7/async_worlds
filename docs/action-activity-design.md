@@ -176,7 +176,9 @@ altering accepted game state. “Current” means rechecked under the durable ga
 | Timeout/unknown 5xx/malformed receipt/crash after reservation | Ambiguous, retain gate and operation identity | No automatic resend, edit, delete or replacement |
 | Late definitive result for still-unresolved A | Save receipt/outcome even if I superseded; then reconcile latest | No historical follow-on chunks |
 | Definitive message-specific deletion evidence | Mark that receipt missing; recovery-required | No automatic create |
-| Private/withdrawn with known public receipts | Pending cleanup at latest I | Serialized neutralize/delete of those receipts |
+| Private with known public receipts | Pending removal at latest I | Serialized neutralize/delete; confirm only when all public receipts are absent |
+| Submission-only with detailed receipts | Pending generic replacement at latest I | Neutralize detail across all slots, edit retained slot to generic submitted text, delete surplus; confirm only after both |
+| Withdrawn with posted receipts | Pending generic withdrawn state at latest I | Neutralize old detail, edit retained slot to generic withdrawn text, delete surplus; never-posted withdrawal creates nothing |
 | Authorized reconciliation after evidence/quiescence | Adopt verified receipt, confirm missing, or retain block; audit | Fetch/targeted cleanup; replacement only with explicit authorization |
 | Paused/disabled | Intent remains durable; no new reservation | None |
 
@@ -189,8 +191,13 @@ in logs/Oban errors.
 For ambiguous **create**, do not call create again, even with the same nonce.
 Inspect the persisted attempted channel/operation. Prefer a late definitive
 receipt. An authorized operator may attach a specific message ID only after
-fetch verifies channel, bot authorship and expected activity/slot evidence;
-content similarity alone is insufficient. Ambiguous or multiple candidates stay
+fetch verifies channel, bot authorship and an exact discriminator persisted
+before dispatch: the create nonce bound to that activity/slot/incarnation must
+match the fetched message nonce (or an equivalently verifiable persisted
+incarnation marker). Author/channel alone never suffice: same-channel opening,
+publication and other activity messages must reject. If the fetched object omits
+the discriminator, adoption remains blocked; do not infer identity from content
+or a supplied ID. Content similarity alone is insufficient. Ambiguous or multiple candidates stay
 blocked for inspection and targeted cleanup. A bounded channel-history inspection
 may assist the operator; absence from a page/search is not proof of absence and
 must not authorize an automatic replacement.
@@ -288,10 +295,10 @@ accepted choice and job state. Exercise separate database connections for races.
 | Submit versus close | Force submission lock first, then separately close lock first | First order freezes submitted choice and committed intent together; second rejects late mutation with no intent. Known close invalidations retire intent atomically. |
 | Clear/ABA/dedup | Submit; exact duplicate request; clear twice; resubmit; run delayed first job | Duplicate/no-op does not increment; withdrawal survives row deletion; resubmit has greater S/I; old work cannot resurrect it. Conflicting request-key reuse rejects. |
 | Ambiguous create | Server creates M1, drops response; restart, drain repeatedly, advance clock beyond nonce window | Exactly one create call; ambiguous gate remains; no blind duplicate. Verify/adopt M1 under authorization then edit to latest I. |
-| No receipt / uncertain absence | Lose create response, history scan returns empty or several plausible messages | No replacement create; blocked until explicit evidence/control. Invalid adopted ID/author/channel rejects. |
+| No receipt / uncertain absence | Lose create response, history scan returns empty or several plausible messages; try adopting same-bot same-channel opening, publication and another activity; omit nonce, then supply wrong nonce, then exact persisted nonce | No replacement create; unrelated messages and absent/wrong discriminator reject even with matching author/channel/content. Only exact persisted activity/slot/incarnation evidence permits adoption after quiescence; otherwise remain blocked. |
 | Deleted message | Confirm exact Unknown Message for one known slot; run duplicate jobs; authorize recovery twice concurrently | No automatic create; one version-checked replacement for latest public I, surviving slots unchanged; stale confirmation rejects. Private latest I creates nothing. |
 | Growth/shrink | Grow 1 to 3; create slot 2 succeeds, slot 3 rate rejects; retry; then shrink to 1 with deletion failure | Slot 2 never recreated; sequential trace; shrink not confirmed until surplus cleanup; retained retired receipts. Unknown slot 3 response blocks further writes. |
-| Privacy transition | Seed 3 detailed chunks; dispatch old edit; commit private/submission-only; fail cleanup of middle chunk | No new old-detail dispatch; serialize outstanding request; cleanup all receipts; partial exposure flagged, not “private now”; no private reason/proposal in public bytes. |
+| Privacy transition | Separately seed 3 detailed chunks for private, submission-only and posted-withdrawal targets; dispatch old edit; commit target I; fail middle-slot neutralization, then resume; also withdraw a never-posted intent | No new old-detail dispatch; outstanding request serialized; partial exposure flagged until cleanup succeeds. Private ends with all public receipts removed and no secrecy post. Submission-only ends with one generic submitted message; posted withdrawal with one generic withdrawn message; both require confirmed surplus removal and retained-slot edit before applied I. Never-posted withdrawal sends nothing. No private reason/proposal in public bytes. |
 | Reroute | Seed old channel; change config; request move; fail old cleanup, then reconcile and resume | No implicit move/new-channel create; explicit confirmation required; old channel receipts retained; latest copy only after cleanup or audited exposure override. |
 | Approval/rollout | Enable with legacy private labels and old submissions; release new copy without submitting; submit next enabled tick | No historical jobs or label exposure; generic legacy fallback; release alone sends nothing; released copy only on new eligible intent. No action adjudication side effects. |
 | Authority/isolation/regression | Revoke DM between inspect/confirm, change persona/owner, use foreign campaign IDs; replay existing opening/publication tests | Stale/foreign controls reject; invalidations update intent; exact opening/private/publication outputs and guards unchanged. Unicode boundaries and mention suppression hold on edits too. |
