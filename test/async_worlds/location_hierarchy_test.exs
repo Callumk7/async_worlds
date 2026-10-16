@@ -50,6 +50,22 @@ defmodule AsyncWorlds.LocationHierarchyTest do
     assert {:ok, %{items: []}} = LinkHistory.list_changes(scope)
   end
 
+  test "blank kinds clear on create and update without trimming nonblank text", %{scope: scope} do
+    kind = "  Custom  place \u00A0"
+
+    for blank <- [nil, "", " ", "\t\r\n", "\u00A0\u2003\u202F"] do
+      assert {:ok, created} =
+               Locations.create_location(scope, %{name: "Place", kind: blank})
+
+      assert created.kind == nil
+      assert {:ok, updated} = Locations.update_location(scope, created.id, %{kind: kind})
+      assert updated.kind == kind
+      assert {:ok, cleared} = Locations.update_location(scope, created.id, %{kind: blank})
+      assert cleared.kind == nil
+      assert Repo.get!(Location, created.id).kind == nil
+    end
+  end
+
   test "set, no-op, reparent and clear retain endpoint states in stable order", %{scope: scope} do
     old = location(scope, "Region")
     new = location(scope, "Other region")

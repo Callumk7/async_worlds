@@ -2,7 +2,7 @@ defmodule AsyncWorlds.Repo.Migrations.AddLocationHierarchy do
   use Ecto.Migration
 
   def change do
-    create unique_index(:locations, [:campaign_id, :id])
+    create unique_index(:locations, [:id, :campaign_id])
 
     alter table(:locations) do
       add :kind, :text

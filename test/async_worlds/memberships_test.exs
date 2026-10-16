@@ -104,6 +104,23 @@ defmodule AsyncWorlds.MembershipsTest do
     assert change.after == state(c, nil)
   end
 
+  test "blank roles clear on join and edit without trimming nonblank text", c do
+    role = "  Senior  scout \u00A0"
+
+    for blank <- [nil, "", " ", "\t\r\n", "\u00A0\u2003\u202F"] do
+      assert {:ok, joined} =
+               Memberships.join(c.scope, c.character.id, c.faction.id, %{role: blank})
+
+      assert joined.role == nil
+      assert {:ok, edited} = Memberships.edit_role(c.scope, joined.id, %{role: role})
+      assert edited.role == role
+      assert {:ok, cleared} = Memberships.edit_role(c.scope, joined.id, %{role: blank})
+      assert cleared.role == nil
+      assert Repo.get!(Membership, joined.id).role == nil
+      assert {:ok, _} = Memberships.leave(c.scope, joined.id)
+    end
+  end
+
   test "trusted endpoint assignment ignores injected ownership, identity, and history fields",
        c do
     attrs = %{
@@ -260,7 +277,9 @@ defmodule AsyncWorlds.MembershipsTest do
         Membership.changeset(
           %Membership{campaign_id: c.scope.campaign.id, faction_id: c.faction.id},
           %{}
-        ), mode: :savepoint)
+        ),
+        mode: :savepoint
+      )
     end
 
     assert Repo.get!(Membership, membership.id) == membership
