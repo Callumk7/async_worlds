@@ -122,6 +122,10 @@ An opening briefing is immutable history, not a delivery receipt: inspect delive
 status separately. No deadlines, resources, automatic close, or durable public
 activity-message edit/update contract is added.
 
+The [ENG-66 action activity design](action-activity-design.md) plans mutable
+per-character intent messages separately from these immutable briefings. It
+preserves opening/publication/private prompts and does not replay saved history.
+
 See [tick lifecycle](tick-lifecycle.md), [DM boundaries](dm-domain.md),
 [DM console](dm-console.md), [quest submissions](quest-submissions.md),
 [Discord capabilities](discord.md), and [durable work](durable-work.md).

@@ -37,6 +37,14 @@ submit/change/clear racing close either commits before the freeze or receives
 component is always stale, including when its old tick was published. Clients
 must refresh their current interaction window on `stale_identity`.
 
+## Planned public intent integration
+
+The [ENG-66 action activity design](action-activity-design.md) describes future
+atomic submission + durable intent acceptance, withdrawal versions, opt-in public
+copy release and delivery-independent submission durability. It is not implemented:
+the current APIs above remain authoritative. Public-copy release is permission to
+disclose text, not DM adjudication/approval of a player's action.
+
 ## Snapshot v2
 
 New closes capture the existing world input plus `quest_inputs`: all campaign

@@ -181,6 +181,10 @@ retryable without reopening. Existing private prompts continue working.
 
 ### B. Action activity messages
 
+The [ENG-66 technical design](action-activity-design.md) resolves public-copy
+release/legacy rollout, durable intent versions, serialization, and controlled
+message recovery for this slice. It is a design, not shipped behavior.
+
 Add visibility-aware authored announcements and versioned message updates.
 Accept when selecting, changing, and clearing update the same logical message;
 private exceptions reveal no action detail; old jobs cannot overwrite newer intent;
@@ -217,8 +221,8 @@ complete this direction. No target dates or implementation tickets are assigned 
 
 - Proposal text limits and Discord modal/pagination presentation.
 - How private-action requests reach the DM without leaking public intent.
-- Safe legacy-content migration and explicit approval of public text fallbacks.
-- Message replacement/recovery when Discord messages are deleted or sends ambiguous.
+- Implement the [ENG-66](action-activity-design.md) safe legacy opt-in/public-copy
+  release policy and controlled deleted/ambiguous-message recovery contract.
 - Data representation for one-off actions versus character-specific content forks.
 - Staged adaptation storage, application ordering, and submission invalidation UX.
 

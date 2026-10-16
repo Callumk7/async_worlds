@@ -44,6 +44,15 @@ Ticks closed before this migration have no queued job; an authorized local opera
 can enqueue ResolveTick with the existing campaign_id, tick_id and snapshot revision
 without reopening or refreezing the tick. Command/UI controls ship in later tickets.
 
+## Planned mutable activity boundary
+
+The [ENG-66 action activity design](action-activity-design.md) specifies a future
+mutable message contract: submission/intent versions distinct from retry
+versions, ordered receipts, whole-activity serialization and controlled recovery.
+It does not change the shipped immutable outbox API below. Database generation
+checks cannot fence an already-dispatched Discord request; activity ambiguity
+must not be bypassed with a blind confirmed create retry.
+
 ## Enqueueing outbound content
 
 `Deliveries.enqueue(campaign_id, tick_id, attrs)` is a trusted application API.
