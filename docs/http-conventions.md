@@ -120,6 +120,11 @@ retained deleted outcomes are described in [journal creation](journal-creation.m
 Other endpoints only promise idempotency already supplied by their domains; the
 header does not introduce a generic caching/replay service.
 
+Descriptive location metadata/parent and faction membership operations retain
+the existing world CRUD last-write-wins convention. They introduce no required
+version/precondition or idempotency inputs; supported relationship writes still
+serialize under the campaign lock and retain link history atomically. See
+[HTTP locations](http-locations.md) and [HTTP memberships](http-memberships.md).
+
 Tokens/preconditions never authorize access. Obtain scope from shared bearer auth
-and still call the [actor-aware DM boundaries](dm-domain.md). No new functional
-HTTP endpoints are added in this issue.
+and still call the [actor-aware DM boundaries](dm-domain.md).

@@ -129,6 +129,20 @@ defmodule AsyncWorldsWeb.Router do
     post "/campaigns/:guild_id/clocks/:id/pair", ClockController, :pair
     post "/campaigns/:guild_id/clocks/:id/unpair", ClockController, :unpair
 
+    get "/campaigns/:guild_id/factions/:id/memberships", MembershipController, :faction_members
+
+    get "/campaigns/:guild_id/characters/:id/memberships",
+        MembershipController,
+        :character_affiliations
+
+    post "/campaigns/:guild_id/memberships", MembershipController, :create
+    patch "/campaigns/:guild_id/memberships/:id", MembershipController, :update
+    delete "/campaigns/:guild_id/memberships/:id", MembershipController, :delete
+
+    get "/campaigns/:guild_id/locations/roots", LocationController, :roots
+    get "/campaigns/:guild_id/locations/:id/children", LocationController, :children
+    get "/campaigns/:guild_id/locations/:id/breadcrumbs", LocationController, :breadcrumbs
+    patch "/campaigns/:guild_id/locations/:id/parent", LocationController, :parent
     get "/campaigns/:guild_id/locations", LocationController, :index
     get "/campaigns/:guild_id/locations/:id", LocationController, :show
     post "/campaigns/:guild_id/locations", LocationController, :create

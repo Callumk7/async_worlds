@@ -68,7 +68,7 @@ defmodule AsyncWorldsWeb.LocationControllerTest do
     assert is_binary(data["inserted_at"])
 
     assert Enum.sort(Map.keys(data)) ==
-             Enum.sort(~w(id campaign_id name description inserted_at updated_at))
+             Enum.sort(~w(id campaign_id name description kind parent_id inserted_at updated_at))
 
     assert json_response(request(:get, "#{@url}/#{location.id}"), 200) == %{"data" => data}
 
