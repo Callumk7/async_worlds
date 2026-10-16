@@ -1,7 +1,8 @@
 # World model design — first slice
 
-Status: **First-slice direction agreed. ENG-81 history foundation implemented;
-hierarchy and membership features remain follow-up work.**
+Status: **First-slice direction agreed. ENG-81 history foundation and ENG-82
+shared location hierarchy and ENG-85 DM hierarchy dashboard implemented;
+membership and HTTP hierarchy features remain follow-up work.**
 
 Sources: [entity consolidation evaluation](entity-consolidation-evaluation.md)
 and the owner decisions recorded in ENG-80. This document supersedes the earlier,
@@ -78,6 +79,14 @@ supported hierarchy writers use that boundary.
 
 Provide stable child lists and breadcrumbs; bound hierarchy traversal defensively.
 No coordinates, travel mechanics, or automatic character movement.
+
+ENG-82 implements `Locations.set_parent/3`, `clear_parent/2`, `list_children/2`
+(including roots), and bounded root-to-location `breadcrumbs/2`. Metadata CRUD
+accepts kind but never casts parent IDs. Linked locations must have their links
+explicitly cleared before deletion; whole-campaign deletion still cascades.
+ENG-85 adds DM-only kind editing, a separate explicit parent save, breadcrumbs,
+and root/child navigation in the existing dashboard. See [Locations](locations.md)
+for errors and query contracts.
 
 ## 5. Faction membership
 

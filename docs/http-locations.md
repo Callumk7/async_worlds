@@ -41,7 +41,11 @@ Authentication runs before body parsing. Actor and ownership fields are rejected
 Locations have no tick effects and remain writable during tick locks. There are
 no version or idempotency preconditions: updates are last-write-wins, creation
 retries may create duplicates, and deletion is permanent. Confirm the intended
-target before deleting and avoid blindly retrying creation.
+target before deleting and avoid blindly retrying creation. Deleting a location
+with a parent or children returns 409 `location_linked`; clear those links through
+the shared hierarchy operations first. No links are silently removed. Hierarchy
+HTTP operations remain follow-up work; the CRUD request/response fields above
+are unchanged.
 
 HTTP reads remain DM-only. Verified Discord server members can read location
 names and descriptions through `/location list` and `/location show`.
