@@ -20,6 +20,18 @@ defmodule AsyncWorldsWeb.FactionLiveTest do
     }
   end
 
+  test "deleting a faction with members fails without removing links", c do
+    {:ok, faction} = Factions.create_faction(c.scope, %{name: "Guild"})
+    {:ok, character} = AsyncWorlds.Characters.create_character(c.campaign, "456", %{name: "Mira"})
+    {:ok, membership} = AsyncWorlds.Memberships.join(c.scope, character.id, faction.id)
+    {:ok, view, _} = live(c.conn, ~p"/factions")
+    view |> element("#edit-faction-#{faction.id}") |> render_click()
+    view |> element("#delete-faction") |> render_click()
+    assert has_element?(view, "#flash-error", "Remove this faction's current memberships")
+    assert has_element?(view, "#edit-faction-#{faction.id}")
+    assert Repo.get!(AsyncWorlds.Factions.Membership, membership.id)
+  end
+
   test "dashboard navigation leads to faction CRUD with streamed list", c do
     {:ok, dashboard, _} = live(c.conn, ~p"/dashboard")
     result = dashboard |> element("#nav-factions") |> render_click()

@@ -96,6 +96,19 @@ defmodule AsyncWorldsWeb.FactionControllerTest do
     refute Repo.get(Faction, faction.id)
   end
 
+  test "factions with current memberships return an explicit delete conflict", c do
+    scope = %{campaign: c.campaign, discord_user_id: "456"}
+    {:ok, character} = AsyncWorlds.Characters.create_character(c.campaign, "456", %{name: "Mira"})
+    {:ok, membership} = AsyncWorlds.Memberships.join(scope, character.id, c.faction.id)
+    error(request(:delete, "#{@url}/#{c.faction.id}"), 409, "faction_has_memberships")
+    assert Repo.get!(Faction, c.faction.id)
+    assert Repo.get!(AsyncWorlds.Factions.Membership, membership.id)
+    assert {:ok, _} = AsyncWorlds.Memberships.leave(scope, membership.id)
+
+    assert json_response(request(:delete, "#{@url}/#{c.faction.id}"), 200)["data"]["id"] ==
+             to_string(c.faction.id)
+  end
+
   test "validation is safe and does not partially update", %{faction: faction} do
     conn = request(:patch, "#{@url}/#{faction.id}", %{name: "", description: "Not saved"})
     error(conn, 422, "invalid_parameters")

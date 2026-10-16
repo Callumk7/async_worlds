@@ -15,7 +15,7 @@ defmodule AsyncWorlds.Locations do
   """
   import Ecto.Query
 
-  alias AsyncWorlds.{Campaigns, DMAccess, Repo}
+  alias AsyncWorlds.{Campaigns, DMAccess, LinkHistory, Repo}
   alias AsyncWorlds.Locations.Location
 
   @doc "Campaign-readable location summaries for trusted guild-member interfaces."
@@ -69,10 +69,23 @@ defmodule AsyncWorlds.Locations do
     end)
   end
 
-  @doc "Deletes a location within the authorized campaign."
+  @doc "Deletes an unlinked location. Clear its parent and children first."
   def delete_location(scope, location_id) do
     DMAccess.run(scope, fn campaign, _actor ->
-      with {:ok, location} <- fetch(campaign.id, location_id), do: Repo.delete(location)
+      with {:ok, location} <- fetch(campaign.id, location_id) do
+        if location.parent_id ||
+             Repo.exists?(
+               from l in Location,
+                 where: l.campaign_id == ^campaign.id and l.parent_id == ^location.id
+             ) do
+          {:error, :location_linked}
+        else
+          location
+          |> Ecto.Changeset.change()
+          |> Ecto.Changeset.foreign_key_constraint(:parent_id, name: :locations_parent_id_fkey)
+          |> Repo.delete()
+        end
+      end
     end)
   end
 
@@ -84,6 +97,99 @@ defmodule AsyncWorlds.Locations do
       end
     end)
   end
+
+  @doc "Sets/replaces the parent explicitly; nil clears it. No-op writes retain no history."
+  def set_parent(scope, location_id, parent_id) do
+    LinkHistory.transact(scope, fn campaign ->
+      with {:ok, location} <- fetch(campaign.id, location_id),
+           {:ok, parent} <- fetch_parent(campaign.id, parent_id),
+           :ok <- validate_parent(campaign.id, location, parent),
+           {:ok, updated} <-
+             location |> Location.parent_changeset(parent && parent.id) |> Repo.update() do
+        refs =
+          Enum.uniq(Enum.reject([location.id, location.parent_id, updated.parent_id], &is_nil/1))
+
+        change = %{
+          kind: :location_containment,
+          entity_refs: %{"location" => refs},
+          before: containment_state(location),
+          after: containment_state(updated)
+        }
+
+        {:ok, updated, [change]}
+      end
+    end)
+  end
+
+  @doc "Clears a location's parent through the same retained-history boundary."
+  def clear_parent(scope, location_id), do: set_parent(scope, location_id, nil)
+
+  @doc "Lists immediate children by ascending ID; nil lists campaign roots."
+  def list_children(scope, parent_id \\ nil) do
+    DMAccess.run(scope, fn campaign, _actor ->
+      with {:ok, parent} <- fetch_parent(campaign.id, parent_id) do
+        query = from l in Location, where: l.campaign_id == ^campaign.id, order_by: l.id
+
+        query =
+          if parent,
+            do: where(query, [l], l.parent_id == ^parent.id),
+            else: where(query, [l], is_nil(l.parent_id))
+
+        {:ok, Repo.all(query)}
+      end
+    end)
+  end
+
+  @doc "Root-to-location breadcrumbs, including the location; bounded to 100 nodes."
+  def breadcrumbs(scope, location_id) do
+    DMAccess.run(scope, fn campaign, _actor ->
+      with {:ok, location} <- fetch(campaign.id, location_id) do
+        ancestors(campaign.id, location, MapSet.new(), [], 100)
+      end
+    end)
+  end
+
+  defp fetch_parent(_campaign_id, nil), do: {:ok, nil}
+  defp fetch_parent(campaign_id, id), do: fetch(campaign_id, id)
+
+  defp validate_parent(_campaign_id, _location, nil), do: :ok
+
+  defp validate_parent(campaign_id, location, parent) do
+    with {:ok, path} <- ancestors(campaign_id, parent, MapSet.new(), [], 100) do
+      if Enum.any?(path, &(&1.id == location.id)),
+        do: {:error, :location_cycle},
+        else: :ok
+    end
+  end
+
+  defp ancestors(campaign_id, location, seen, path, remaining) do
+    cond do
+      MapSet.member?(seen, location.id) ->
+        {:error, :location_cycle}
+
+      remaining == 0 ->
+        {:error, :hierarchy_too_deep}
+
+      is_nil(location.parent_id) ->
+        {:ok, [location | path]}
+
+      true ->
+        with {:ok, parent} <- fetch(campaign_id, location.parent_id) do
+          ancestors(
+            campaign_id,
+            parent,
+            MapSet.put(seen, location.id),
+            [location | path],
+            remaining - 1
+          )
+        end
+    end
+  end
+
+  defp containment_state(%Location{parent_id: nil}), do: nil
+
+  defp containment_state(location),
+    do: %{"location_id" => location.id, "parent_id" => location.parent_id}
 
   defp form_location(campaign_id, nil), do: {:ok, %Location{campaign_id: campaign_id}}
   defp form_location(campaign_id, location_id), do: fetch(campaign_id, location_id)

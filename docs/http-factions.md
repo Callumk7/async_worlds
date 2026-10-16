@@ -43,7 +43,10 @@ Factions currently have no tick effects and remain writable during tick locks.
 There is no version or idempotency precondition: updates are last-write-wins,
 creation retries may create additional factions, and deletion is permanent.
 Clients should confirm the intended target before deleting and avoid blindly
-retrying creation. HTTP reads remain DM-only; verified Discord server members
+retrying creation. DELETE returns 409 `faction_has_memberships` while any current
+memberships reference the faction. Explicitly leave those memberships using the
+shared domain operations before retrying; deletion never silently removes links.
+Membership HTTP operations are follow-up work, and CRUD fields are unchanged. HTTP reads remain DM-only; verified Discord server members
 can read faction names and descriptions through `/faction list` and `/faction show`.
 
 Coverage: `test/async_worlds_web/controllers/faction_controller_test.exs` and

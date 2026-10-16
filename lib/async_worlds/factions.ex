@@ -16,7 +16,7 @@ defmodule AsyncWorlds.Factions do
   import Ecto.Query
 
   alias AsyncWorlds.{Campaigns, DMAccess, Repo}
-  alias AsyncWorlds.Factions.Faction
+  alias AsyncWorlds.Factions.{Faction, Membership}
 
   @doc "Campaign-readable faction summaries for trusted guild-member interfaces."
   def list_campaign_factions(guild_id) do
@@ -69,10 +69,19 @@ defmodule AsyncWorlds.Factions do
     end)
   end
 
-  @doc "Deletes a faction within the authorized campaign."
+  @doc "Deletes an unreferenced faction; explicitly remove current memberships first."
   def delete_faction(scope, faction_id) do
     DMAccess.run(scope, fn campaign, _actor ->
-      with {:ok, faction} <- fetch(campaign.id, faction_id), do: Repo.delete(faction)
+      with {:ok, faction} <- fetch(campaign.id, faction_id) do
+        if Repo.exists?(
+             from m in Membership,
+               where: m.campaign_id == ^campaign.id and m.faction_id == ^faction.id
+           ) do
+          {:error, :faction_has_memberships}
+        else
+          Repo.delete(faction)
+        end
+      end
     end)
   end
 

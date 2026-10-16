@@ -1,7 +1,9 @@
 # World model design — first slice
 
-Status: **First-slice direction agreed. ENG-81 history foundation implemented;
-hierarchy and membership features remain follow-up work.**
+Status: **First-slice direction agreed. ENG-81 history foundation and ENG-82
+shared location hierarchy, ENG-83 shared memberships and ENG-85 DM hierarchy
+dashboard implemented; membership dashboard and relationship HTTP features
+remain follow-up work.**
 
 Sources: [entity consolidation evaluation](entity-consolidation-evaluation.md)
 and the owner decisions recorded in ENG-80. This document supersedes the earlier,
@@ -79,6 +81,14 @@ supported hierarchy writers use that boundary.
 Provide stable child lists and breadcrumbs; bound hierarchy traversal defensively.
 No coordinates, travel mechanics, or automatic character movement.
 
+ENG-82 implements `Locations.set_parent/3`, `clear_parent/2`, `list_children/2`
+(including roots), and bounded root-to-location `breadcrumbs/2`. Metadata CRUD
+accepts kind but never casts parent IDs. Linked locations must have their links
+explicitly cleared before deletion; whole-campaign deletion still cascades.
+ENG-85 adds DM-only kind editing, a separate explicit parent save, breadcrumbs,
+and root/child navigation in the existing dashboard. See [Locations](locations.md)
+for errors and query contracts.
+
 ## 5. Faction membership
 
 Add a typed current-membership table containing local identity, campaign,
@@ -100,6 +110,13 @@ Rules:
 Use focused membership operations rather than exposing raw join-table writes.
 Module/function naming remains an implementation detail. Do not add arbitrary
 metadata, generic strength fields, or a configurable visibility model now.
+
+ENG-83 implements `Memberships.join/4`, `edit_role/3`, `leave/2`,
+`list_faction_members/2` and `list_character_affiliations/2`. Endpoints are assigned
+by the context, with database pair uniqueness and same-campaign foreign keys.
+Explicitly leave current memberships before deleting a faction; character deletion
+is also protected by foreign keys. See [Memberships](memberships.md) for role
+validation, history, query contracts and basic reference safety.
 
 ## 6. Retained link state changes
 

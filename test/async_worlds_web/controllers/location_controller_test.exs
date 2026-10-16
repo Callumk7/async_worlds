@@ -96,6 +96,17 @@ defmodule AsyncWorldsWeb.LocationControllerTest do
     refute Repo.get(Location, location.id)
   end
 
+  test "linked locations return an explicit delete conflict", c do
+    scope = %{campaign: c.campaign, discord_user_id: "456"}
+    {:ok, child} = Locations.create_location(scope, %{name: "Child"})
+    {:ok, _} = Locations.set_parent(scope, child.id, c.location.id)
+
+    for id <- [c.location.id, child.id] do
+      error(request(:delete, "#{@url}/#{id}"), 409, "location_linked")
+      assert Repo.get!(Location, id)
+    end
+  end
+
   test "validation is safe and does not partially update", %{location: location} do
     conn = request(:patch, "#{@url}/#{location.id}", %{name: "", description: "Not saved"})
     error(conn, 422, "invalid_parameters")

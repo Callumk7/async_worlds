@@ -54,6 +54,18 @@ defmodule AsyncWorldsWeb.LocationLiveTest do
     assert {:ok, []} = Locations.list_locations(c.scope)
   end
 
+  test "linked locations cannot be silently deleted", c do
+    {:ok, root} = Locations.create_location(c.scope, %{name: "Root"})
+    {:ok, child} = Locations.create_location(c.scope, %{name: "Child"})
+    {:ok, _} = Locations.set_parent(c.scope, child.id, root.id)
+    {:ok, view, _} = live(c.conn, ~p"/locations")
+    view |> element("#edit-location-#{root.id}") |> render_click()
+    view |> element("#delete-location") |> render_click()
+    assert has_element?(view, "#flash-error")
+    assert has_element?(view, "#edit-location-#{root.id}")
+    assert Repo.get!(Location, child.id).parent_id == root.id
+  end
+
   test "invalid input renders field errors without persisting", c do
     {:ok, view, _} = live(c.conn, ~p"/locations")
 
@@ -152,6 +164,8 @@ defmodule AsyncWorldsWeb.LocationLiveTest do
 
     for {event, params} <- [
           {"new", %{}},
+          {"edit", %{"id" => location.id}},
+          {"set-parent", %{"containment" => %{"parent_id" => ""}}},
           {"delete", %{}},
           {"save", %{"location" => %{"name" => "No"}}}
         ] do
@@ -159,6 +173,8 @@ defmodule AsyncWorldsWeb.LocationLiveTest do
       assert {:redirect, %{to: "/login"}} = rejected.redirected
       assert rejected.assigns.editing == nil
       assert rejected.assigns.form[:name].value == nil
+      assert rejected.assigns.parent_form[:parent_id].value == ""
+      assert rejected.assigns.parent_options == []
       assert Repo.get!(Location, location.id) == location
     end
   end
