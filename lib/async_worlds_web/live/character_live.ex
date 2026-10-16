@@ -1,6 +1,7 @@
 defmodule AsyncWorldsWeb.CharacterLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
+  alias AsyncWorldsWeb.MembershipPanel
   alias AsyncWorlds.{Characters, Quests}
   alias AsyncWorlds.Characters.Flags
   alias AsyncWorlds.Characters.Character
@@ -120,6 +121,14 @@ defmodule AsyncWorldsWeb.CharacterLive do
   def handle_event("new_flag", _, socket),
     do: {:noreply, edit_form(socket, socket.assigns.editing)}
 
+  def handle_event(event, params, socket)
+      when event in ["membership_join", "membership_role", "membership_leave"] do
+    case MembershipPanel.handle(socket, event, params) do
+      {:ok, socket} -> {:noreply, socket}
+      {:error, reason} -> {:noreply, failure(socket, reason)}
+    end
+  end
+
   def handle_event(_, _, socket), do: {:noreply, failure(socket, :not_found)}
 
   defp flag_result(socket, {:ok, character}),
@@ -156,7 +165,13 @@ defmodule AsyncWorldsWeb.CharacterLive do
   defp actor(socket), do: socket.assigns.current_scope.discord_user_id
 
   defp failure(socket, reason)
-       when reason in [:unauthorized, :stale_campaign, :invalid_campaign] do
+       when reason in [
+              :unauthorized,
+              :stale_campaign,
+              :invalid_campaign,
+              :invalid_scope,
+              :invalid_id
+            ] do
     cleared = socket |> new_form() |> stream(:characters, [], reset: true)
     if cleared.redirected, do: cleared, else: redirect(cleared, to: ~p"/login")
   end
@@ -174,6 +189,15 @@ defmodule AsyncWorldsWeb.CharacterLive do
 
   defp new_form(socket), do: edit_form(socket, nil)
 
+  defp load_memberships(socket, nil), do: MembershipPanel.reset(socket)
+
+  defp load_memberships(socket, character) do
+    case MembershipPanel.load(socket, :character, character) do
+      {:ok, socket} -> socket
+      {:error, reason} -> failure(socket, reason)
+    end
+  end
+
   defp edit_form(socket, character) do
     state =
       if character,
@@ -189,18 +213,21 @@ defmodule AsyncWorldsWeb.CharacterLive do
   defp apply_form(socket, character, connected, audits) do
     socket = stream(socket, :interventions, audits, reset: true)
 
-    assign(socket,
-      connected: connected,
-      editing_flag: nil,
-      editing: character,
-      form: to_form(Character.changeset(character || %Character{}, %{})),
-      flag_form:
-        params_form(
-          %{"key" => "", "type" => "boolean", "value" => "true", "player_visible" => "false"},
-          [:key, :type, :value, :player_visible],
-          as: :flag
-        )
-    )
+    socket =
+      assign(socket,
+        connected: connected,
+        editing_flag: nil,
+        editing: character,
+        form: to_form(Character.changeset(character || %Character{}, %{})),
+        flag_form:
+          params_form(
+            %{"key" => "", "type" => "boolean", "value" => "true", "player_visible" => "false"},
+            [:key, :type, :value, :player_visible],
+            as: :flag
+          )
+      )
+
+    load_memberships(socket, character)
   end
 
   @impl true
@@ -252,6 +279,15 @@ defmodule AsyncWorldsWeb.CharacterLive do
                 }
               >Save character</button>
             </.form>
+            <MembershipPanel.panel
+              :if={@editing}
+              type={:character}
+              form={@membership_form}
+              options={@membership_options}
+              memberships={@streams.memberships}
+              error={@membership_error}
+              target={@membership_target}
+            />
             <section
               :if={@connected}
               id="connected-character"

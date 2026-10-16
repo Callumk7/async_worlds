@@ -1,8 +1,8 @@
 # Faction memberships (ENG-83)
 
 `AsyncWorlds.Memberships` manages current character–faction memberships and their
-retained link history. This is a DM-only shared domain API; dashboard controls
-(ENG-86) and HTTP operations (ENG-87) are follow-up work.
+retained link history. This is a DM-only shared domain API, also used by the DM
+dashboard (ENG-86). HTTP operations (ENG-87) remain follow-up work.
 
 ## Operations
 
@@ -33,6 +33,21 @@ editing a removed membership returns `:not_found`. A role-only no-op succeeds
 without retaining another change. Query results are `{:ok, memberships}` ordered
 by ascending membership ID; both `character` and `faction` are preloaded for DM
 interfaces. Queries validate their endpoint even when the list would be empty.
+
+## DM dashboard
+
+Select an existing faction on `/factions` to manage its members, or a character
+on `/characters` to manage their affiliations. Both panels show current links
+and roles, allow joining through a campaign-scoped selector, and support role
+editing (blank clears) and confirmed leave. Rejoining creates a new current link
+without losing previous history. Create/save a new endpoint before adding links.
+
+The page-selected endpoint is server-pinned. Role edits and leaves must reference
+a current membership belonging to that endpoint, not merely another membership
+in the same campaign. Injected endpoint, ownership and gameplay fields are
+ignored. Each event uses the shared freshly authorized context operations;
+revoked sessions/DM access cannot write. These panels are DM-only and do not
+change existing HTTP or Discord player projections.
 
 ## Current state and integrity
 
@@ -92,6 +107,10 @@ history. No archival, retention administration or lifecycle framework is added.
   safety, history rollback, lifecycle attribution, privacy and gameplay isolation.
 - `test/async_worlds/memberships_concurrency_test.exs`: real PostgreSQL lock waits
   for duplicate joins and DM revocation, using supervised tasks and messages.
+- `test/async_worlds_web/membership_live_test.exs`: both dashboard panels, join,
+  role edit/clear, confirmed leave/rejoin, validation, endpoint injection,
+  campaign/panel isolation, removed targets, revocation, retained tick attribution
+  and unchanged ownership, flags, quests, submissions, deliveries and jobs.
 - Existing faction controller/LiveView tests cover the new delete conflict.
 
 See [World model design](world-model-design.md) for the first-slice scope.

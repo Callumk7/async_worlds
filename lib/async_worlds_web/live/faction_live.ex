@@ -2,6 +2,7 @@ defmodule AsyncWorldsWeb.FactionLive do
   use AsyncWorldsWeb, :live_view
   import AsyncWorldsWeb.AdminComponents
 
+  alias AsyncWorldsWeb.MembershipPanel
   alias AsyncWorlds.Factions
   alias AsyncWorlds.Factions.Faction
 
@@ -13,7 +14,7 @@ defmodule AsyncWorldsWeb.FactionLive do
   @impl true
   def handle_event("new", _, socket) do
     case Factions.change_faction(scope(socket)) do
-      {:ok, changeset} -> {:noreply, assign(socket, editing: nil, form: to_form(changeset))}
+      {:ok, changeset} -> {:noreply, socket |> clear_form() |> assign(form: to_form(changeset))}
       {:error, reason} -> {:noreply, failure(socket, reason)}
     end
   end
@@ -21,7 +22,8 @@ defmodule AsyncWorldsWeb.FactionLive do
   def handle_event("edit", %{"id" => id}, socket) do
     case Factions.change_faction(scope(socket), id) do
       {:ok, changeset} ->
-        {:noreply, assign(socket, editing: changeset.data, form: to_form(changeset))}
+        {:noreply,
+         socket |> assign(editing: changeset.data, form: to_form(changeset)) |> load_memberships()}
 
       {:error, reason} ->
         {:noreply, socket |> clear_form() |> failure(reason)}
@@ -41,6 +43,7 @@ defmodule AsyncWorldsWeb.FactionLive do
         {:noreply,
          socket
          |> assign(editing: faction, form: to_form(Faction.changeset(faction, %{})))
+         |> load_memberships()
          |> refresh()
          |> put_flash(:info, "Faction saved.")}
 
@@ -68,12 +71,29 @@ defmodule AsyncWorldsWeb.FactionLive do
     end
   end
 
+  def handle_event(event, params, socket)
+      when event in ["membership_join", "membership_role", "membership_leave"] do
+    case MembershipPanel.handle(socket, event, params) do
+      {:ok, socket} -> {:noreply, socket}
+      {:error, reason} -> {:noreply, failure(socket, reason)}
+    end
+  end
+
   def handle_event(_, _, socket), do: {:noreply, failure(socket, :not_found)}
+
+  defp load_memberships(socket) do
+    case MembershipPanel.load(socket, :faction, socket.assigns.editing) do
+      {:ok, socket} -> socket
+      {:error, reason} -> failure(socket, reason)
+    end
+  end
 
   defp scope(socket), do: socket.assigns.current_scope
 
   defp clear_form(socket) do
-    assign(socket, editing: nil, form: to_form(Faction.changeset(%Faction{}, %{})))
+    socket
+    |> MembershipPanel.reset()
+    |> assign(editing: nil, form: to_form(Faction.changeset(%Faction{}, %{})))
   end
 
   defp refresh(%{redirected: redirect} = socket) when not is_nil(redirect), do: socket
@@ -150,6 +170,15 @@ defmodule AsyncWorldsWeb.FactionLive do
                 >Delete faction</button>
               </div>
             </.form>
+            <MembershipPanel.panel
+              :if={@editing}
+              type={:faction}
+              form={@membership_form}
+              options={@membership_options}
+              memberships={@streams.memberships}
+              error={@membership_error}
+              target={@membership_target}
+            />
           </section>
           <section class="admin-panel">
             <h2 class="mb-5 text-xl font-semibold">Campaign factions</h2>
