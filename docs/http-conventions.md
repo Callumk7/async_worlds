@@ -127,5 +127,4 @@ serialize under the campaign lock and retain link history atomically. See
 [HTTP locations](http-locations.md) and [HTTP memberships](http-memberships.md).
 
 Tokens/preconditions never authorize access. Obtain scope from shared bearer auth
-and still call the [actor-aware DM boundaries](dm-domain.md). No new functional
-HTTP endpoints are added in this issue.
+and still call the [actor-aware DM boundaries](dm-domain.md).
