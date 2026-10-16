@@ -30,7 +30,8 @@ defmodule AsyncWorldsWeb.ApiResponse do
     :stale_component,
     :idempotency_conflict,
     :delivery_conflict,
-    :location_linked
+    :location_linked,
+    :faction_has_memberships
   ]
   @invalid [
     :invalid_id,

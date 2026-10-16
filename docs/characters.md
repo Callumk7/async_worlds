@@ -64,6 +64,17 @@ The Discord dispatcher retains the authenticated guild member as the real actor,
 
 LiveView uses the existing authenticated-DM live session, with session reauthorization on every event and revocation/expiry handling. Domain authorization is additional protection, not a substitute for the session check.
 
+## Descriptive faction affiliations
+
+[Memberships](memberships.md) provides separate DM-only character–faction joins,
+optional roles, role edits, leaves and stable affiliation queries (ENG-83).
+Membership writes use the shared campaign lock and retained link history; they
+never update the character or advance its `state_version`, and do not adopt or
+remove gameplay tick locks. Roles confer no permissions. Current player payloads
+remain unchanged. Character deletion is not exposed; database foreign keys reject
+deleting a character while it has current memberships. Explicitly leave first
+when integrating any future deletion operation, retaining removal history.
+
 ## Journal ownership
 
 [Player journals](journals.md) use the owner-approved **character-owned** policy:

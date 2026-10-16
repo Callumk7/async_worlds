@@ -1,8 +1,9 @@
 # World model design — first slice
 
 Status: **First-slice direction agreed. ENG-81 history foundation and ENG-82
-shared location hierarchy and ENG-85 DM hierarchy dashboard implemented;
-membership and HTTP hierarchy features remain follow-up work.**
+shared location hierarchy, ENG-83 shared memberships and ENG-85 DM hierarchy
+dashboard implemented; membership dashboard and relationship HTTP features
+remain follow-up work.**
 
 Sources: [entity consolidation evaluation](entity-consolidation-evaluation.md)
 and the owner decisions recorded in ENG-80. This document supersedes the earlier,
@@ -109,6 +110,13 @@ Rules:
 Use focused membership operations rather than exposing raw join-table writes.
 Module/function naming remains an implementation detail. Do not add arbitrary
 metadata, generic strength fields, or a configurable visibility model now.
+
+ENG-83 implements `Memberships.join/4`, `edit_role/3`, `leave/2`,
+`list_faction_members/2` and `list_character_affiliations/2`. Endpoints are assigned
+by the context, with database pair uniqueness and same-campaign foreign keys.
+Explicitly leave current memberships before deleting a faction; character deletion
+is also protected by foreign keys. See [Memberships](memberships.md) for role
+validation, history, query contracts and basic reference safety.
 
 ## 6. Retained link state changes
 

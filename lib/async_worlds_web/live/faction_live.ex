@@ -97,6 +97,9 @@ defmodule AsyncWorldsWeb.FactionLive do
       |> clear_form()
       |> put_flash(:error, "Faction not found. Reopen the list and try again.")
 
+  defp failure(socket, :faction_has_memberships),
+    do: put_flash(socket, :error, "Remove this faction's current memberships before deleting it.")
+
   defp failure(socket, reason), do: put_flash(socket, :error, error_message(reason))
 
   @impl true

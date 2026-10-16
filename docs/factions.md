@@ -7,7 +7,10 @@ be unique. Deleting a campaign cascades to its factions.
 `AsyncWorlds.Factions` is the shared boundary for the DM dashboard and HTTP
 API adapters. Open **Factions** in the dashboard navigation (`/factions`) to
 create, edit, or permanently delete campaign factions. Deletion prompts for
-confirmation and targets the server-selected editor record.
+confirmation and targets the server-selected editor record. A faction with current
+memberships cannot be deleted: `delete_faction/2` returns
+`:faction_has_memberships`. Explicitly remove memberships first so link removal is
+retained in history. No implicit membership cascade is performed.
 
 HTTP routes are documented in [HTTP factions](http-factions.md). All verified
 members of the configured Discord server can use `/faction list` and
@@ -52,4 +55,13 @@ require a DM scope, including form changesets.
 These read-only functions are for trusted interfaces that verify guild membership
 before calling them. They never resolve characters or debug personas. Discord's
 dispatcher checks application, configured guild and authenticated member identity
-before routing these member-level commands.
+before routing these member-level commands. These projections do not expose
+membership counts, member identities or roles.
+
+## DM memberships
+
+[Memberships](memberships.md) documents the shared `AsyncWorlds.Memberships`
+operations for joining, role editing, leaving, faction members and character
+affiliations. They retain tick-linked history atomically and remain descriptive,
+DM-only state with no gameplay/permission effects. Membership dashboard controls
+and HTTP operations remain follow-up work.
