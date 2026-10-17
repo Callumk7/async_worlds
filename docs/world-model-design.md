@@ -3,7 +3,9 @@
 Status: **First-slice direction agreed. ENG-81 history foundation and ENG-82
 shared location hierarchy, ENG-83 shared memberships, ENG-85 DM hierarchy and
 ENG-86 membership dashboards, and ENG-87 DM hierarchy/membership HTTP operations
-implemented. The first slice is complete; deferred work remains out of scope.**
+implemented. ENG-88 adds cross-interface lifecycle and isolated migration
+verification of these foundations; deferred work remains out of scope. This is
+not a claim that every pre-existing domain feature has been independently verified.**
 
 Sources: [entity consolidation evaluation](entity-consolidation-evaluation.md)
 and the owner decisions recorded in ENG-80. This document supersedes the earlier,
@@ -248,8 +250,47 @@ Feature-local tests must cover:
 - Basic delete/reference safety without implementing the deferred lifecycle suite.
 - LiveView and HTTP operations use the shared domain boundary.
 
+### Cross-interface verification (ENG-88)
+
+`test/async_worlds_web/world_relationship_lifecycle_test.exs` drives mounted
+faction, character and location dashboards together with bearer-authenticated HTTP
+requests against the same persisted rows. It checks setup/open/resolving/review
+and published-to-next-open attribution through the real tick lifecycle, retained
+endpoint/before/after/order data, leave/rejoin and reparent history, fresh DM
+revocation, campaign isolation, and invalid/no-op writes. Transactional HTTP
+failure is checked in a disposable non-sandbox database through an independent
+committed-row observer, without a test-owned rollback. HTTP requests supply no new
+revision preconditions or primary affiliation.
+
+The lifecycle fixture publishes a rolled quest with a private flag and reviewed
+narration before editing relationships. Exact persisted character, quest,
+progression, submission, snapshot, draft, roll, review edit, publication, delivery
+and job rows are compared at each descriptive-edit boundary. Existing Discord
+`/character`, faction list/show and location list/show are dispatched through the
+real dispatcher/response adapter and compared before/after relationship edits.
+These checks do not add relationship data to frozen resolution inputs or outputs.
+
+`test/async_worlds/world_relationship_migration_test.exs` creates a disposable
+PostgreSQL database, migrates to the pre-foundation schema, inserts existing world
+entities, then migrates forward. It verifies unchanged existing rows, null/empty
+defaults, actual database uniqueness/check/same-campaign foreign keys, protected
+endpoint deletes, immutable retained history after live-link/entity removal, and
+campaign cascade safety. It never rolls back migrations on the shared suite DB.
+Database constraints do not claim to enforce arbitrary ancestor-cycle prevention;
+that remains the shared campaign-locked domain operation's responsibility.
+
 Run targeted tests and `mix precommit`. Concurrency tests use supervised processes
-and message/monitor coordination rather than sleeps.
+and message/monitor coordination rather than sleeps. ENG-88's executed gates are
+recorded below; runtime commands, counts and acceptance mapping are also recorded
+in the delivery workspace report (not a tracked runtime artifact).
+
+Executed ENG-88 gates (isolated Docker Elixir/PostgreSQL runtime):
+
+- New cross-interface lifecycle and isolated migration files: **5 tests, 0 failures**.
+- Related history, hierarchy, membership, HTTP controller, dashboard and Discord
+  suites, including the new files: **219 tests, 0 failures**.
+- Canonical `mix precommit` (warnings-as-errors compile, unused dependency check,
+  formatter and full tests): **860 tests, 0 failures**.
 
 ## 10. Deferred work
 
