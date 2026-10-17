@@ -6,6 +6,12 @@ defmodule AsyncWorlds.Clocks.Clock do
 
   schema "clocks" do
     belongs_to :campaign, AsyncWorlds.Campaigns.Campaign
+    belongs_to :tension, AsyncWorlds.Tensions.Tension
+    field :association_revision, :integer, default: 0
+    field :mode, Ecto.Enum, values: [:countdown, :tug_of_war], default: :countdown
+    field :influences, :string
+    field :empty_description, :string
+    field :full_description, :string
     field :name, :string
     field :segments, :integer
     field :filled, :integer, default: 0
@@ -20,9 +26,31 @@ defmodule AsyncWorlds.Clocks.Clock do
 
   def changeset(clock, attrs) do
     clock
-    |> cast(attrs, [:name, :segments, :filled, :visibility, :background_rate, :paused])
+    |> cast(attrs, [
+      :name,
+      :segments,
+      :filled,
+      :visibility,
+      :background_rate,
+      :paused,
+      :mode,
+      :influences,
+      :empty_description,
+      :full_description
+    ])
+    |> AsyncWorlds.Tensions.Tension.validate_text(:influences, 8000)
+    |> AsyncWorlds.Tensions.Tension.validate_text(:empty_description, 8000)
+    |> AsyncWorlds.Tensions.Tension.validate_text(:full_description, 8000)
     |> cast_embed(:triggers)
-    |> validate_required([:name, :segments, :filled, :visibility, :background_rate, :paused])
+    |> validate_required([
+      :name,
+      :segments,
+      :filled,
+      :visibility,
+      :background_rate,
+      :paused,
+      :mode
+    ])
     |> validate_length(:name, max: 200)
     |> validate_change(:name, fn :name, name ->
       if String.valid?(name) and not String.contains?(name, <<0>>),

@@ -168,6 +168,64 @@ defmodule AsyncWorlds.TicksConcurrencyTest do
     assert db(fn -> Repo.get!(Clock, clock.id).filled end) == expected
   end
 
+  test "Tension association serializes against close and remains locked afterwards", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    campaign = db(fn -> Repo.get!(Campaign, id) end)
+    scope = %{campaign: campaign, discord_user_id: "456"}
+
+    {:ok, tension} =
+      db(fn -> AsyncWorlds.DM.Tensions.create_tension(scope, %{name: "Battle"}) end)
+
+    {:ok, clock} = db(fn -> Clocks.create_clock(id, %{name: "Balance", segments: 8}, "dm") end)
+    {:ok, tick} = db(fn -> Ticks.open_tick(id) end)
+
+    [association, {:ok, %{snapshot: snapshot}}] =
+      race(supervisor, [
+        fn -> AsyncWorlds.DM.Tensions.associate_clock(scope, clock.id, tension.id, clock) end,
+        fn -> Ticks.close_tick(id, tick.id) end
+      ])
+
+    expected =
+      case association do
+        {:ok, %Clock{tension_id: target}} -> target
+        {:error, :tick_locked} -> nil
+      end
+
+    current = db(fn -> Repo.get!(Clock, clock.id) end)
+    assert current.tension_id == expected
+
+    assert {:error, :tick_locked} =
+             db(fn -> AsyncWorlds.DM.Tensions.associate_clock(scope, clock.id, nil, current) end)
+
+    assert {:ok, ^snapshot} = db(fn -> Ticks.fetch_snapshot(id, tick.id) end)
+  end
+
+  test "concurrent Tension edits reject one stale author instead of overwriting", %{
+    campaign: id,
+    supervisor: supervisor
+  } do
+    campaign = db(fn -> Repo.get!(Campaign, id) end)
+    scope = %{campaign: campaign, discord_user_id: "456"}
+
+    {:ok, tension} =
+      db(fn -> AsyncWorlds.DM.Tensions.create_tension(scope, %{name: "Battle"}) end)
+
+    results =
+      race(
+        supervisor,
+        for name <- ["Elves advance", "Goblins advance"] do
+          fn ->
+            AsyncWorlds.DM.Tensions.edit_tension(scope, tension.id, %{description: name}, tension)
+          end
+        end
+      )
+
+    assert Enum.count(results, &match?({:ok, _}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :stale_tension})) == 1
+  end
+
   test "review edit and publication cannot silently overwrite each other", %{
     campaign: id,
     supervisor: supervisor

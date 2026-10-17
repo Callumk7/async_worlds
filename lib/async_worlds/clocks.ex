@@ -20,9 +20,11 @@ defmodule AsyncWorlds.Clocks do
   end
 
   def get_clock(campaign_id, id) do
-    case Repo.get_by(Clock, id: id, campaign_id: campaign_id) do
-      nil -> {:error, :not_found}
-      clock -> {:ok, clock}
+    with {:ok, id} <- AsyncWorlds.ScopedID.cast(id) do
+      case Repo.get_by(Clock, id: id, campaign_id: campaign_id) do
+        nil -> {:error, :not_found}
+        clock -> {:ok, clock}
+      end
     end
   end
 
@@ -57,6 +59,38 @@ defmodule AsyncWorlds.Clocks do
       audit(clock, updated, "edit", source)
       updated
     end)
+  end
+
+  @doc "Trusted association primitive; no projection or engine semantics change."
+  def associate_clock(campaign_id, clock_id, tension_id, source, expected_clock) do
+    manage(campaign_id, source, fn ->
+      clock = fetch!(campaign_id, clock_id)
+      if expected_clock != clock, do: Repo.rollback(:stale_clock)
+      if clock.completed, do: Repo.rollback(:completed)
+      target = association_target!(campaign_id, tension_id)
+
+      updated =
+        persist(
+          Repo.update(
+            change(clock,
+              tension_id: target,
+              association_revision: clock.association_revision + 1
+            )
+          )
+        )
+
+      audit(clock, updated, "associate", source)
+      updated
+    end)
+  end
+
+  defp association_target!(_campaign_id, nil), do: nil
+
+  defp association_target!(campaign_id, id) do
+    case AsyncWorlds.Tensions.get_tension(campaign_id, id) do
+      {:ok, tension} -> tension.id
+      {:error, reason} -> Repo.rollback(reason)
+    end
   end
 
   def adjust_clock(campaign_id, clock_id, delta, source, expected_clock \\ nil)
@@ -165,7 +199,8 @@ defmodule AsyncWorlds.Clocks do
     end)
   end
 
-  defp manage(campaign_id, source, fun) do
+  @doc false
+  def manage(campaign_id, source, fun) do
     if is_binary(source) and String.trim(source) != "" do
       Repo.transaction(fn ->
         campaign = campaign!(campaign_id)
@@ -193,7 +228,10 @@ defmodule AsyncWorlds.Clocks do
   end
 
   defp fetch!(campaign_id, id) do
-    Repo.get_by(Clock, id: id, campaign_id: campaign_id) || Repo.rollback(:not_found)
+    case get_clock(campaign_id, id) do
+      {:ok, clock} -> clock
+      {:error, reason} -> Repo.rollback(reason)
+    end
   end
 
   defp expect_members!(_members, nil), do: :ok
@@ -316,6 +354,12 @@ defmodule AsyncWorlds.Clocks do
     clock
     |> Map.take([
       :name,
+      :tension_id,
+      :association_revision,
+      :mode,
+      :influences,
+      :empty_description,
+      :full_description,
       :segments,
       :filled,
       :visibility,

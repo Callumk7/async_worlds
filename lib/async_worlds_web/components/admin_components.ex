@@ -58,6 +58,14 @@ defmodule AsyncWorldsWeb.AdminComponents do
         <.icon name="hero-squares-2x2" class="size-4" /> Overview
       </.link>
       <.link
+        id="nav-tensions"
+        navigate={~p"/tensions"}
+        aria-current={@active == "tensions" && "page"}
+        class={["admin-tab", @active == "tensions" && "admin-tab-active"]}
+      >
+        <.icon name="hero-bolt" class="size-4" /> Tensions
+      </.link>
+      <.link
         id="nav-clocks"
         navigate={~p"/clocks"}
         aria-current={@active == "clocks" && "page"}
@@ -123,6 +131,9 @@ defmodule AsyncWorldsWeb.AdminComponents do
 
   def error_message(:stale_campaign),
     do: "Campaign configuration changed. Refresh and deliberately prepare again."
+
+  def error_message(:stale_tension),
+    do: "Tension changed. Refresh and inspect current circumstances before saving again."
 
   def error_message(:stale_character),
     do:
