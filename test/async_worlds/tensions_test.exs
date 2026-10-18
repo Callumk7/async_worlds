@@ -197,7 +197,9 @@ defmodule AsyncWorlds.TensionsTest do
       refute public =~ secret
     end
 
-    refute Jason.encode!(snap.data) =~ "Secret influence"
+    # ENG-91 freezes private adjudication context; the snapshot is DM-only.
+    assert Jason.encode!(snap.data) =~ "Secret influence"
+    assert snap.data["manual_world"]
   end
 
   test "completed clocks cannot be reassociated and status cannot be toggled", %{

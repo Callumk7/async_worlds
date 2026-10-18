@@ -2,6 +2,12 @@
 
 ## Ordering and latching
 
+These are the legacy standalone-clock and older-snapshot rules. Newly closed
+v3 snapshots with `manual_world: true` opt Tension clocks out of automatic
+endpoint latching/race selection and add replayable manual Event bundles after
+legacy resolution. See [manual-world-loop.md](manual-world-loop.md) for precise
+semantics, privacy, publication invariants and the executable two-tick walkthrough.
+
 Version-1 snapshots resolve in ascending clock ID order (the snapshot ordering
 must agree). Version-2 snapshots also resolve frozen valid quest submissions in
 ascending character ID order, before the reserved resource phase, background

@@ -42,12 +42,29 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
         rolls = AsyncWorlds.Ticks.QuestReview.dice(rolls, review)
         data = if version == 2, do: Map.delete(data, "player_delivery"), else: data
         payload = run(data, revision, review, rolls)
+        payload = AsyncWorlds.Ticks.ManualWorld.project(payload, data, review)
+
+        payload =
+          if data["manual_world"] do
+            final = %{
+              clocks: Map.new(payload["clocks"], &{&1["id"], &1}),
+              characters: Map.new(payload["characters"], &{&1["id"], &1}),
+              progressions: Map.new(payload["progressions"], &{&1["character_id"], &1})
+            }
+
+            Map.put(payload, "next_nodes", next_nodes(final, data["quest_inputs"]))
+          else
+            payload
+          end
+
         payload = if map_size(review) == 0, do: payload, else: Map.put(payload, "review", review)
 
         if Enum.all?(payload["characters"], &AsyncWorlds.Characters.Flags.valid?(&1["flags"])),
           do: {:ok, payload},
           else: {:error, :invalid_flags}
     end
+  rescue
+    _ -> {:error, :invalid_manual_world}
   end
 
   def resolve(_, _, _), do: {:error, :invalid_snapshot}
@@ -109,7 +126,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
     Enum.all?(
       Map.keys(review),
-      &(&1 in ["clock_deltas", "world_news", "dice", "outcomes", "narration"])
+      &(&1 in ["clock_deltas", "world_news", "dice", "outcomes", "narration", "world"])
     ) and
       is_map(deltas) and
       Enum.all?(deltas, fn {id, delta} ->
@@ -188,6 +205,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
       log: [],
       sequence: 0,
       tick: data["tick_number"],
+      manual_world: data["manual_world"] == true,
       deltas: Map.get(review, "clock_deltas", %{}),
       characters: Map.new(get_in(data, ["quest_inputs", "characters"]) || [], &{&1["id"], &1}),
       progressions:
@@ -397,7 +415,13 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
     group = clock["racing_group"]
 
     cond do
-      clock["completed"] or clock["filled"] != clock["segments"] ->
+      (state.manual_world and
+         (not is_nil(clock["tension_id"]) or
+            (not is_nil(group) and
+               Enum.any?(state.clocks, fn {_, c} ->
+                 c["racing_group"] == group and not is_nil(c["tension_id"])
+               end)))) or
+        clock["completed"] or clock["filled"] != clock["segments"] ->
         state
 
       group && Map.has_key?(state.races, group) ->

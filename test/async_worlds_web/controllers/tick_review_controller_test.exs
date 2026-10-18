@@ -94,6 +94,32 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
         "outputs"
       ]
 
+  test "manual operations remain inspectable through existing authorized review routes", c do
+    operation = %{
+      type: "world",
+      key: "recovery",
+      event: %{
+        title: "The captain rests",
+        text: "Recovery begins.",
+        kind: "event",
+        audience: "dm",
+        changes: [
+          %{entity: "clock", id: nil, attrs: %{name: "Recovery", segments: 6, background_rate: 1}}
+        ]
+      }
+    }
+
+    data = json_response(edit(c, c.draft.id, operation), 200)["data"]
+    assert data["audit"]["operation"]["type"] == "world"
+    result = review(c)
+    assert [%{"title" => "The captain rests"}] = result["events"]
+    assert Enum.any?(result["clocks"], &(&1["name"] == "Recovery" and &1["frozen_filled"] == nil))
+    audits = json_response(request(:get, c.url <> "/review/audits"), 200)["data"]
+    assert hd(audits)["operation"]["event"]["actor_id"] == "456"
+    outputs = preview(c, data["draft"]["id"])
+    refute Enum.any?(outputs["public"], &String.contains?(&1["content"], "captain"))
+  end
+
   test "review is projected and exact preview uses the selected current revision", c do
     conn = request(:get, c.url <> "/review")
     assert get_resp_header(conn, "cache-control") == ["no-store"]
@@ -104,7 +130,7 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
 
     assert Map.keys(data) |> Enum.sort() ==
              Enum.sort(
-               ~w(id tick_id input_revision revision inserted_at world_news world_news_override clocks quests)
+               ~w(id tick_id input_revision revision inserted_at world_news world_news_override clocks quests events manual_changes endpoint_prompts tensions)
              )
 
     assert hd(data["clocks"])["id"] == to_string(c.clock.id)

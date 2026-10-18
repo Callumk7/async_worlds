@@ -100,6 +100,16 @@ defmodule AsyncWorldsWeb.TickReviewLive do
     {:noreply, complete(socket, result, "Selected die rerolled; other dice preserved.")}
   end
 
+  def handle_event("stage_world", %{"world" => p}, socket) do
+    result =
+      with {:ok, op} <- world_operation(socket, p) do
+        edit(socket, p["draft_id"], op, p["reason"])
+      end
+
+    {:noreply,
+     complete(socket, result, "Manual intentions saved. Inspect the approved changes below.")}
+  end
+
   def handle_event("confirm", %{"publish" => params}, socket) do
     form =
       params_form(
@@ -136,6 +146,73 @@ defmodule AsyncWorldsWeb.TickReviewLive do
 
   def handle_event(_, _, socket),
     do: {:noreply, put_flash(socket, :error, "Invalid action. Reload the review and try again.")}
+
+  defp world_operation(socket, p) do
+    existing = get_in(socket.assigns.draft.payload, ["review", "world", p["key"]])
+    id = world_id(p["target"])
+
+    change =
+      case p["action"] do
+        "clock_adjust" ->
+          %{
+            "entity" => "clock",
+            "id" => id,
+            "attrs" => %{"delta" => String.to_integer(p["delta"])}
+          }
+
+        "clock_config" ->
+          %{
+            "entity" => "clock",
+            "id" => id,
+            "attrs" => %{
+              "name" => p["name"],
+              "segments" => String.to_integer(p["segments"]),
+              "background_rate" => String.to_integer(p["rate"]),
+              "influences" => p["description"],
+              "mode" => p["mode"],
+              "empty_description" => p["empty_description"],
+              "full_description" => p["full_description"],
+              "paused" => p["paused"] == "true",
+              "visibility" => p["visibility"],
+              "tension_id" => world_id(p["tension"])
+            }
+          }
+
+        "tension" ->
+          %{
+            "entity" => "tension",
+            "id" => id,
+            "attrs" => %{
+              "name" => p["name"],
+              "description" => p["description"],
+              "status" => if(p["kind"] == "resolution", do: "resolved", else: "ongoing")
+            }
+          }
+
+        action when action in ["none", "remove"] ->
+          nil
+      end
+
+    event =
+      if p["action"] == "remove",
+        do: nil,
+        else: %{
+          "title" => p["title"],
+          "text" => p["text"],
+          "kind" => p["kind"],
+          "audience" => p["audience"],
+          "changes" =>
+            ((existing && existing["changes"]) || []) ++ if(change, do: [change], else: [])
+        }
+
+    {:ok, %{"type" => "world", "key" => p["key"], "event" => event}}
+  rescue
+    _ -> {:error, :invalid_edit}
+  end
+
+  defp world_id(""), do: nil
+  defp world_id("new:" <> _ = id), do: id
+  defp world_id(id), do: String.to_integer(id)
 
   defp scope(socket), do: socket.assigns.current_scope
 
@@ -244,6 +321,28 @@ defmodule AsyncWorldsWeb.TickReviewLive do
         snapshot: snapshot,
         stale: false,
         preview_ready: match?({:ok, _}, preview),
+        world_form:
+          to_form(
+            %{
+              "draft_id" => draft.id,
+              "key" => "development",
+              "kind" => "event",
+              "audience" => "dm",
+              "action" => "none",
+              "target" => "",
+              "tension" => "",
+              "segments" => "4",
+              "rate" => "0",
+              "mode" => "countdown",
+              "paused" => "false",
+              "visibility" => "hidden"
+            },
+            as: :world
+          ),
+        manual_preview:
+          Jason.encode!(Map.take(payload, ["manual_changes", "events", "endpoint_prompts"]),
+            pretty: true
+          ),
         news_form:
           params_form(
             %{
@@ -259,6 +358,17 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           params_form(%{"draft_id" => draft.id, "confirm" => "false"}, [:draft_id, :confirm],
             as: :publish
           )
+      )
+      |> stream(
+        :world_context,
+        Enum.map(snapshot.data["tensions"] || [], fn t ->
+          %{
+            id: t["id"],
+            tension: t,
+            clocks: Enum.filter(snapshot.data["clocks"], &(&1["tension_id"] == t["id"]))
+          }
+        end),
+        reset: true
       )
       |> stream(:review_clocks, clocks, reset: true)
       |> stream(:resolution_log, log, reset: true)
@@ -395,6 +505,154 @@ defmodule AsyncWorldsWeb.TickReviewLive do
         >
           This revision is stale. Editing and publication are disabled until you reload and inspect the current review.
         </p>
+        <section id="manual-world" class="admin-panel space-y-4">
+          <h2 class="text-2xl font-semibold">Establish a development</h2>
+          <div id="frozen-tension-context" phx-update="stream" class="grid gap-4 md:grid-cols-2">
+            <article
+              :for={{dom_id, item} <- @streams.world_context}
+              id={dom_id}
+              class="rounded-xl border border-white/10 p-4 space-y-2"
+            >
+              <h3 class="font-semibold">
+                {item.tension["name"]} · Tension #{item.id} · {item.tension["status"]}
+              </h3>
+              <p class="text-sm text-slate-300 whitespace-pre-wrap">{item.tension["description"]}</p>
+              <div :for={clock <- item.clocks} class="text-sm border-t border-white/10 pt-2">
+                <p>
+                  {clock["name"]} · Clock #{clock["id"]} · frozen {clock["filled"]}/{clock["segments"]} · rate {clock[
+                    "background_rate"
+                  ]}
+                </p>
+                <p class="text-slate-400">{clock["influences"]}</p>
+                <p class="text-slate-400">
+                  Empty: {clock["empty_description"]} · Full: {clock["full_description"]}
+                </p>
+              </div>
+            </article>
+          </div>
+          <p class="text-sm text-slate-400">
+            Use the same bundle key to attach several changes to one Event. Different keys are replayed alphabetically. Blank target creates an entity. Tensions are private; public Events cannot reference them or non-public clocks. Routine changes need no prose. Remove a bundle to correct its intentions.
+          </p>
+          <.form
+            for={@world_form}
+            id="manual-world-form"
+            phx-submit="stage_world"
+            class="admin-form grid gap-4 md:grid-cols-2"
+          >
+            <fieldset disabled={@stale || !@preview_ready} class="contents">
+              <.input field={@world_form[:draft_id]} type="hidden" />
+              <.input field={@world_form[:key]} label="Bundle key" required class="admin-input" />
+              <.input
+                field={@world_form[:kind]}
+                type="select"
+                label="Kind"
+                options={[Event: "event", Resolution: "resolution", Routine: "routine"]}
+                class="admin-input"
+              />
+              <.input field={@world_form[:title]} label="Event title" class="admin-input" />
+              <.input
+                field={@world_form[:text]}
+                type="textarea"
+                label="Short account"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:audience]}
+                type="select"
+                label="Audience"
+                options={["DM only": "dm", Public: "public"]}
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:action]}
+                type="select"
+                label="Attach change"
+                options={[
+                  "Narrative only": "none",
+                  "Signed clock adjustment": "clock_adjust",
+                  "Create/configure clock": "clock_config",
+                  "Open/develop/resolve Tension": "tension",
+                  "Remove bundle": "remove"
+                ]}
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:target]}
+                label="Clock or Tension ID (blank creates; staged new:… IDs accepted)"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:delta]}
+                type="number"
+                label="Signed adjustment (after background)"
+                class="admin-input"
+              />
+              <.input field={@world_form[:name]} label="Entity name" class="admin-input" />
+              <.input
+                field={@world_form[:description]}
+                type="textarea"
+                label="Circumstances / clock influences"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:segments]}
+                type="select"
+                label="Clock segments"
+                options={[4, 6, 8]}
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:rate]}
+                type="number"
+                label="Ongoing background rate"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:visibility]}
+                type="select"
+                label="Clock visibility"
+                options={[Hidden: "hidden", Known: "known", Public: "public"]}
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:tension]}
+                label="Clock Tension ID (blank standalone)"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:mode]}
+                type="select"
+                label="Clock mode"
+                options={[Countdown: "countdown", "Tug of war": "tug_of_war"]}
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:empty_description]}
+                label="Empty endpoint"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:full_description]}
+                label="Full endpoint"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:paused]}
+                type="checkbox"
+                label="Pause this pressure"
+                class="admin-checkbox"
+              />
+              <.input field={@world_form[:reason]} label="Audit reason" required class="admin-input" />
+              <button id="stage-world" class="admin-button">Stage intention</button>
+            </fieldset>
+          </.form>
+          <details id="manual-world-preview" open>
+            <summary class="cursor-pointer text-amber-200">
+              Exact staged Events, before/after changes and endpoint prompts
+            </summary>
+            <pre class="mt-4 whitespace-pre-wrap break-words text-xs">{@manual_preview}</pre>
+          </details>
+        </section>
         <section class="admin-panel">
           <h2 class="text-xl font-semibold mb-4">Player consequences</h2>
           <p class="mb-4 text-sm text-slate-400">
@@ -631,7 +889,10 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                   <span class="text-xs text-slate-400">{item.clock["visibility"]}</span>
                 </div>
                 <p id={"clock-result-#{item.id}"} class="mt-3 text-sm">
-                  <span class="text-slate-400">Frozen {item.frozen["filled"]}/{item.frozen["segments"]}</span>
+                  <span :if={item.frozen} class="text-slate-400">Frozen {item.frozen["filled"]}/{item.frozen[
+                    "segments"
+                  ]}</span>
+                  <span :if={!item.frozen} class="text-slate-400">Staged creation · {item.id}</span>
                   <.icon name="hero-arrow-right" class="mx-2 size-4" />
                   <span class="text-amber-200">
                     {item.clock["filled"]}/{item.clock["segments"]}
@@ -659,6 +920,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                   </p>
                 </div>
                 <.form
+                  :if={item.frozen}
                   for={item.form}
                   id={"draft-clock-#{item.id}"}
                   phx-submit="edit_delta"

@@ -78,6 +78,10 @@ defmodule AsyncWorldsWeb.TickReviewController do
   defp confirmation(value) when value in [nil, false], do: {:error, :confirmation_required}
   defp confirmation(_), do: {:error, :invalid_parameters}
 
+  defp operation(%{"type" => "world", "key" => key, "event" => event} = op)
+       when map_size(op) == 3 and is_binary(key) and (is_map(event) or is_nil(event)),
+       do: {:ok, op}
+
   defp operation(%{"type" => "clock_delta"} = op) when map_size(op) == 3 do
     with true <- Enum.sort(Map.keys(op)) == ~w(clock_id delta type),
          {:ok, id} <- ApiParams.id(op["clock_id"]),
@@ -166,6 +170,10 @@ defmodule AsyncWorldsWeb.TickReviewController do
     review = payload["review"] || %{}
 
     Map.merge(project_draft(draft), %{
+      events: payload["events"] || [],
+      manual_changes: payload["manual_changes"] || [],
+      endpoint_prompts: payload["endpoint_prompts"] || [],
+      tensions: payload["tensions"] || [],
       world_news: payload["world_news"],
       world_news_override: review["world_news"],
       clocks:
@@ -245,6 +253,8 @@ defmodule AsyncWorldsWeb.TickReviewController do
       operation: project_operation(edit.operation)
     }
   end
+
+  defp project_operation(%{"type" => "world"} = op), do: Map.take(op, ~w(type key event))
 
   defp project_operation(%{"type" => "clock_delta"} = op),
     do: %{type: "clock_delta", clock_id: ApiResponse.id(op["clock_id"]), delta: op["delta"]}
