@@ -55,9 +55,12 @@ and delivery jobs commit or roll back together. Publication retry cannot apply
 an already-published tick again. Network delivery remains the existing durable
 outbox with explicit ambiguous-send recovery, not exactly-once delivery.
 
-All Tensions and their prose remain DM-only. Events default to DM-only in the
-console. A public Event must have no attached Tensions or non-public clocks, and
-neither side of a clock change may refer to a private Tension. A public narrative-
+Tensions default to DM-only; ENG-92 adds an explicit campaign-visible audience
+in management and frozen inputs (see [discussion semantics and recovery](tension-discussions.md)).
+Events still default to DM-only in the console. A public Event may attach only
+explicitly public Tensions/public clocks; both before and after context and clock
+associations must be public. Private-to-public changes cannot declassify the
+private before-context through a public Event. A public narrative-
 only Event is permitted: the DM explicitly authors that prose for public release;
 the application cannot infer secrets in natural language. No partial prose
 redaction, private Event counts or private links enter public output. Existing
@@ -70,9 +73,8 @@ under expandable details. Routine changes have a separate inspectable section,
 without mandatory prose. `/tensions/:id/history` shows the same immutable Events
 through a Tension (including Events opening newly created Tensions). The Tension
 management detail links there. These web archives are freshly DM-authorized;
-player delivery sees only the filtered public narration/clock projection. No new
-Discord retrieval command, persistent thread, typed entity graph, or historical
-backfill is introduced.
+player delivery sees only the filtered public narration/clock projection. ENG-92 adds persistent Discord discussions and public developments; no new
+Discord retrieval command, typed entity graph, or historical backfill is introduced.
 
 ## Reproducible two-tick walkthrough
 

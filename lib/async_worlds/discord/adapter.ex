@@ -12,6 +12,11 @@ defmodule AsyncWorlds.Discord.Adapter do
           {:ok, %{message_id: String.t(), channel_id: String.t()}}
           | {:error, {:retryable | :permanent | :ambiguous, atom()}}
 
+  @callback create_public_thread(String.t(), map()) ::
+              {:ok, %{thread_id: String.t()}} | {:error, {atom(), atom()}}
+  @callback inspect_thread(String.t()) :: {:ok, map()} | {:error, term()}
+  @optional_callbacks create_public_thread: 2, inspect_thread: 1
+
   @callback send_public(String.t(), map()) :: send_result()
   @callback send_private(String.t(), map()) :: send_result()
 

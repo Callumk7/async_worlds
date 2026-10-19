@@ -84,6 +84,32 @@ defmodule AsyncWorldsWeb.TensionLiveTest do
     assert has_element?(view, "#clock-full-#{balance.id}", "Goblin victory")
   end
 
+  test "explicit public policy survives reload and discussion state/history link are visible to DM",
+       c do
+    {:ok, t} = Tensions.create_tension(c.scope, %{name: "Battle"})
+    assert t.audience == :dm
+    {:ok, view, _} = live(c.conn, ~p"/tensions/#{t.id}")
+    assert has_element?(view, "#tension-audience option[value='dm'][selected]")
+    refute has_element?(view, "#tension-discussion")
+    view |> form("#tension-form", tension: %{audience: "public"}) |> render_submit()
+    assert_redirect(view, ~p"/tensions/#{t.id}")
+    {:ok, public} = Tensions.get_tension(c.scope, t.id)
+    assert public.audience == :public
+    {:ok, _} = Ticks.open_tick(c.campaign.id)
+    {:ok, view, _} = live(c.conn, ~p"/tensions/#{t.id}")
+    assert has_element?(view, "#tension-audience option[value='public'][selected]")
+    assert has_element?(view, "#tension-discussion", "pending")
+    {:ok, d} = AsyncWorlds.TensionDiscussions.get(c.scope, t.id)
+    {:ok, {:create, claim}} = AsyncWorlds.TensionDiscussions.claim(d.id)
+    {:ok, _} = AsyncWorlds.TensionDiscussions.settle(claim, {:ok, "9001"})
+    view |> element("#refresh-tensions") |> render_click()
+
+    assert has_element?(
+             view,
+             "#tension-discussion-link[href='https://discord.com/channels/91001/9001']"
+           )
+  end
+
   test "standalone association and detachment remain explicit and stale clock edits fail", c do
     {:ok, t} = Tensions.create_tension(c.scope, %{name: "Battle"})
     {:ok, clock} = Clocks.create_clock(c.campaign.id, %{name: "Existing", segments: 4}, "dm")

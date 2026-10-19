@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.DM.Tensions do
-  @moduledoc "Freshly authorized shared DM operations. Tensions are private; status is publication-owned."
+  @moduledoc "Freshly authorized shared DM operations. Tensions default private; audience is explicit and status is publication-owned."
   alias AsyncWorlds.{Clocks, DMAccess, Tensions}
 
   def list_tensions(scope),

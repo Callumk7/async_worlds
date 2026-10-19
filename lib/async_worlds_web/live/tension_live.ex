@@ -139,6 +139,7 @@ defmodule AsyncWorldsWeb.TensionLive do
     socket
     |> assign(
       form: to_form(Tension.changeset(tension || %Tension{}, %{})),
+      discussion: discussion(scope(socket), tension),
       locked:
         (tick && tick.status in [:resolving, :in_review]) ||
           scope(socket).campaign.clock_mutations_locked,
@@ -154,6 +155,15 @@ defmodule AsyncWorldsWeb.TensionLive do
       reset: true
     )
     |> new_clock_form()
+  end
+
+  defp discussion(_, nil), do: nil
+
+  defp discussion(scope, tension) do
+    case AsyncWorlds.TensionDiscussions.get(scope, tension.id) do
+      {:ok, discussion} -> discussion
+      _ -> nil
+    end
   end
 
   @impl true
@@ -203,12 +213,26 @@ defmodule AsyncWorldsWeb.TensionLive do
           <div class="space-y-7">
             <section class="admin-panel space-y-4">
               <div :if={@tension} id="tension-detail" class="space-y-3">
-                <p id="tension-status" class="text-amber-200">{@tension.status} · DM only</p>
+                <p id="tension-status" class="text-amber-200">
+                  {@tension.status} · {@tension.audience}
+                </p>
                 <.link
                   id="tension-history-link"
                   navigate={~p"/tensions/#{@tension.id}/history"}
                   class="text-sm text-amber-200 hover:underline"
                 >Read this Tension’s chronicle</.link>
+                <div :if={@discussion} id="tension-discussion" class="text-sm text-slate-300">
+                  Discord discussion: {@discussion.status}
+                  <.link
+                    :if={@discussion.thread_id}
+                    id="tension-discussion-link"
+                    href={"https://discord.com/channels/#{@discussion.guild_id}/#{@discussion.thread_id}"}
+                    class="text-amber-200 hover:underline"
+                  >Open persistent history</.link>
+                  <p :if={@discussion.status in ["ambiguous", "blocked"]}>
+                    Delivery is stopped. A campaign DM must inspect Discord and explicitly recover creation through the authorized recovery API; no replacement is automatic.
+                  </p>
+                </div>
                 <p id="tension-circumstances" class="whitespace-pre-wrap text-slate-300">
                   {@tension.description}
                 </p>
@@ -225,6 +249,17 @@ defmodule AsyncWorldsWeb.TensionLive do
                     maxlength="200"
                     class="admin-input"
                   />
+                  <.input
+                    field={@form[:audience]}
+                    id="tension-audience"
+                    type="select"
+                    label="Audience"
+                    options={["DM-only draft": :dm, "Campaign-visible (all prose is public)": :public]}
+                    class="admin-input"
+                  />
+                  <p class="text-sm text-amber-200">
+                    Public circumstances and public clock influences are posted to Discord. Prose cannot be automatically redacted. Returning to DM-only does not erase published history.
+                  </p>
                   <.input
                     field={@form[:description]}
                     type="textarea"

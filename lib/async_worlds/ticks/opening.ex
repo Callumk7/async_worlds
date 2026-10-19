@@ -126,9 +126,12 @@ defmodule AsyncWorlds.Ticks.Opening do
   # All supported writers serialize on DMAccess's campaign lock.
   defp input_version(campaign) do
     inputs =
-      Enum.map([Character, Progression, Revision, Unlock, Clock, Audit], fn schema ->
-        Repo.all(from r in schema, where: r.campaign_id == ^campaign.id, order_by: r.id)
-      end)
+      Enum.map(
+        [Character, Progression, Revision, Unlock, Clock, Audit, AsyncWorlds.Tensions.Tension],
+        fn schema ->
+          Repo.all(from r in schema, where: r.campaign_id == ^campaign.id, order_by: r.id)
+        end
+      )
 
     {OpeningOutput.version(), campaign, inputs}
     |> :erlang.term_to_binary()

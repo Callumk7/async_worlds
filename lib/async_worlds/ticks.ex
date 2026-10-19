@@ -181,6 +181,7 @@ defmodule AsyncWorlds.Ticks do
         |> persist!()
 
       persist_briefing!(tick, preparation)
+      AsyncWorlds.TensionDiscussions.opened(campaign, tick)
 
       AsyncWorlds.Ticks.PrivateNotifications.opened(campaign, tick)
       tick
@@ -481,6 +482,7 @@ defmodule AsyncWorlds.Ticks do
           do: draft.payload,
           else: Map.put(draft.payload, "published_entity_ids", entity_ids)
 
+      AsyncWorlds.TensionDiscussions.published(campaign, tick, published_payload)
       apply_quest_state!(campaign_id, draft.payload)
       outputs = Output.render(draft.payload, snapshot.data["campaign"])
 

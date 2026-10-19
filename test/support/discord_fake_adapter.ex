@@ -20,6 +20,12 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
   def followup_response(envelope, content), do: call(:followup_response, {envelope, content})
 
   @impl true
+  def create_public_thread(channel, options), do: call(:create_public_thread, {channel, options})
+
+  @impl true
+  def inspect_thread(id), do: call(:inspect_thread, id)
+
+  @impl true
   def send_public(channel, payload), do: call(:send_public, {channel, payload})
 
   @impl true
@@ -72,6 +78,12 @@ defmodule AsyncWorlds.Discord.FakeAdapter do
       {:reply, :ok, %{state | acknowledged: MapSet.put(state.acknowledged, envelope.id)}}
     end
   end
+
+  defp perform(:create_public_thread, _, state),
+    do: {:reply, {:ok, %{thread_id: "9001"}}, state}
+
+  defp perform(:inspect_thread, _, state),
+    do: {:reply, {:ok, %{guild_id: "123", parent_id: "789", type: 11, archived: false}}, state}
 
   defp perform(:send_public, {channel, _}, state),
     do: {:reply, {:ok, %{message_id: "1001", channel_id: channel}}, state}
