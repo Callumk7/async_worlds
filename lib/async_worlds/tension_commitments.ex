@@ -158,9 +158,9 @@ defmodule AsyncWorlds.TensionCommitments do
   defp accepts_operation?(%{audience: :public, status: :ongoing}, _current, _operation), do: true
   defp accepts_operation?(_, _, _), do: false
 
-  defp changes!(_entry, :edit, attrs) when is_map(attrs) do
+  defp changes!(entry, :edit, attrs) when is_map(attrs) do
     intention = Map.get(attrs, "intention")
-    approach = Map.get(attrs, "approach")
+    approach = Map.get(attrs, "approach", entry.approach)
 
     unless valid_text?(intention, true) and valid_text?(approach, false),
       do: Repo.rollback(:invalid_commitment)

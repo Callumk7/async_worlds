@@ -93,6 +93,45 @@ defmodule AsyncWorlds.TensionCommitmentsTest do
     state
   end
 
+  test "Discord intention revisions preserve omitted approach but allow explicit replacement",
+       x do
+    assert {:ok, %{approach: nil}} = change(x, x.a, 0, :edit, %{"intention" => "First"})
+
+    assert {:ok, %{version: 2}} =
+             change(x, x.a, 1, :edit, %{
+               "intention" => "First",
+               "approach" => "Retained resources"
+             })
+
+    assert {:ok, %{version: 3}} = change(x, x.a, 2, :confirm)
+    assert {:ok, %{version: 4, ready: true}} = change(x, x.a, 3, :ready)
+
+    assert {:ok, _} =
+             command(x, "edit", %{
+               "tick" => x.tick.id,
+               "tension" => x.a.id,
+               "version" => 4,
+               "intention" => "Revised"
+             })
+
+    assert [
+             %{
+               intention: "Revised",
+               approach: "Retained resources",
+               version: 5,
+               state: :unresolved,
+               ready: false
+             }
+           ] =
+             Enum.filter(own(x).commitments, &(&1.tension_id == x.a.id))
+
+    assert {:ok, %{approach: "New resources", version: 6}} =
+             change(x, x.a, 5, :edit, %{"intention" => "Revised", "approach" => "New resources"})
+
+    assert {:ok, %{approach: "", version: 7}} =
+             change(x, x.a, 6, :edit, %{"intention" => "Revised", "approach" => ""})
+  end
+
   test "documented quest-free Discord acceptance flow: two confirmations, revise, withdraw, retrieve, close",
        x do
     assert Repo.get_by(AsyncWorlds.Quests.Progression, character_id: x.player.id) == nil
