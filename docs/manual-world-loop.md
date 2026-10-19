@@ -12,7 +12,10 @@ the existing audited review pipeline; it does not unlock live management.
   and schema-validated `attrs`. Clock `delta` is signed and clamped.
 * An operation **replaces** the intentions for its key. A nil event removes that
   bundle. The console appends attached changes to the selected key. Remove and
-  rebuild a bundle to correct its attachments. All edits require an audit reason.
+  rebuild a bundle to correct its attachments, or use ENG-94's **Edit entire bundle**
+  replacement editor. All edits require an audit reason. The
+  [Tension synthesis guide](tension-synthesis.md) covers private interpretation,
+  frozen participation and complete bundle revision.
 * Recompute always starts from the original snapshot and recorded dice, runs the
   existing legacy phases, then applies manual bundles once in alphabetical key
   order. Within a bundle, explicit changes run in their listed order. This is an

@@ -65,8 +65,10 @@ Existing snapshot UPDATE protection applies. Close retries reuse the snapshot.
 No all-player submit requirement exists. DM can deliberately handle missing and
 unresolved participation while reviewing existing world pressures. Intentions are
 not interpreted automatically and do not create Events, clock changes or success.
-The full Tension adjudication workspace remains ENG-94; existing quest resolution,
-manual review/publication and delivery recovery remain unchanged.
+The [Tension adjudication workspace (ENG-94)](tension-synthesis.md) now groups
+these frozen inputs with private DM interpretation, deliberate deferral and Event
+bundle editing. Existing quest resolution, manual review/publication and delivery
+recovery remain unchanged.
 
 ## Reproducible automated rehearsal
 

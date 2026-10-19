@@ -110,6 +110,48 @@ defmodule AsyncWorldsWeb.TickReviewLive do
      complete(socket, result, "Manual intentions saved. Inspect the approved changes below.")}
   end
 
+  def handle_event("save_synthesis", %{"synthesis" => p}, socket) do
+    result =
+      with {:ok, id} <- integer(p["tension_id"]),
+           {:ok, deferred} <- Jason.decode(p["deferred"]) do
+        edit(
+          socket,
+          p["draft_id"],
+          %{
+            type: "synthesis",
+            tension_id: id,
+            interpretation: p["interpretation"],
+            deferred: deferred
+          },
+          p["reason"]
+        )
+      else
+        _ -> {:error, :invalid_edit}
+      end
+
+    {:noreply,
+     complete(socket, result, "DM interpretation saved privately; no consequence inferred.")}
+  end
+
+  def handle_event("load_bundle", %{"key" => key}, socket) do
+    case get_in(socket.assigns.draft.payload, ["review", "world", key]) do
+      nil ->
+        {:noreply, socket}
+
+      event ->
+        values = Map.merge(socket.assigns.world_form.params, event)
+
+        values =
+          Map.merge(values, %{
+            "key" => key,
+            "action" => "replace",
+            "changes_json" => Jason.encode!(event["changes"], pretty: true)
+          })
+
+        {:noreply, assign(socket, :world_form, to_form(values, as: :world))}
+    end
+  end
+
   def handle_event("confirm", %{"publish" => params}, socket) do
     form =
       params_form(
@@ -185,11 +227,12 @@ defmodule AsyncWorldsWeb.TickReviewLive do
             "attrs" => %{
               "name" => p["name"],
               "description" => p["description"],
-              "status" => if(p["kind"] == "resolution", do: "resolved", else: "ongoing")
+              "status" => if(p["kind"] == "resolution", do: "resolved", else: "ongoing"),
+              "audience" => p["tension_audience"] || "dm"
             }
           }
 
-        action when action in ["none", "remove"] ->
+        action when action in ["none", "remove", "replace"] ->
           nil
       end
 
@@ -202,12 +245,73 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           "kind" => p["kind"],
           "audience" => p["audience"],
           "changes" =>
-            ((existing && existing["changes"]) || []) ++ if(change, do: [change], else: [])
+            if(p["action"] == "replace",
+              do: Jason.decode!(p["changes_json"]),
+              else:
+                ((existing && existing["changes"]) || []) ++ if(change, do: [change], else: [])
+            )
         }
 
     {:ok, %{"type" => "world", "key" => p["key"], "event" => event}}
   rescue
     _ -> {:error, :invalid_edit}
+  end
+
+  defp synthesis_context(scope, snapshot, draft) do
+    entries = AsyncWorlds.Ticks.Synthesis.entries(snapshot.data)
+
+    baseline =
+      case AsyncWorlds.Ticks.WorldResolver.resolve(snapshot, %{}, draft.payload["rolls"] || []) do
+        {:ok, payload} -> payload
+        _ -> %{"clocks" => []}
+      end
+
+    Enum.map(snapshot.data["tensions"] || [], fn t ->
+      note = get_in(draft.payload, ["review", "synthesis", to_string(t["id"])]) || %{}
+
+      thread =
+        case AsyncWorlds.TensionDiscussions.get(scope, t["id"]) do
+          {:ok, %{thread_id: id, guild_id: guild}} when is_binary(id) ->
+            "https://discord.com/channels/#{guild}/#{id}"
+
+          _ ->
+            nil
+        end
+
+      %{
+        id: t["id"],
+        deferred: note["deferred"] || [],
+        tension: t,
+        thread: thread,
+        entries: Enum.filter(entries, &(&1.entry["tension_id"] == t["id"])),
+        events:
+          Enum.filter(draft.payload["events"] || [], fn event ->
+            Enum.any?(event["changes"], fn change ->
+              (change["entity"] == "tension" and change["id"] == t["id"]) or
+                (change["entity"] == "clock" and
+                   Enum.any?(
+                     [change["before"], change["after"]],
+                     &(&1 && &1["tension_id"] == t["id"])
+                   ))
+            end)
+          end),
+        clocks: Enum.filter(snapshot.data["clocks"], &(&1["tension_id"] == t["id"])),
+        background: Map.new(baseline["clocks"], &{&1["id"], &1["filled"]}),
+        resulting: Map.new(draft.payload["clocks"] || [], &{&1["id"], &1["filled"]}),
+        form:
+          to_form(
+            %{
+              "draft_id" => draft.id,
+              "tension_id" => t["id"],
+              "interpretation" => note["interpretation"] || "",
+              "deferred" => Jason.encode!(note["deferred"] || []),
+              "reason" => ""
+            },
+            as: :synthesis,
+            id: "synthesis-#{t["id"]}"
+          )
+      }
+    end)
   end
 
   defp world_id(""), do: nil
@@ -263,6 +367,11 @@ defmodule AsyncWorldsWeb.TickReviewLive do
     if stale and socket.assigns.preview_ready do
       socket
       |> stream(:review_clocks, review_clocks(socket.assigns.draft, socket.assigns.snapshot),
+        reset: true
+      )
+      |> stream(
+        :world_context,
+        synthesis_context(scope(socket), socket.assigns.snapshot, socket.assigns.draft),
         reset: true
       )
       |> stream(:quest_review, quest_items(socket.assigns.draft, socket.assigns.snapshot),
@@ -335,12 +444,20 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               "rate" => "0",
               "mode" => "countdown",
               "paused" => "false",
-              "visibility" => "hidden"
+              "visibility" => "hidden",
+              "tension_audience" => "dm"
             },
             as: :world
           ),
         manual_preview:
-          Jason.encode!(Map.take(payload, ["manual_changes", "events", "endpoint_prompts"]),
+          Jason.encode!(
+            Map.take(payload, [
+              "clocks",
+              "tensions",
+              "manual_changes",
+              "events",
+              "endpoint_prompts"
+            ]),
             pretty: true
           ),
         news_form:
@@ -361,12 +478,13 @@ defmodule AsyncWorldsWeb.TickReviewLive do
       )
       |> stream(
         :world_context,
-        Enum.map(snapshot.data["tensions"] || [], fn t ->
-          %{
-            id: t["id"],
-            tension: t,
-            clocks: Enum.filter(snapshot.data["clocks"], &(&1["tension_id"] == t["id"]))
-          }
+        synthesis_context(scope, snapshot, %{draft | payload: payload}),
+        reset: true
+      )
+      |> stream(
+        :event_bundles,
+        Enum.map(get_in(payload, ["review", "world"]) || %{}, fn {key, event} ->
+          %{id: key, event: event}
         end),
         reset: true
       )
@@ -517,11 +635,93 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 {item.tension["name"]} · Tension #{item.id} · {item.tension["status"]}
               </h3>
               <p class="text-sm text-slate-300 whitespace-pre-wrap">{item.tension["description"]}</p>
+              <a
+                :if={item.thread}
+                id={"thread-#{item.id}"}
+                href={item.thread}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm text-cyan-300 hover:underline"
+              >Persistent Discord discussion (not committed action)</a>
+              <div
+                :for={row <- item.entries}
+                id={row.anchor}
+                class="rounded-lg bg-slate-950/50 p-3 space-y-1"
+              >
+                <p class="font-medium text-sm">
+                  {row.name || "Character"} #{row.entry["character_id"]} · frozen v{row.entry[
+                    "version"
+                  ]} · {row.entry[
+                    "state"
+                  ]} · {if row.entry["ready"], do: "ready", else: "not ready"}
+                </p>
+                <p
+                  :if={row.entry["character_id"] in item.deferred}
+                  class="text-xs font-semibold text-amber-200"
+                >
+                  Deliberately deferred by DM
+                </p>
+                <a href={"##{row.anchor}"} class="text-xs text-cyan-300">Frozen commitment anchor</a>
+                <p class="whitespace-pre-wrap text-sm">
+                  Intent: {row.entry["intention"] || "No committed intention"}
+                </p>
+                <p class="whitespace-pre-wrap text-sm text-slate-300">
+                  Approach / resources: {row.entry["approach"] || "None described"}
+                </p>
+                <p :for={other <- row.elsewhere} class="text-xs text-amber-200">
+                  Also contributing:
+                  <a href={"##{AsyncWorlds.Ticks.Synthesis.anchor(other)}"} class="underline">Tension #{other[
+                    "tension_id"
+                  ]} · {other["state"]} · {other["approach"]}</a>
+                </p>
+              </div>
+              <div :for={event <- item.events} class="border-l-2 border-amber-300/50 pl-3 text-sm">
+                <a href={"#event_bundles-#{event["id"]}"} class="text-amber-200 hover:underline">Draft consequence: {event[
+                  "title"
+                ]}</a>
+                <p class="whitespace-pre-wrap">{event["text"]}</p>
+              </div>
+              <p :if={item.entries == []} class="text-sm text-slate-400">
+                Unattended pressure / no frozen participation entries.
+              </p>
+              <.form
+                for={item.form}
+                id={"synthesis-form-#{item.id}"}
+                phx-submit="save_synthesis"
+                class="admin-form space-y-3"
+              >
+                <fieldset disabled={@stale || !@preview_ready} class="space-y-3">
+                  <.input field={item.form[:draft_id]} type="hidden" />
+                  <.input field={item.form[:tension_id]} type="hidden" />
+                  <.input
+                    field={item.form[:interpretation]}
+                    type="textarea"
+                    label="DM interpretation (private, not an outcome)"
+                    class="admin-input"
+                  />
+                  <.input
+                    field={item.form[:deferred]}
+                    label="Deliberately deferred character IDs (JSON array)"
+                    class="admin-input"
+                  />
+                  <.input
+                    field={item.form[:reason]}
+                    label="Audit reason"
+                    required
+                    class="admin-input"
+                  />
+                  <button id={"save-synthesis-#{item.id}"} class="admin-button">Save interpretation / deferral</button>
+                </fieldset>
+              </.form>
               <div :for={clock <- item.clocks} class="text-sm border-t border-white/10 pt-2">
                 <p>
                   {clock["name"]} · Clock #{clock["id"]} · frozen {clock["filled"]}/{clock["segments"]} · rate {clock[
                     "background_rate"
                   ]}
+                </p>
+                <p class="text-amber-200">
+                  Proposed progression before manual bundles: {item.background[clock["id"]] ||
+                    "unavailable"} · combined draft: {item.resulting[clock["id"]] || "unavailable"}
                 </p>
                 <p class="text-slate-400">{clock["influences"]}</p>
                 <p class="text-slate-400">
@@ -531,8 +731,24 @@ defmodule AsyncWorldsWeb.TickReviewLive do
             </article>
           </div>
           <p class="text-sm text-slate-400">
-            Use the same bundle key to attach several changes to one Event. Different keys are replayed alphabetically. Blank target creates an entity. Tensions are private; public Events cannot reference them or non-public clocks. Routine changes need no prose. Remove a bundle to correct its intentions.
+            Intent is not success. Weigh all contributions and unattended pressures; no submission or display order selects a winner. Author the combined consequence below. Bundles replay alphabetically only for explicit mechanical edits, never participation priority. Blank target creates an entity. Public Events may reference only public Tensions/clocks. Nothing is established until atomic publication.
           </p>
+          <div id="event-bundles" phx-update="stream" class="space-y-2">
+            <article
+              :for={{dom_id, bundle} <- @streams.event_bundles}
+              id={dom_id}
+              class="rounded-lg border border-amber-300/20 p-3"
+            >
+              <span>Draft consequence · {bundle.event["title"]} · {bundle.event["audience"]}</span>
+              <button
+                id={"load-bundle-#{bundle.id}"}
+                phx-click="load_bundle"
+                phx-value-key={bundle.id}
+                class="admin-button ml-3"
+                disabled={@stale || !@preview_ready}
+              >Edit entire bundle</button>
+            </article>
+          </div>
           <.form
             for={@world_form}
             id="manual-world-form"
@@ -569,6 +785,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 label="Attach change"
                 options={[
                   "Narrative only": "none",
+                  "Replace entire bundle (JSON changes below)": "replace",
                   "Signed clock adjustment": "clock_adjust",
                   "Create/configure clock": "clock_config",
                   "Open/develop/resolve Tension": "tension",
@@ -588,6 +805,13 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 class="admin-input"
               />
               <.input field={@world_form[:name]} label="Entity name" class="admin-input" />
+              <.input
+                field={@world_form[:tension_audience]}
+                type="select"
+                label="Tension audience (when opening/developing)"
+                options={["DM only": "dm", Public: "public"]}
+                class="admin-input"
+              />
               <.input
                 field={@world_form[:description]}
                 type="textarea"
@@ -641,6 +865,12 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 type="checkbox"
                 label="Pause this pressure"
                 class="admin-checkbox"
+              />
+              <.input
+                field={@world_form[:changes_json]}
+                type="textarea"
+                label="Entire bundle changes (editable JSON; replace mode only)"
+                class="admin-input"
               />
               <.input field={@world_form[:reason]} label="Audit reason" required class="admin-input" />
               <button id="stage-world" class="admin-button">Stage intention</button>

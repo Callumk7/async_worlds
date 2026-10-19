@@ -43,6 +43,7 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
         data = if version == 2, do: Map.delete(data, "player_delivery"), else: data
         payload = run(data, revision, review, rolls)
         payload = AsyncWorlds.Ticks.ManualWorld.project(payload, data, review)
+        :ok = AsyncWorlds.Ticks.Synthesis.validate!(data, review)
 
         payload =
           if data["manual_world"] do
@@ -126,7 +127,15 @@ defmodule AsyncWorlds.Ticks.WorldResolver do
 
     Enum.all?(
       Map.keys(review),
-      &(&1 in ["clock_deltas", "world_news", "dice", "outcomes", "narration", "world"])
+      &(&1 in [
+          "clock_deltas",
+          "world_news",
+          "dice",
+          "outcomes",
+          "narration",
+          "world",
+          "synthesis"
+        ])
     ) and
       is_map(deltas) and
       Enum.all?(deltas, fn {id, delta} ->
