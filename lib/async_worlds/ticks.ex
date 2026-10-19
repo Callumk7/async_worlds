@@ -434,6 +434,12 @@ defmodule AsyncWorlds.Ticks do
         do: Repo.rollback(:stale_live_state)
 
       live = freeze(campaign, tick, snapshot.schema_version)
+      # Older immutable snapshots predate broad intentions; preserve their shape.
+      live =
+        if Map.has_key?(snapshot.data, "tension_commitments"),
+          do: live,
+          else: Map.delete(live, "tension_commitments")
+
       # v1 predates character inputs. New immutable revisions may be authored
       # after close; they cannot affect the pinned frozen turn.
       live =
@@ -853,6 +859,10 @@ defmodule AsyncWorlds.Ticks do
       data
       |> Map.put("player_delivery", routes)
       |> Map.put("manual_world", true)
+      |> Map.put(
+        "tension_commitments",
+        AsyncWorlds.TensionCommitments.freeze(campaign.id, tick.id)
+      )
       |> Map.put(
         "tensions",
         Enum.map(

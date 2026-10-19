@@ -166,7 +166,12 @@ defmodule AsyncWorlds.Discord.HelpTest do
           %{
             name: option.name,
             type: option.type,
-            value: if(option.type == 5, do: true, else: "1")
+            value:
+              case option.type do
+                4 -> 1
+                5 -> true
+                _ -> "1"
+              end
           }
         end)
 
