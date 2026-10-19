@@ -178,7 +178,7 @@ defmodule AsyncWorldsWeb.TickReviewController do
       world_news_override: review["world_news"],
       clocks:
         Enum.map(payload["clocks"], fn clock ->
-          frozen = Enum.find(snapshot.data["clocks"], &(&1["id"] == clock["id"]))
+          frozen = Enum.find(snapshot.data["clocks"], &(&1["id"] == clock["id"])) || %{}
 
           %{
             id: ApiResponse.id(clock["id"]),
@@ -188,8 +188,8 @@ defmodule AsyncWorldsWeb.TickReviewController do
             filled: clock["filled"],
             paused: clock["paused"],
             completed: clock["completed"],
-            frozen_filled: frozen["filled"],
-            frozen_completed: frozen["completed"],
+            frozen_filled: Map.get(frozen, "filled"),
+            frozen_completed: Map.get(frozen, "completed"),
             delta_override: get_in(review, ["clock_deltas", to_string(clock["id"])])
           }
         end),

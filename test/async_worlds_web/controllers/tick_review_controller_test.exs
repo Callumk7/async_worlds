@@ -8,7 +8,7 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
 
   @token String.duplicate("r", 32)
 
-  setup do
+  setup context do
     previous = Application.get_env(:async_worlds, :dm_api)
     Application.put_env(:async_worlds, :dm_api, token: @token, dm_user_id: "456")
 
@@ -31,6 +31,11 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
         %{name: "Hidden mechanism", visibility: :hidden, segments: 4, background_rate: 1},
         "dm"
       )
+
+    clock =
+      clock
+      |> Ecto.Changeset.change(context[:frozen_clock] || [])
+      |> Repo.update!()
 
     {:ok, revision} =
       Quests.create_quest(
@@ -113,11 +118,32 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
     assert data["audit"]["operation"]["type"] == "world"
     result = review(c)
     assert [%{"title" => "The captain rests"}] = result["events"]
-    assert Enum.any?(result["clocks"], &(&1["name"] == "Recovery" and &1["frozen_filled"] == nil))
+
+    assert %{
+             "id" => "new:" <> _,
+             "frozen_filled" => nil,
+             "frozen_completed" => nil
+           } = Enum.find(result["clocks"], &(&1["name"] == "Recovery"))
+
+    assert %{"frozen_filled" => 0, "frozen_completed" => false} =
+             Enum.find(result["clocks"], &(&1["id"] == to_string(c.clock.id)))
+
     audits = json_response(request(:get, c.url <> "/review/audits"), 200)["data"]
     assert hd(audits)["operation"]["event"]["actor_id"] == "456"
     outputs = preview(c, data["draft"]["id"])
     refute Enum.any?(outputs["public"], &String.contains?(&1["content"], "captain"))
+  end
+
+  for {filled, completed} <- [{2, false}, {4, true}] do
+    @tag frozen_clock: [filled: filled, completed: completed]
+    test "review preserves frozen fill #{filled} and completion #{completed}", c do
+      # Live state is not the source of the frozen review fields.
+      c.clock |> Ecto.Changeset.change(filled: 0, completed: false) |> Repo.update!()
+
+      clock = Enum.find(review(c)["clocks"], &(&1["id"] == to_string(c.clock.id)))
+      assert clock["frozen_filled"] == c.clock.filled
+      assert clock["frozen_completed"] == c.clock.completed
+    end
   end
 
   test "review is projected and exact preview uses the selected current revision", c do
