@@ -73,7 +73,7 @@ defmodule AsyncWorlds.Workers.DeliverDiscord do
   defp send_safely(claim, adapter) do
     result =
       case claim.kind do
-        :public -> adapter.send_public(claim.recipient_id, payload(claim))
+        :public -> AsyncWorlds.TensionDiscussions.send_public(claim, payload(claim), adapter)
         :private -> adapter.send_private(claim.recipient_id, payload(claim))
       end
 
@@ -97,7 +97,7 @@ defmodule AsyncWorlds.Workers.DeliverDiscord do
        do: {:error, {:retryable, reason}}
 
   defp normalize({:error, {:permanent, reason}})
-       when reason in [:forbidden, :unauthorized, :not_found, :invalid_request],
+       when reason in [:forbidden, :unauthorized, :not_found, :invalid_request, :thread_archived],
        do: {:error, {:permanent, reason}}
 
   defp normalize({:error, {:ambiguous, :unknown_result}}),

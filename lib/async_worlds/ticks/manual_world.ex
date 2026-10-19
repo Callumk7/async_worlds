@@ -58,6 +58,7 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
     true = event["kind"] in ["event", "resolution", "routine"]
     true = event["kind"] == "routine" or String.trim(title) != ""
     start = length(state.changes)
+    original_tensions = state.tensions
 
     state =
       event["changes"]
@@ -71,10 +72,8 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
     if event["audience"] == "public" do
       true =
         Enum.all?(changes, fn c ->
-          c["entity"] == "clock" and is_nil(c["after"]["tension_id"]) and
-            c["after"]["visibility"] == "public" and
-            (is_nil(c["before"]) or
-               (c["before"]["visibility"] == "public" and is_nil(c["before"]["tension_id"])))
+          public_change?(c, state.tensions) and
+            public_change?(c, original_tensions ++ state.tensions)
         end)
     end
 
@@ -107,7 +106,7 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
       if entity == "clock",
         do:
           ~w(name segments filled visibility background_rate paused mode influences empty_description full_description delta tension_id),
-        else: ~w(name description status)
+        else: ~w(name description status audience)
 
     true = Enum.all?(Map.keys(attrs), &(&1 in allowed))
 
@@ -157,7 +156,10 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
         )
       end
 
-    after_record = Map.merge(before || %{}, after_record)
+    preserved =
+      if entity == "tension", do: Map.delete(before || %{}, "audience"), else: before || %{}
+
+    after_record = Map.merge(preserved, after_record)
 
     entry = %{
       "entity" => entity,
@@ -194,13 +196,13 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
 
   defp atom_fields(map, struct) do
     for key <- Map.keys(struct),
-        Map.has_key?(map, to_string(key)),
+        Map.has_key?(map, to_string(key)) or key == :audience,
         key not in [:__struct__, :__meta__, :triggers],
         into: %{} do
-      value = map[to_string(key)]
+      value = if key == :audience, do: Map.get(map, "audience", "dm"), else: map[to_string(key)]
 
       value =
-        if key in [:visibility, :mode, :status] and is_binary(value),
+        if key in [:visibility, :mode, :status, :audience] and is_binary(value),
           do: String.to_existing_atom(value),
           else: value
 
@@ -217,12 +219,39 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
       )
       |> json()
 
+  # Absence means DM-only, preserving replay shape for pre-ENG-92 snapshots.
   def snapshot(%Tension{} = t),
     do:
       t
       |> Map.from_struct()
       |> Map.take(~w(id campaign_id name description status revision)a)
+      |> then(fn fields ->
+        if t.audience == :public, do: Map.put(fields, :audience, :public), else: fields
+      end)
       |> json()
+
+  defp public_change?(change, tensions) do
+    Enum.all?([change["before"], change["after"]], fn
+      nil ->
+        true
+
+      record ->
+        if change["entity"] == "tension" do
+          record["audience"] == "public"
+        else
+          record["visibility"] == "public" and
+            (is_nil(record["tension_id"]) or
+               public_tension?(tensions, record["tension_id"]))
+        end
+    end)
+  end
+
+  defp public_tension?(tensions, id) do
+    case Enum.find(tensions, &(&1["id"] == id)) do
+      %{"audience" => "public"} -> true
+      _ -> false
+    end
+  end
 
   defp json(value), do: Jason.decode!(Jason.encode!(value))
 

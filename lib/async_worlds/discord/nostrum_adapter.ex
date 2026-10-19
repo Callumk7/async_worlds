@@ -89,6 +89,34 @@ defmodule AsyncWorlds.Discord.NostrumAdapter do
   end
 
   @impl true
+  def create_public_thread(channel_id, options) do
+    # Unlike DM channel lookup, an unknown thread create must never be retried.
+    case Nostrum.Api.Thread.create(integer_id(channel_id), options) do
+      {:ok, %{id: id}} -> {:ok, %{thread_id: to_string(id)}}
+      error -> classify_send(error, :message)
+    end
+  rescue
+    _ -> {:error, {:ambiguous, :unknown_result}}
+  end
+
+  @impl true
+  def inspect_thread(id) do
+    case Nostrum.Api.Channel.get(integer_id(id)) do
+      {:ok, c} ->
+        {:ok,
+         %{
+           guild_id: to_string(c.guild_id),
+           parent_id: to_string(c.parent_id),
+           type: c.type,
+           archived: (c.thread_metadata || %{})[:archived]
+         }}
+
+      error ->
+        classify_send(error, :channel)
+    end
+  end
+
+  @impl true
   def send_public(channel_id, payload) do
     send_request(
       fn -> Message.create(integer_id(channel_id), message_options(payload)) end,

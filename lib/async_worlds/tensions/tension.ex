@@ -1,5 +1,5 @@
 defmodule AsyncWorlds.Tensions.Tension do
-  @moduledoc "A private DM-owned situation, not a location or quest. Resolution is publication-only (ENG-91)."
+  @moduledoc "A DM-owned unsettled situation, private by default. Public audience explicitly releases its prose; resolution is publication-only."
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -7,6 +7,7 @@ defmodule AsyncWorlds.Tensions.Tension do
     belongs_to :campaign, AsyncWorlds.Campaigns.Campaign
     field :name, :string
     field :description, :string
+    field :audience, Ecto.Enum, values: [:dm, :public], default: :dm
     field :status, Ecto.Enum, values: [:ongoing, :resolved], default: :ongoing
     field :revision, :integer, default: 1
     timestamps(type: :utc_datetime)
@@ -14,7 +15,7 @@ defmodule AsyncWorlds.Tensions.Tension do
 
   def changeset(tension, attrs) do
     tension
-    |> cast(attrs, [:name, :description])
+    |> cast(attrs, [:name, :description, :audience])
     |> validate_required([:name])
     |> validate_text(:name, 200)
     |> validate_text(:description, 8000)
