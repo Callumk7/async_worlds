@@ -356,6 +356,17 @@ defmodule AsyncWorlds.Ticks do
         verify_draft!(draft, snapshot, review)
         validate_review_target!(operation, snapshot)
         operation = prepare_quest_operation!(operation, snapshot, review, roller)
+
+        operation =
+          if operation["type"] == "world" and is_map(operation["event"]),
+            do:
+              Map.update!(
+                operation,
+                "event",
+                &Map.merge(&1, %{"actor_id" => actor_id, "reason" => reason})
+              ),
+            else: operation
+
         review = apply_review_operation(review, operation)
 
         payload =
@@ -429,6 +440,16 @@ defmodule AsyncWorlds.Ticks do
           do: Map.drop(live, ["quest_inputs", "quest_unlocks"]),
           else: live
 
+      live =
+        if snapshot.data["manual_world"],
+          do: live,
+          else:
+            live
+            |> Map.drop(["manual_world", "tensions"])
+            |> Map.update!("clocks", fn clocks ->
+              Enum.map(clocks, &Map.take(&1, Map.keys(hd(snapshot.data["clocks"] ++ [%{}]))))
+            end)
+
       if comparable(live) != comparable(snapshot.data), do: Repo.rollback(:stale_live_state)
 
       Enum.each(draft.payload["effects"], fn effect ->
@@ -453,13 +474,20 @@ defmodule AsyncWorlds.Ticks do
         })
       end)
 
+      entity_ids = AsyncWorlds.Ticks.ManualWorld.persist!(campaign_id, tick.id, draft.payload)
+
+      published_payload =
+        if map_size(entity_ids) == 0,
+          do: draft.payload,
+          else: Map.put(draft.payload, "published_entity_ids", entity_ids)
+
       apply_quest_state!(campaign_id, draft.payload)
       outputs = Output.render(draft.payload, snapshot.data["campaign"])
 
       Repo.insert!(%Publication{
         tick_id: tick.id,
         draft_id: draft.id,
-        payload: draft.payload,
+        payload: published_payload,
         outputs: outputs
       })
 
@@ -599,6 +627,12 @@ defmodule AsyncWorlds.Ticks do
   defp apply_review_operation(review, %{"type" => type} = operation)
        when type in ["reroll", "outcome", "player_narration"],
        do: AsyncWorlds.Ticks.QuestReview.apply_operation(review, operation)
+
+  defp apply_review_operation(review, %{"type" => "world"} = operation) do
+    AsyncWorlds.Ticks.ManualWorld.apply_operation(review, operation)
+  rescue
+    _ -> Repo.rollback(:invalid_edit)
+  end
 
   defp apply_review_operation(_, _), do: Repo.rollback(:invalid_edit)
 
@@ -785,6 +819,15 @@ defmodule AsyncWorlds.Ticks do
               :completed,
               :racing_group
             ])
+            |> then(fn frozen ->
+              if version == 3,
+                do:
+                  Map.merge(
+                    Map.new(frozen, fn {k, v} -> {to_string(k), v} end),
+                    AsyncWorlds.Ticks.ManualWorld.snapshot(clock)
+                  ),
+                else: frozen
+            end)
             |> Map.put(
               :triggers,
               Enum.map(clock.triggers, &AsyncWorlds.Clocks.Trigger.snapshot/1)
@@ -805,7 +848,16 @@ defmodule AsyncWorlds.Ticks do
           copies
         )
 
-      Map.put(data, "player_delivery", routes)
+      data
+      |> Map.put("player_delivery", routes)
+      |> Map.put("manual_world", true)
+      |> Map.put(
+        "tensions",
+        Enum.map(
+          AsyncWorlds.Tensions.list_tensions(campaign.id),
+          &AsyncWorlds.Ticks.ManualWorld.snapshot/1
+        )
+      )
     else
       data
     end

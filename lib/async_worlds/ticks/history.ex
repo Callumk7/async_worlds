@@ -8,7 +8,7 @@ defmodule AsyncWorlds.Ticks.History do
   alias AsyncWorlds.Ticks.{Draft, Publication, ReviewEdit, Tick}
 
   @page_size 20
-  @sections ~w(results clocks rolls consequences reviews interventions audits messages)
+  @sections ~w(events manual results clocks rolls consequences reviews interventions audits messages)
 
   def sections, do: @sections
 
@@ -21,7 +21,12 @@ defmodule AsyncWorlds.Ticks.History do
           on: t.id == p.tick_id,
           where: t.campaign_id == ^campaign.id and t.status == :published,
           order_by: [desc: t.number, desc: t.id],
-          select: %{id: t.id, number: t.number, published_at: p.inserted_at}
+          select: %{
+            id: t.id,
+            number: t.number,
+            published_at: p.inserted_at,
+            events: fragment("COALESCE(?->'events', '[]'::jsonb)", p.payload)
+          }
 
       {:ok, query_page(query, page)}
     end
@@ -55,10 +60,42 @@ defmodule AsyncWorlds.Ticks.History do
     end
   end
 
+  @doc "Private narrative-first Tension chronicle, using immutable publication context only."
+  def tension(guild_id, actor_id, tension_id) do
+    with {:ok, campaign} <- Campaigns.authorize_dm(guild_id, actor_id),
+         {:ok, id} <- Ecto.Type.cast(:id, tension_id) do
+      rows =
+        Repo.all(
+          from p in Publication,
+            join: t in Tick,
+            on: p.tick_id == t.id,
+            where: t.campaign_id == ^campaign.id and t.status == :published,
+            order_by: [desc: t.number],
+            select: {t.id, t.number, p.payload}
+        )
+
+      {:ok,
+       for(
+         {tick_id, number, payload} <- rows,
+         event <- payload["events"] || [],
+         Enum.any?(event["changes"], fn c ->
+           (c["entity"] == "tension" and published_id(payload, c["id"]) == id) or
+             (c["entity"] == "clock" and published_id(payload, c["after"]["tension_id"]) == id)
+         end),
+         do: Map.merge(event, %{"tick_id" => tick_id, "tick_number" => number})
+       )}
+    end
+  end
+
+  defp published_id(payload, id), do: Map.get(payload["published_entity_ids"] || %{}, id, id)
+
   defp detail(campaign_id, tick, publication, revision, input_revision, pages) do
     payload = publication.payload
     page = fn key -> Map.get(pages, key, 1) end
-    sources = Enum.map(payload["effects"] || [], & &1["source"])
+
+    sources =
+      Enum.map(payload["effects"] || [], & &1["source"]) ++
+        Enum.map(payload["manual_changes"] || [], &("manual:tick:#{tick.id}:" <> &1["source"]))
 
     reviews =
       from e in ReviewEdit,
@@ -83,6 +120,8 @@ defmodule AsyncWorlds.Ticks.History do
       revision: revision,
       input_revision: input_revision,
       sections: %{
+        "events" => list_page(payload["events"] || [], page.("events")),
+        "manual" => list_page(payload["manual_changes"] || [], page.("manual")),
         "results" => list_page(player_results(payload), page.("results")),
         "clocks" => list_page(payload["clocks"] || [], page.("clocks")),
         "rolls" => list_page(payload["rolls"] || [], page.("rolls")),

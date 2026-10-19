@@ -4,6 +4,8 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
   alias AsyncWorlds.Ticks.History
 
   @sections [
+    events: "Chronicle · established developments",
+    manual: "Approved manual changes (including routine pressures)",
     results: "Approved player results",
     clocks: "Approved world clocks",
     rolls: "Recorded dice",
@@ -154,6 +156,12 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
 
   defp label(key), do: key |> to_string() |> String.replace("_", " ")
 
+  defp record_title(:events, record),
+    do: record["title"] <> if(record["kind"] == "resolution", do: " · Resolution", else: "")
+
+  defp record_title(:manual, record),
+    do: "#{record["after"]["name"]} · #{record["entity"]} · #{record["source"]}"
+
   defp record_title(:results, record),
     do: "#{record["historical_character"]} · #{record["outcome"] || "approved result"}"
 
@@ -177,6 +185,7 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
   defp record_title(:audits, record),
     do: "Clock ##{record.clock_id} · #{record.operation} · #{record.source}"
 
+  defp record_summary(:events, record), do: record["text"]
   defp record_summary(:results, record), do: record["text"]
   defp record_summary(key, record) when key in [:reviews, :interventions], do: record.reason
   defp record_summary(_, _), do: nil
@@ -319,6 +328,9 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
               <div>
                 <h2 class="text-xl font-semibold">Tick {tick.number}</h2><p class="mt-2 text-sm text-slate-400">
                   {DateTime.to_iso8601(tick.published_at)}
+                </p>
+                <p :for={event <- tick.events} class="mt-3 text-sm text-amber-100">
+                  {event["title"]} — {event["text"]}
                 </p>
               </div>
               <.link

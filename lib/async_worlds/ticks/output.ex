@@ -18,16 +18,23 @@ defmodule AsyncWorlds.Ticks.Output do
 
     title = "Tick #{payload["tick_number"]}"
 
+    events = payload["events"] || []
+    event_lines = fn events -> Enum.map(events, &(&1["title"] <> " — " <> &1["text"])) end
+
     outputs = %{
       "public" =>
         messages(
-          [title] ++ payload["world_news"] ++ public_clocks,
+          [title] ++
+            event_lines.(Enum.filter(events, &(&1["audience"] == "public"))) ++
+            payload["world_news"] ++ public_clocks,
           "public",
           campaign["public_channel_id"]
         ),
       "dm" =>
         messages(
-          [title] ++ payload["world_news"] ++ payload["dm_notifications"] ++ dm_clocks,
+          [title] ++
+            event_lines.(events) ++
+            payload["world_news"] ++ payload["dm_notifications"] ++ dm_clocks,
           "private",
           campaign["dm_user_id"]
         )

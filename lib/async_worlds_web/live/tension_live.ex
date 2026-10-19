@@ -204,6 +204,11 @@ defmodule AsyncWorldsWeb.TensionLive do
             <section class="admin-panel space-y-4">
               <div :if={@tension} id="tension-detail" class="space-y-3">
                 <p id="tension-status" class="text-amber-200">{@tension.status} · DM only</p>
+                <.link
+                  id="tension-history-link"
+                  navigate={~p"/tensions/#{@tension.id}/history"}
+                  class="text-sm text-amber-200 hover:underline"
+                >Read this Tension’s chronicle</.link>
                 <p id="tension-circumstances" class="whitespace-pre-wrap text-slate-300">
                   {@tension.description}
                 </p>
@@ -233,7 +238,7 @@ defmodule AsyncWorldsWeb.TensionLive do
             <section :if={@tension} class="admin-panel space-y-5">
               <h2 class="text-xl font-semibold">Pressures & clocks</h2>
               <p id="clock-semantics-notice" class="text-sm text-slate-400">
-                Modes, influences and both endpoints are descriptive only. Existing full-clock latching, races, background rates and triggers still apply. Empty endpoints do not fire rules; manual adjudicated endpoints belong to ENG-91. New clocks default to hidden; association never changes visibility.
+                Tension-clock endpoints prompt DM adjudication during tick review; neither endpoint automatically settles a situation or fires triggers. Standalone clocks retain legacy full-latch, race and trigger rules. New clocks default to hidden; association never changes visibility.
               </p>
               <div id="tension-clocks" phx-update="stream" class="space-y-4">
                 <p id="tension-clocks-empty" class="hidden only:block text-slate-400">

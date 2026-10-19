@@ -53,6 +53,117 @@ defmodule AsyncWorldsWeb.TickReviewLiveTest do
     }
   end
 
+  test "manual console bundles changes, survives reload, and publishes a readable chronicle", c do
+    {:ok, view, _} = live(c.conn, ~p"/ticks/#{c.tick.id}/review")
+    assert has_element?(view, "#manual-world-form")
+
+    view
+    |> form("#manual-world-form",
+      world: %{
+        key: "crossing",
+        title: "Holding the crossing",
+        text: "A captain is wounded.",
+        action: "clock_adjust",
+        target: to_string(c.clock.id),
+        delta: "-1",
+        reason: "Weigh the pressures"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(view, "#manual-world-preview", "Holding the crossing")
+    refute has_element?(view, "#public-preview", "Holding the crossing")
+
+    view
+    |> form("#manual-world-form",
+      world: %{
+        key: "crossing",
+        title: "Holding the crossing",
+        text: "A captain is wounded.",
+        action: "tension",
+        target: "",
+        name: "Captain wounded",
+        description: "Will the captain recover?",
+        reason: "Consequences"
+      }
+    )
+    |> render_submit()
+
+    {:ok, draft} = Ticks.fetch_draft(c.campaign.id, c.tick.id)
+    assert length(hd(draft.payload["events"])["changes"]) == 2
+    assert Repo.get!(Clock, c.clock.id).filled == 2
+    render_click(element(view, "#refresh-review"))
+    assert has_element?(view, "#manual-world-preview", "Captain wounded")
+    view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
+    assert_redirect(view, ~p"/dashboard")
+    {:ok, history, _} = live(c.conn, ~p"/ticks/history")
+    assert has_element?(history, "#published-ticks", "Holding the crossing")
+    {:ok, detail, _} = live(c.conn, ~p"/ticks/#{c.tick.id}/history")
+    assert has_element?(detail, "#history-events-records", "A captain is wounded.")
+
+    tension =
+      Enum.find(
+        AsyncWorlds.Tensions.list_tensions(c.campaign.id),
+        &(&1.name == "Captain wounded")
+      )
+
+    {:ok, chronicle, _} = live(c.conn, ~p"/tensions/#{tension.id}/history")
+    assert has_element?(chronicle, "#tension-events", "Holding the crossing")
+  end
+
+  test "console stages a configured clock and can adjust its temporary reference", c do
+    {:ok, view, _} = live(c.conn, ~p"/ticks/#{c.tick.id}/review")
+
+    view
+    |> form("#manual-world-form",
+      world: %{
+        key: "recovery",
+        title: "Recovery begins",
+        text: "A new pressure.",
+        action: "clock_config",
+        target: "",
+        name: "Recovery",
+        description: "Skilled care",
+        segments: "6",
+        rate: "1",
+        mode: "tug_of_war",
+        empty_description: "Lost",
+        full_description: "Recovered",
+        reason: "New pressure"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(view, "#manual-world-preview", "Recovery begins")
+    assert has_element?(view, "#review-clocks", "Staged creation")
+
+    view
+    |> form("#manual-world-form",
+      world: %{
+        key: "recovery",
+        title: "Recovery begins",
+        text: "A new pressure.",
+        action: "clock_adjust",
+        target: "new:recovery:0",
+        delta: "2",
+        reason: "Initial position"
+      }
+    )
+    |> render_submit()
+
+    {:ok, draft} = Ticks.fetch_draft(c.campaign.id, c.tick.id)
+    assert Enum.find(draft.payload["clocks"], &(&1["name"] == "Recovery"))["filled"] == 2
+    assert length(hd(draft.payload["events"])["changes"]) == 2
+    assert length(Clocks.list_clocks(c.campaign.id)) == 2
+    view |> form("#publish-form", publish: %{confirm: "true"}) |> render_submit()
+    assert_redirect(view, ~p"/dashboard")
+    recovery = Enum.find(Clocks.list_clocks(c.campaign.id), &(&1.name == "Recovery"))
+    assert recovery.filled == 2
+    assert recovery.empty_description == "Lost"
+    assert recovery.full_description == "Recovered"
+    assert recovery.background_rate == 1
+  end
+
   test "review edits recompute consequences and exact public preview then publish", c do
     {:ok, view, _} = live(c.conn, ~p"/ticks/#{c.tick.id}/review")
     assert has_element?(view, "#tick-review")

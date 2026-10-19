@@ -2,8 +2,9 @@ defmodule AsyncWorlds.Tensions do
   @moduledoc """
   Trusted campaign-scoped Tension storage. All Tensions and their prose are
   private DM-only; no player projection exists. Use DM.Tensions at interfaces.
-  Status is read-only here: ENG-91 will establish resolutions at publication.
-  Descriptive clock modes do not alter legacy completion, races or triggers.
+  Status is read-only here: tick publication establishes resolutions.
+  New frozen ticks treat associated clock endpoints as adjudication prompts;
+  standalone clocks and older snapshots retain legacy completion rules.
   """
   import Ecto.Query
   alias AsyncWorlds.{Clocks, Repo, ScopedID}
