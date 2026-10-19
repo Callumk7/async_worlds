@@ -19,7 +19,8 @@ defmodule AsyncWorlds.TensionDiscussions do
           lines ++
             Enum.flat_map(clocks, &clock_lines/1) ++
             [
-              "Discuss plans, questions and coordination here for this period. Discussion is not a confirmed commitment or an established outcome; the DM adjudicates after closing."
+              "Discuss plans, questions and coordination here for this period. Discussion is not a confirmed commitment or an established outcome; the DM adjudicates after closing.",
+              "Use /intent view tick:#{tick.id} privately, then /intent edit tick:#{tick.id} tension:#{t.id} version:0 intention:<broad effort> and /intent confirm with the saved version. Revise/withdraw until close. Intentions are private to owner and authorized DM; readiness is informational. Public discussion posts cannot be promised retractable."
             ]
         end
 

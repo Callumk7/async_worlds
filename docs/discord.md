@@ -111,6 +111,11 @@ The registered command set is:
 - `/quest` — private current node, eligible choices and generic disabled-choice hints.
   Buttons submit/revise your own choice; Clear removes it. Completed and unassigned
   quests have explicit empty/ending states. No resource assignment UI.
+- `/intent view/edit/confirm/withdraw/ready` — private, version-checked broad
+  Tension intentions, independent of quests; `/intent roster` retrieves the same
+  participation state for the current DM. Opening threads provide tick/Tension
+  IDs. No public posting or automatic outcomes; readiness is informational.
+  See [commitment flow and rehearsal](tension-commitments.md).
 - `/submission` — private current tick choice with the same revise/clear controls.
   Both commands remain usable when proactive bot DMs are blocked; run them in the
   configured guild, not in a direct message.

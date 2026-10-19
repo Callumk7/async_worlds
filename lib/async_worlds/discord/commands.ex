@@ -32,6 +32,7 @@ defmodule AsyncWorlds.Discord.Commands do
     [
       Map.put(DebugInteractions.definition(), :permission, :debug),
       JournalInteractions.definition(),
+      AsyncWorlds.Discord.IntentCommands.definition(),
       FactionCommands.definition(),
       LocationCommands.definition(),
       %{
@@ -115,6 +116,9 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(%{name: name} = data) do
     case Enum.find(catalogue(), &(&1.name == name)) do
+      %{name: "intent"} ->
+        AsyncWorlds.Discord.IntentCommands.route(data)
+
       %{name: "location"} ->
         LocationCommands.route(data)
 
@@ -164,6 +168,9 @@ defmodule AsyncWorlds.Discord.Commands do
       :error -> definition
     end
   end
+
+  def execute({:intent, _, _} = command, context),
+    do: AsyncWorlds.Discord.IntentCommands.execute(command, context)
 
   def execute({:debug, _} = command, context), do: DebugInteractions.execute(command, context)
 

@@ -24,7 +24,9 @@ even with no characters, quests, commitments or attendees. Ongoing briefings sho
 current circumstances, public clock fill/segments and influence/endpoint text;
 known clocks show **name only**, hidden clocks contribute nothing (not even counts).
 Instructions distinguish discussion from confirmed commitment and adjudication.
-ENG-93 commitments are not implemented here; do not infer commitments from chat.
+[ENG-93 private commitments](tension-commitments.md) now provide a separate explicit
+confirmation path; never infer commitments from chat. Opening instructions include
+IDs and the private `/intent` flow without projecting any player's text.
 
 There is one logical discussion mapping per Tension, across ticks. A worker creates
 a public Discord thread under the configured campaign public text channel. Once

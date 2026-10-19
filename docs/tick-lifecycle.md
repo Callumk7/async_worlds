@@ -70,6 +70,13 @@ identity, intervention, revalidation and readiness rules. Version 1 remains
 readable. The world-only executor explicitly refuses submitted quest work until
 ENG-18; it cannot drop choices while publishing world changes.
 
+New v3 snapshots also include private `tension_commitments`: exact latest versions,
+confirmed/unresolved/withdrawn states, optional descriptive approach/resources,
+readiness and absent-character participation. The same campaign lock serializes
+commitment writes against close. This optional extension does not execute intentions;
+older snapshots retain their shape. Authorized closed retrieval reads the frozen
+roster. See [broad intentions](tension-commitments.md).
+
 The snapshot has a schema version and a unique UUID input revision. There is
 exactly one snapshot per tick. Drafts have unique UUID identities and increasing
 integer revisions and refer to the captured input UUID. Snapshot and draft rows
