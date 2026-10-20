@@ -234,6 +234,12 @@ defmodule AsyncWorldsWeb.LocationLive do
               </h2>
               <button id="new-location" phx-click="new" class="admin-button admin-secondary">New</button>
             </div>
+            <.link
+              :if={@editing}
+              id="location-event-history"
+              navigate={~p"/events?#{%{"entity" => "location", "entity_id" => @editing.id}}"}
+              class="text-sm text-amber-200 hover:underline"
+            >Events involving this location</.link>
             <.form for={@form} id="location-form" phx-submit="save" class="admin-form space-y-4">
               <.input
                 field={@form[:name]}

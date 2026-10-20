@@ -252,6 +252,12 @@ defmodule AsyncWorldsWeb.CharacterLive do
               </h2>
               <button id="new-character" phx-click="new" class="admin-button admin-secondary">New</button>
             </div>
+            <.link
+              :if={@editing}
+              id="character-event-history"
+              navigate={~p"/events?#{%{"entity" => "character", "entity_id" => @editing.id}}"}
+              class="text-sm text-amber-200 hover:underline"
+            >Events involving this character</.link>
             <.form for={@form} id="character-form" phx-submit="save" class="admin-form space-y-4">
               <.input
                 field={@form[:name]}

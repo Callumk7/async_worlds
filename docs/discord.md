@@ -100,6 +100,12 @@ The registered command set is:
   into a **private draft**, without publication. Repeated closes reuse the same
   snapshot/job. Review and approve in the web console.
 - `/tick remind` — configured DM in DM role only; queues guarded private reminders for characters missing choices.
+- `/chronicle list`, `/chronicle show` — privately explore published public Events,
+  with campaign/tick/entity filters, stable pages, saved context and follow-on/origin
+  navigation. Uses the shared DM-console projection with player privacy, not drafts
+  or audit reasons. Requires a linked character or valid testing persona. See
+  [connected history and reproducible demo](connected-history.md). Re-register
+  through the normal authorized deployment process to expose these commands.
 - `/result` — privately retrieves the latest applicable approved personal result for the owner or selected DM persona, even when outbound DMs fail.
 - `/tick status` — configured DM only; reports open/resolving/in-review/published
   world readiness and informational quest submission counts; never automatically closes.

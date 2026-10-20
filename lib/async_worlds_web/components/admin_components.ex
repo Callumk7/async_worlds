@@ -107,7 +107,7 @@ defmodule AsyncWorldsWeb.AdminComponents do
       </.link>
       <.link
         id="nav-history"
-        navigate={~p"/ticks/history"}
+        navigate={~p"/events"}
         aria-current={@active == "history" && "page"}
         class={["admin-tab", @active == "history" && "admin-tab-active"]}
       >

@@ -28,6 +28,7 @@ defmodule AsyncWorlds.Discord.RegistrationTest do
     assert Enum.map(Commands.definitions(), & &1.name) == [
              "debug",
              "journal",
+             "chronicle",
              "intent",
              "faction",
              "location",
