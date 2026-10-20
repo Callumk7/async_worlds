@@ -41,3 +41,6 @@ async_worlds-*.tar
 npm-debug.log
 /assets/node_modules/
 
+
+# Amp orb portal state generated per orb/thread.
+.amp/portals/

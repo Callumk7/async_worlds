@@ -1,0 +1,6 @@
+services:
+  web:
+    command: mix phx.server
+    health: /health/ready
+    portal:
+      title: AsyncWorlds
