@@ -1,6 +1,12 @@
 # Flexible actions and visible campaign activity
 
-**Status: active direction and next-phase plan; not yet implemented.**
+**Status: superseded as the next product direction by
+[Tension-led world play](tension-led-world-play.md). Retained as the historical
+quest-centred plan; implemented slices remain supported.**
+
+The new direction removes quest-node participation and a universal one-action
+limit as requirements for Tension play. This notice does not cancel existing
+Linear issues, remove quests, or invalidate completed briefing/delivery work.
 
 This document supersedes the [original MVP outline](archive/project-outline.md) and
 [implementation plan](archive/project-plan.md) as the next delivery priority. Their
