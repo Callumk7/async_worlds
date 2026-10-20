@@ -92,7 +92,8 @@ The registered command set is:
   Manage locations at `/locations`; see [locations.md](locations.md).
   Re-register commands after deployment.
 - `/tick open` — configured DM only; opens the next tick and atomically saves and
-  queues a public roster briefing with `/quest` instructions and existing private
+  queues a public roster briefing with `/quest` instructions (or, in a campaign that
+  adopted Tension-led participation, Tension thread and `/intent` instructions) and existing private
   prompts. No optional narration setup is required. Repeated opens do not create
   another tick or logical announcement. Web opens use the same transaction, with
   exact reviewed narration/chunks when prepared. See [tick opening](tick-opening.md).
@@ -115,6 +116,7 @@ The registered command set is:
   flags. Normally identity comes from the interaction member; DM testing uses a freshly authorized character subject.
   Bootstrap characters at `/characters`; see [shared APIs](characters.md).
 - `/quest` — private current node, eligible choices and generic disabled-choice hints.
+  With no quest in a Tension-led campaign it points to Tension threads and `/intent`.
   Buttons submit/revise your own choice; Clear removes it. Completed and unassigned
   quests have explicit empty/ending states. No resource assignment UI.
 - `/intent view/edit/confirm/withdraw/ready` — private, version-checked broad

@@ -37,7 +37,7 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
           {:error, :no_quest} ->
             if expected_view,
               do: {:error, :stale_component},
-              else: {:ok, "No quest assigned yet. Try /quest again after your DM assigns one."}
+              else: {:ok, no_quest(context.campaign)}
 
           error ->
             error
@@ -47,6 +47,13 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
         error
     end
   end
+
+  defp no_quest(%{tension_participation: true}),
+    do:
+      "No quest assigned, and none is needed to play. Join an ongoing Tension's discussion thread, " <>
+        "then record your efforts privately with /intent view tick:<tick ID from its briefing>."
+
+  defp no_quest(_), do: "No quest assigned yet. Try /quest again after your DM assigns one."
 
   def route(%{custom_id: id, component_type: 2}) when is_binary(id) and byte_size(id) <= 100 do
     case String.split(id, ":") do
