@@ -54,6 +54,21 @@ defmodule AsyncWorlds.Campaigns do
     end)
   end
 
+  @doc """
+  Explicitly adopts (or leaves) Tension-led participation for future openings and
+  player entry points. Freshly DM-authorized under the campaign lock. It changes no
+  quests, Tensions, saved briefings or published history.
+  """
+  def set_tension_participation(scope, enabled) when is_boolean(enabled) do
+    AsyncWorlds.DMAccess.run(scope, fn campaign, _actor ->
+      campaign
+      |> Ecto.Changeset.change(tension_participation: enabled)
+      |> Repo.update()
+    end)
+  end
+
+  def set_tension_participation(_, _), do: {:error, :invalid_participation}
+
   @doc "Returns a campaign by guild, distinguishing invalid IDs from missing campaigns."
   def fetch_campaign_by_guild(guild_id) do
     with {:ok, id} <- normalize_id(guild_id) do

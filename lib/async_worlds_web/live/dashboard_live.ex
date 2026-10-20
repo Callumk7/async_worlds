@@ -130,6 +130,21 @@ defmodule AsyncWorldsWeb.DashboardLive do
      complete(socket, result, "Inputs frozen. Resolution is queued; refresh to see progress.")}
   end
 
+  def handle_event("set_tension_participation", %{"enabled" => value}, socket)
+      when value in ["true", "false"] do
+    enabled = value == "true"
+
+    message =
+      if enabled,
+        do:
+          "Tension-led participation adopted. Future openings and /quest invite quest-free players to Tension threads and /intent.",
+        else:
+          "Quest-centred entry points restored for future openings. Saved briefings and history are unchanged."
+
+    {:noreply,
+     complete(socket, Campaigns.set_tension_participation(scope(socket), enabled), message)}
+  end
+
   def handle_event("retry_delivery", %{"id" => id, "retry" => params}, socket) do
     result =
       with {:ok, id} <- integer(id), {:ok, generation} <- integer(params["generation"]) do
@@ -415,6 +430,42 @@ defmodule AsyncWorldsWeb.DashboardLive do
               Review draft <.icon name="hero-arrow-right" class="size-4" />
             </.link>
           </div>
+        </section>
+
+        <section
+          id="participation-mode"
+          class="admin-panel flex flex-wrap items-center justify-between gap-4"
+        >
+          <div class="max-w-2xl">
+            <p class="text-xs uppercase tracking-widest text-slate-400">Player participation</p>
+            <p id="participation-mode-label" class="mt-2 text-lg font-medium">
+              {if @current_scope.campaign.tension_participation,
+                do: "Tension-led · quests optional",
+                else: "Quest-centred entry points"}
+            </p>
+            <p class="mt-1 text-sm text-slate-400">
+              Tension-led openings and /quest tell quest-free players to discuss in Tension threads
+              and confirm efforts with /intent. Quests, saved briefings and published history are
+              not changed. Takes effect at the next opening; /intent works in either mode.
+            </p>
+          </div>
+          <button
+            id="toggle-tension-participation"
+            phx-click="set_tension_participation"
+            phx-value-enabled={to_string(!@current_scope.campaign.tension_participation)}
+            data-confirm={
+              if @current_scope.campaign.tension_participation,
+                do: "Return future openings and /quest to quest-centred guidance?",
+                else:
+                  "Adopt Tension-led participation for this campaign? Future openings will invite every player to take part through Tension threads without a quest."
+            }
+            phx-disable-with="Saving…"
+            class="admin-button admin-secondary"
+          >
+            {if @current_scope.campaign.tension_participation,
+              do: "Return to quest-centred guidance",
+              else: "Adopt Tension-led participation"}
+          </button>
         </section>
 
         <section

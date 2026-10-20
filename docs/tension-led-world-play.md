@@ -5,7 +5,10 @@ Status: **Agreed product direction; incremental delivery in progress.**
 The manual world loop (ENG-90/ENG-91) is implemented; see
 [the Tension demo](eng-90-demo.md) and [manual world loop](manual-world-loop.md).
 [Connected Event history (ENG-95)](connected-history.md) extends that same chronicle
-with typed context, pagination and Discord retrieval. The slices below are the
+with typed context, pagination and Discord retrieval. ENG-96 adds explicit
+per-campaign adoption, an [operating guide](tension-led-operating-guide.md) and a
+[rehearsal record](tension-led-rehearsal.md); the live-server rehearsal is still
+outstanding. The slices below are the
 incremental delivery plan; consult each implementation guide for shipped scope.
 
 - [Linear project: Tensions, Intentions & Living History](https://linear.app/warp-monster/project/async-worlds-tensions-intentions-and-living-history-6d32d6af4c50)

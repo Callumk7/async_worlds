@@ -116,7 +116,14 @@ defmodule AsyncWorlds.Ticks.Opening do
       narration: narration,
       version: version,
       token: token,
-      messages: OpeningOutput.render(number, campaign.public_channel_id, activities, narration)
+      messages:
+        OpeningOutput.render(
+          number,
+          campaign.public_channel_id,
+          activities,
+          narration,
+          campaign.tension_participation
+        )
     }
   end
 

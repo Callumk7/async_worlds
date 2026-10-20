@@ -12,6 +12,9 @@ defmodule AsyncWorlds.Campaigns.Campaign do
     field :current_tick_number, :integer, default: 0
     field :clock_mutations_locked, :boolean, default: false
 
+    # Explicit DM opt-in; never inferred from Tensions existing. See docs/tension-led-operating-guide.md.
+    field :tension_participation, :boolean, default: false
+
     timestamps(type: :utc_datetime)
   end
 

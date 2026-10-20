@@ -60,13 +60,20 @@ foreign token or campaign ID cannot select another preparation/campaign.
 
 ## Public content and privacy
 
-`Ticks.OpeningOutput.render/4` is the shared pure renderer for preview and opening
+`Ticks.OpeningOutput.render/5` is the shared pure renderer for preview and opening
 capture. Delivery workers send stored content, never render live inputs. Its roster comes from ENG-63's `Quests.public_activities/2`,
 using pinned public summaries, never private quest/node text or latest-library
 narration. It renders every character, including legacy-summary fallbacks,
 unassigned, ended/completed and DM-controlled characters, plus an explicit empty
 roster. Ownership IDs never enter public messages. A DM-controlled active quest
 is labelled as handled by the DM rather than asking an unlinked player to submit.
+
+Renderer v3 adds the explicitly adopted **Tension-led** variant (campaign
+`tension_participation`, set from the dashboard; see the
+[operating guide](tension-led-operating-guide.md)). It tells everyone they can
+take part without a quest through Tension threads and `/intent`, omits
+"No quest decision required" lines, and keeps lines plus `/quest` guidance only
+for characters with an outstanding quest decision. The default text is unchanged.
 
 `/quest` instructions describe guild invocation, private current choices and
 submit/revise/Clear buttons while open. They do not promise resource assignment,

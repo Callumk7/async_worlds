@@ -42,6 +42,22 @@ defmodule AsyncWorldsWeb.DashboardLiveTest do
     assert has_element?(view, "#logout-link")
   end
 
+  test "DM explicitly adopts Tension-led participation and the next opening preview uses it", %{
+    conn: conn,
+    campaign: campaign
+  } do
+    {:ok, view, _html} = live(conn, ~p"/dashboard")
+    assert has_element?(view, "#participation-mode-label", "Quest-centred")
+    view |> element("#toggle-tension-participation") |> render_click()
+    assert has_element?(view, "#participation-mode-label", "Tension-led")
+    assert AsyncWorlds.Repo.reload!(campaign).tension_participation
+    view |> form("#opening-form", opening: %{narration: ""}) |> render_submit()
+    assert has_element?(view, "#opening-chunks", "without a quest")
+    view |> element("#toggle-tension-participation") |> render_click()
+    refute AsyncWorlds.Repo.reload!(campaign).tension_participation
+    assert has_element?(view, "#opening-stale")
+  end
+
   test "readiness is informational and missing choices never disable close", %{
     conn: conn,
     campaign: campaign
