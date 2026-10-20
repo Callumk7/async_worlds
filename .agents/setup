@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb (Debian 12) for AsyncWorlds: Erlang/Elixir, PostgreSQL,
+# Mix dependencies, compiled dev/test builds, databases and asset tools.
+# Idempotent: safe to rerun on a warm snapshot.
+set -euo pipefail
+
+OTP_VERSION="27.3.4.9"
+ELIXIR_VERSION="1.18.4"
+OTP_MAJOR="${OTP_VERSION%%.*}"
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+step() {
+  local name="$1"
+  shift
+  echo "[setup] start: $name"
+  local start=$SECONDS
+  "$@"
+  echo "[setup] done: $name ($((SECONDS - start))s)"
+}
+
+tools_dir="$HOME/.local/share/async_worlds-tools"
+otp_dir="$tools_dir/otp-$OTP_VERSION"
+elixir_dir="$tools_dir/elixir-$ELIXIR_VERSION-otp-$OTP_MAJOR"
+
+install_system_packages() {
+  local missing=()
+  for pkg in postgresql inotify-tools unzip; do
+    dpkg -s "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+  done
+  if ((${#missing[@]})); then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}"
+  fi
+}
+
+install_erlang() {
+  [[ -x "$otp_dir/bin/erl" ]] && return
+  local tmp
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://builds.hex.pm/builds/otp/ubuntu-22.04/OTP-$OTP_VERSION.tar.gz" -o "$tmp/otp.tar.gz"
+  mkdir -p "$tmp/otp"
+  tar -xzf "$tmp/otp.tar.gz" -C "$tmp/otp" --strip-components=1
+  (cd "$tmp/otp" && ./Install -minimal "$tmp/otp" >/dev/null)
+  mkdir -p "$tools_dir"
+  rm -rf "$otp_dir"
+  mv "$tmp/otp" "$otp_dir"
+  # Install rewrites paths to the extraction directory; redo it for the final location.
+  (cd "$otp_dir" && ./Install -minimal "$otp_dir" >/dev/null)
+  rm -rf "$tmp"
+}
+
+install_elixir() {
+  [[ -x "$elixir_dir/bin/elixir" ]] && return
+  local tmp
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://builds.hex.pm/builds/elixir/v$ELIXIR_VERSION-otp-$OTP_MAJOR.zip" -o "$tmp/elixir.zip"
+  mkdir -p "$tmp/elixir"
+  unzip -q "$tmp/elixir.zip" -d "$tmp/elixir"
+  mkdir -p "$tools_dir"
+  rm -rf "$elixir_dir"
+  mv "$tmp/elixir" "$elixir_dir"
+  rm -rf "$tmp"
+}
+
+persist_path() {
+  local marker="# async_worlds Erlang/Elixir toolchain"
+  if ! grep -Fqx "$marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >>"$HOME/.bash_profile" <<EOF
+
+$marker
+export PATH="$elixir_dir/bin:$otp_dir/bin:\$PATH"
+export ERL_AFLAGS="-kernel shell_history enabled"
+export LANG="\${LANG:-C.UTF-8}"
+EOF
+  fi
+}
+
+configure_postgres() {
+  local version conf_dir
+  version="$(ls /usr/lib/postgresql | sort -n | tail -1)"
+  conf_dir="/etc/postgresql/$version/main"
+  # Disposable sandbox: trust local connections and favour speed over durability.
+  sudo tee "$conf_dir/conf.d/orb.conf" >/dev/null <<'EOF'
+fsync = off
+synchronous_commit = off
+full_page_writes = off
+EOF
+  sudo tee "$conf_dir/pg_hba.conf" >/dev/null <<'EOF'
+local all all trust
+host all all 127.0.0.1/32 trust
+host all all ::1/128 trust
+EOF
+  # systemd owns the server, so it also starts in orbs restored from the snapshot.
+  sudo systemctl enable --now postgresql
+  sudo systemctl reload "postgresql@$version-main"
+  for _ in $(seq 1 30); do
+    pg_isready -q -h localhost && break
+    sleep 1
+  done
+  # config/{dev,test}.exs default PGUSER to the OS user.
+  if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$USER'" | grep -q 1; then
+    sudo -u postgres createuser --superuser "$USER"
+  fi
+}
+
+install_hex_rebar() {
+  mix local.hex --force --if-missing
+  mix local.rebar --force --if-missing
+}
+
+mix_deps() { mix deps.get; }
+compile_dev() { MIX_ENV=dev mix compile; }
+compile_test() { MIX_ENV=test mix compile; }
+setup_databases() {
+  MIX_ENV=dev mix ecto.create --quiet
+  MIX_ENV=dev mix ecto.migrate --quiet
+  MIX_ENV=test mix ecto.create --quiet
+  MIX_ENV=test mix ecto.migrate --quiet
+}
+setup_assets() {
+  MIX_ENV=dev mix assets.setup
+  MIX_ENV=dev mix assets.build
+}
+
+step "system packages" install_system_packages
+step "erlang $OTP_VERSION" install_erlang
+step "elixir $ELIXIR_VERSION" install_elixir
+export PATH="$elixir_dir/bin:$otp_dir/bin:$PATH"
+step "persist PATH" persist_path
+step "postgres" configure_postgres
+step "hex/rebar" install_hex_rebar
+step "mix deps.get" mix_deps
+step "compile (dev)" compile_dev
+step "compile (test)" compile_test
+step "databases" setup_databases
+step "assets" setup_assets
