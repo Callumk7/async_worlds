@@ -32,8 +32,7 @@ defmodule AsyncWorlds.Ticks.OpeningOutput do
   # Quest-free characters are not listed as having nothing to do; outstanding
   # quest decisions keep their existing line and /quest guidance.
   def render(number, channel, activities, narration, true) do
-    quests =
-      Enum.reject(activities, &(roster_line(&1) == "#{&1.name}: No quest decision required."))
+    quests = Enum.filter(activities, &(&1.decision_required == true))
 
     quest_lines =
       if quests == [], do: [], else: Enum.map(quests, &roster_line/1) ++ [@quest_instructions]

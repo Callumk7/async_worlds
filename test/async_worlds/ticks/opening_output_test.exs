@@ -34,17 +34,20 @@ defmodule AsyncWorlds.Ticks.OpeningOutputTest do
   test "Tension-led variant invites quest-free players and keeps outstanding quest decisions" do
     rows = [
       %{name: "Idle", summary: "No quest decision required.", decision_required: false},
+      %{name: "Rested", summary: "Resting after the investigation", decision_required: false},
       %{name: "Scout", summary: "Harbour work", decision_required: true, dm_controlled: false}
     ]
 
     text = OpeningOutput.render(2, "789", rows, "", true) |> Enum.map_join("", & &1.content)
+    refute text =~ "Rested"
+    refute text =~ "No quest decision required"
     assert text =~ "without a quest"
     assert text =~ "/intent confirm"
     refute text =~ "Idle"
     assert text =~ "Scout: Harbour work — Quest decision required"
     assert text =~ "Run /quest"
 
-    quest_free = OpeningOutput.render(2, "789", Enum.take(rows, 1), "", true)
+    quest_free = OpeningOutput.render(2, "789", Enum.take(rows, 2), "", true)
     refute Enum.map_join(quest_free, "", & &1.content) =~ "/quest"
   end
 
