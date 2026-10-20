@@ -140,6 +140,44 @@ defmodule AsyncWorldsWeb.TensionSynthesisLiveTest do
                  "#intent-#{battle.id}-#{people["Rook"].id}-v2 a[href='#intent-#{elsewhere.id}-#{people["Rook"].id}-v1']"
                )
 
+        rendered_context =
+          view
+          |> render()
+          |> LazyHTML.from_fragment()
+          |> LazyHTML.query("#frozen-tension-context")
+
+        text = fn selector ->
+          rendered_context
+          |> LazyHTML.query(selector)
+          |> LazyHTML.text()
+          |> String.replace(~r/\s+/, " ")
+          |> String.trim()
+        end
+
+        assert %{
+                 character: text.("#intent-#{battle.id}-#{people["Rook"].id}-v2 > p:first-child"),
+                 elsewhere:
+                   text.(
+                     "#intent-#{battle.id}-#{people["Rook"].id}-v2 a[href='#intent-#{elsewhere.id}-#{people["Rook"].id}-v1']"
+                   )
+               } == %{
+                 character: "Rook #{people["Rook"].id} · frozen v2 · confirmed · not ready",
+                 elsewhere: "Tension #{elsewhere.id} · unresolved · Ash Company"
+               }
+
+        for character <- [people["Wren"], missing, withdrawn] do
+          assert has_element?(
+                   view,
+                   "#world_context-#{battle.id} p.font-medium",
+                   "#{character.name} #{character.id} · frozen"
+                 )
+        end
+
+        context_text = LazyHTML.text(rendered_context)
+        refute context_text =~ ~S(#{)
+        refute context_text =~ "row.entry"
+        refute context_text =~ "other["
+
         assert has_element?(view, "#intent-#{battle.id}-#{missing.id}-v0", "absent")
         assert has_element?(view, "#intent-#{battle.id}-#{withdrawn.id}-v2", "withdrawn")
         assert has_element?(view, "#intent-#{elsewhere.id}-#{people["Rook"].id}-v1", "unresolved")

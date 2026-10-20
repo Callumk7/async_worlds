@@ -2,7 +2,7 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
   use AsyncWorldsWeb.ConnCase, async: false
   import AsyncWorlds.QuestFixtures
 
-  alias AsyncWorlds.{Campaigns, Characters, Clocks, Deliveries, Quests, Repo, Ticks}
+  alias AsyncWorlds.{Campaigns, Characters, Clocks, Deliveries, Quests, Repo, Tensions, Ticks}
   alias AsyncWorlds.Quests.Submissions
   alias AsyncWorlds.Ticks.{Draft, Publication, ReviewEdit, Roll, WorldResolver}
 
@@ -49,6 +49,10 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
       Characters.create_character(campaign, "456", %{name: "Player", discord_user_id: "991"})
 
     {:ok, _} = Quests.assign(campaign, "456", character.id, revision.id)
+
+    {:ok, tension} =
+      Tensions.create_tension(campaign.id, %{name: "Synthesis pressure", audience: :public}, "dm")
+
     {:ok, tick} = Ticks.open_tick(campaign.id)
     {:ok, state} = Submissions.player_state("123", "991")
     {:ok, _} = Submissions.submit("123", "991", state.identity, "roll")
@@ -63,6 +67,8 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
       snapshot: snapshot,
       draft: draft,
       clock: clock,
+      tension: tension,
+      character: character,
       url: "/api/campaigns/123/ticks/#{tick.id}"
     }
   end
@@ -98,6 +104,47 @@ defmodule AsyncWorldsWeb.TickReviewControllerTest do
       json_response(request(:get, c.url <> "/review/preview?draft_id=#{draft_id}"), 200)["data"][
         "outputs"
       ]
+
+  test "saved synthesis audits project private fields and string IDs only for the DM", c do
+    operation = %{
+      type: "synthesis",
+      tension_id: c.tension.id,
+      interpretation: "PRIVATE: leave this pressure unresolved",
+      deferred: [c.character.id]
+    }
+
+    scope = %{campaign: c.campaign, discord_user_id: "456"}
+
+    assert {:ok, %{edit: saved}} =
+             AsyncWorlds.DM.Ticks.edit_draft(
+               scope,
+               c.tick.id,
+               c.draft.id,
+               operation,
+               "Deliberate deferral"
+             )
+
+    response = request(:get, c.url <> "/review/audits")
+    assert get_resp_header(response, "cache-control") == ["no-store"]
+    [audit] = json_response(response, 200)["data"]
+    assert audit["id"] == to_string(saved.id)
+    assert audit["actor_id"] == "456"
+    assert audit["reason"] == "Deliberate deferral"
+
+    assert audit["operation"] == %{
+             "type" => "synthesis",
+             "tension_id" => to_string(c.tension.id),
+             "interpretation" => operation.interpretation,
+             "deferred" => [to_string(c.character.id)]
+           }
+
+    refute Map.has_key?(audit["operation"], "input")
+    error(get(build_conn(), c.url <> "/review/audits"), 401, "unauthenticated")
+
+    Application.put_env(:async_worlds, :dm_api, token: @token, dm_user_id: "991")
+    # API authorization conceals campaign existence from non-DMs.
+    error(request(:get, c.url <> "/review/audits"), 404, "not_found")
+  end
 
   test "manual operations remain inspectable through existing authorized review routes", c do
     operation = %{

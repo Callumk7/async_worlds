@@ -649,7 +649,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 class="rounded-lg bg-slate-950/50 p-3 space-y-1"
               >
                 <p class="font-medium text-sm">
-                  {row.name || "Character"} #{row.entry["character_id"]} · frozen v{row.entry[
+                  {row.name || "Character"} {row.entry["character_id"]} · frozen v{row.entry[
                     "version"
                   ]} · {row.entry[
                     "state"
@@ -670,7 +670,7 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 </p>
                 <p :for={other <- row.elsewhere} class="text-xs text-amber-200">
                   Also contributing:
-                  <a href={"##{AsyncWorlds.Ticks.Synthesis.anchor(other)}"} class="underline">Tension #{other[
+                  <a href={"##{AsyncWorlds.Ticks.Synthesis.anchor(other)}"} class="underline">Tension {other[
                     "tension_id"
                   ]} · {other["state"]} · {other["approach"]}</a>
                 </p>
