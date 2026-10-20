@@ -60,7 +60,7 @@ defmodule AsyncWorlds.Ticks.History do
     end
   end
 
-  @doc "Private narrative-first Tension chronicle, using immutable publication context only."
+  @doc "Legacy private Tension history API. New exploration uses the paginated Chronicle projection."
   def tension(guild_id, actor_id, tension_id) do
     with {:ok, campaign} <- Campaigns.authorize_dm(guild_id, actor_id),
          {:ok, id} <- Ecto.Type.cast(:id, tension_id) do
@@ -78,10 +78,14 @@ defmodule AsyncWorlds.Ticks.History do
        for(
          {tick_id, number, payload} <- rows,
          event <- payload["events"] || [],
-         Enum.any?(event["changes"], fn c ->
-           (c["entity"] == "tension" and published_id(payload, c["id"]) == id) or
-             (c["entity"] == "clock" and published_id(payload, c["after"]["tension_id"]) == id)
-         end),
+         Enum.any?(
+           event["references"] || [],
+           &(&1["entity"] == "tension" and published_id(payload, &1["id"]) == id)
+         ) or
+           Enum.any?(event["changes"], fn c ->
+             (c["entity"] == "tension" and published_id(payload, c["id"]) == id) or
+               (c["entity"] == "clock" and published_id(payload, c["after"]["tension_id"]) == id)
+           end),
          do: Map.merge(event, %{"tick_id" => tick_id, "tick_number" => number})
        )}
     end

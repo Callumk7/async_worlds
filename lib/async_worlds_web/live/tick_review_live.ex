@@ -145,6 +145,8 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           Map.merge(values, %{
             "key" => key,
             "action" => "replace",
+            "references_json" => Jason.encode!(event["references"] || [], pretty: true),
+            "follow_on_json" => Jason.encode!(event["follow_on"] || [], pretty: true),
             "changes_json" => Jason.encode!(event["changes"], pretty: true)
           })
 
@@ -244,6 +246,14 @@ defmodule AsyncWorldsWeb.TickReviewLive do
           "text" => p["text"],
           "kind" => p["kind"],
           "audience" => p["audience"],
+          "references" =>
+            Jason.decode!(
+              p["references_json"] || Jason.encode!((existing && existing["references"]) || [])
+            ),
+          "follow_on" =>
+            Jason.decode!(
+              p["follow_on_json"] || Jason.encode!((existing && existing["follow_on"]) || [])
+            ),
           "changes" =>
             if(p["action"] == "replace",
               do: Jason.decode!(p["changes_json"]),
@@ -445,7 +455,9 @@ defmodule AsyncWorldsWeb.TickReviewLive do
               "mode" => "countdown",
               "paused" => "false",
               "visibility" => "hidden",
-              "tension_audience" => "dm"
+              "tension_audience" => "dm",
+              "references_json" => "[]",
+              "follow_on_json" => "[]"
             },
             as: :world
           ),
@@ -872,6 +884,21 @@ defmodule AsyncWorldsWeb.TickReviewLive do
                 label="Entire bundle changes (editable JSON; replace mode only)"
                 class="admin-input"
               />
+              <.input
+                field={@world_form[:references_json]}
+                type="textarea"
+                label="Relevant entities (JSON array of entity and id; tension, location, character, faction)"
+                class="admin-input"
+              />
+              <.input
+                field={@world_form[:follow_on_json]}
+                type="textarea"
+                label="Follow-on Tensions (JSON array of new Tension references, e.g. new:development:0)"
+                class="admin-input"
+              />
+              <p class="text-xs text-slate-400">
+                Names are saved from frozen campaign context. Public Events cannot reference private Tensions. Prose must be safe for its chosen audience.
+              </p>
               <.input field={@world_form[:reason]} label="Audit reason" required class="admin-input" />
               <button id="stage-world" class="admin-button">Stage intention</button>
             </fieldset>

@@ -32,6 +32,7 @@ defmodule AsyncWorlds.Discord.Commands do
     [
       Map.put(DebugInteractions.definition(), :permission, :debug),
       JournalInteractions.definition(),
+      AsyncWorlds.Discord.ChronicleCommands.definition(),
       AsyncWorlds.Discord.IntentCommands.definition(),
       FactionCommands.definition(),
       LocationCommands.definition(),
@@ -116,6 +117,9 @@ defmodule AsyncWorlds.Discord.Commands do
 
   def route(%{name: name} = data) do
     case Enum.find(catalogue(), &(&1.name == name)) do
+      %{name: "chronicle"} ->
+        AsyncWorlds.Discord.ChronicleCommands.route(data)
+
       %{name: "intent"} ->
         AsyncWorlds.Discord.IntentCommands.route(data)
 
@@ -168,6 +172,9 @@ defmodule AsyncWorlds.Discord.Commands do
       :error -> definition
     end
   end
+
+  def execute({:chronicle, _, _} = command, context),
+    do: AsyncWorlds.Discord.ChronicleCommands.execute(command, context)
 
   def execute({:intent, _, _} = command, context),
     do: AsyncWorlds.Discord.IntentCommands.execute(command, context)

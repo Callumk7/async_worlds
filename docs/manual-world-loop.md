@@ -77,7 +77,10 @@ without mandatory prose. `/tensions/:id/history` shows the same immutable Events
 through a Tension (including Events opening newly created Tensions). The Tension
 management detail links there. These web archives are freshly DM-authorized;
 player delivery sees only the filtered public narration/clock projection. ENG-92 adds persistent Discord discussions and public developments; no new
-Discord retrieval command, typed entity graph, or historical backfill is introduced.
+Discord retrieval command, typed entity graph, or historical backfill is introduced
+by ENG-91/92. [ENG-95 connected history](connected-history.md) subsequently adds
+shared Event exploration at `/events`, typed references, stable pagination,
+follow-on/origin navigation and `/chronicle` retrieval, without historical backfill.
 
 ## Reproducible two-tick walkthrough
 

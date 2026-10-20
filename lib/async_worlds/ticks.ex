@@ -440,6 +440,11 @@ defmodule AsyncWorlds.Ticks do
           do: live,
           else: Map.delete(live, "tension_commitments")
 
+      live =
+        if Map.has_key?(snapshot.data, "event_context"),
+          do: live,
+          else: Map.delete(live, "event_context")
+
       # v1 predates character inputs. New immutable revisions may be authored
       # after close; they cannot affect the pinned frozen turn.
       live =
@@ -872,6 +877,7 @@ defmodule AsyncWorlds.Ticks do
       data
       |> Map.put("player_delivery", routes)
       |> Map.put("manual_world", true)
+      |> Map.put("event_context", AsyncWorlds.Ticks.EventReferences.freeze(campaign.id))
       |> Map.put(
         "tension_commitments",
         AsyncWorlds.TensionCommitments.freeze(campaign.id, tick.id)

@@ -46,6 +46,7 @@ defmodule AsyncWorlds.TensionDiscussions do
             do: [c["id"]],
             else: Enum.map([c["before"], c["after"]], &(&1 && &1["tension_id"]))
         end)
+        |> Kernel.++(for r <- event["references"] || [], r["entity"] == "tension", do: r["id"])
         |> Enum.reject(&is_nil/1)
         |> Enum.map(&Map.get(ids, &1, &1))
         |> Enum.uniq()

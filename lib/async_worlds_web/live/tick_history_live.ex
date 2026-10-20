@@ -207,6 +207,11 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
             Saved approved content, never reconstructed from current characters, clocks or quests.
             Missing historical names are shown as stable IDs. This is not a complete administration audit.
           </p>
+          <.link
+            id="history-chronicle"
+            navigate={~p"/events"}
+            class="mt-3 inline-block text-sm text-amber-200 hover:underline"
+          >Explore the connected Event chronicle</.link>
         </header>
 
         <%= if @history do %>
@@ -278,7 +283,14 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
                   </div>
                 <% else %>
                   <h3 class="break-words text-sm font-semibold text-amber-100">
-                    {record_title(key, item.data)}
+                    <%= if key == :events do %>
+                      <.link
+                        navigate={~p"/events/#{@history.tick.id}?#{%{"event" => item.data["id"]}}"}
+                        class="hover:underline"
+                      >{record_title(key, item.data)}</.link>
+                    <% else %>
+                      {record_title(key, item.data)}
+                    <% end %>
                   </h3>
                   <p
                     :if={record_summary(key, item.data)}
@@ -330,7 +342,11 @@ defmodule AsyncWorldsWeb.TickHistoryLive do
                   {DateTime.to_iso8601(tick.published_at)}
                 </p>
                 <p :for={event <- tick.events} class="mt-3 text-sm text-amber-100">
-                  {event["title"]} — {event["text"]}
+                  <.link
+                    navigate={~p"/events/#{tick.id}?#{%{"event" => event["id"]}}"}
+                    class="hover:underline"
+                  >{event["title"]}</.link>
+                  — {event["text"]}
                 </p>
               </div>
               <.link

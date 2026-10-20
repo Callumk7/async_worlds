@@ -14,7 +14,13 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
 
   def project(payload, data, review) do
     if data["manual_world"] do
-      initial = %{clocks: payload["clocks"], tensions: data["tensions"], events: [], changes: []}
+      initial = %{
+        clocks: payload["clocks"],
+        tensions: data["tensions"],
+        context: data["event_context"] || [],
+        events: [],
+        changes: []
+      }
 
       state =
         review
@@ -84,6 +90,7 @@ defmodule AsyncWorlds.Ticks.ManualWorld do
       (event["kind"] == "resolution" and resolved != []) or
         (event["kind"] != "resolution" and resolved == [])
 
+    event = AsyncWorlds.Ticks.EventReferences.attach(event, state, original_tensions, changes)
     saved = Map.merge(event, %{"id" => key, "changes" => changes})
     %{state | events: state.events ++ if(event["kind"] == "routine", do: [], else: [saved])}
   end

@@ -219,7 +219,11 @@ a duplicate is acceptable. Sent/pending/sending records have no retry control.
 
 ## Published tick history (ENG-39)
 
-Open **History** from the overview or review navigation. The list contains only
+**History** now opens the [connected Event chronicle](connected-history.md) at
+`/events`; use its tick archive link for the preserved `/ticks/history` screens
+described below. Events in those archives link to the same connected accounts.
+
+The archive list contains only
 published ticks, newest first, in pages of 20. Open a publication to inspect its
 publication time, selected draft/revision, frozen input identity, approved world
 news, player results, recorded dice, and source-labelled before/after consequences.

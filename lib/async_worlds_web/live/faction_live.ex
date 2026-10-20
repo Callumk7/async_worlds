@@ -143,6 +143,12 @@ defmodule AsyncWorldsWeb.FactionLive do
               </h2>
               <button id="new-faction" phx-click="new" class="admin-button admin-secondary">New</button>
             </div>
+            <.link
+              :if={@editing}
+              id="faction-event-history"
+              navigate={~p"/events?#{%{"entity" => "faction", "entity_id" => @editing.id}}"}
+              class="text-sm text-amber-200 hover:underline"
+            >Events involving this faction</.link>
             <.form for={@form} id="faction-form" phx-submit="save" class="admin-form space-y-4">
               <.input
                 field={@form[:name]}

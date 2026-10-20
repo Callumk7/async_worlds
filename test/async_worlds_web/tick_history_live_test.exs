@@ -12,13 +12,13 @@ defmodule AsyncWorldsWeb.TickHistoryLiveTest do
     {:ok, view, _} = live(conn, ~p"/ticks/history")
     assert has_element?(view, "#published-ticks-empty")
     {:ok, dashboard, _} = live(conn, ~p"/dashboard")
-    assert has_element?(dashboard, "#nav-history[href='/ticks/history']")
+    assert has_element?(dashboard, "#nav-history[href='/events']")
     {:ok, tick} = Ticks.open_tick(campaign.id)
     {:ok, %{snapshot: snapshot}} = Ticks.close_tick(campaign.id, tick.id)
     {:ok, payload} = AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)
     {:ok, _} = Ticks.put_draft(campaign.id, tick.id, snapshot.revision, payload)
     {:ok, review, _} = live(conn, ~p"/ticks/#{tick.id}/review")
-    assert has_element?(review, "#nav-history[href='/ticks/history']")
+    assert has_element?(review, "#nav-history[href='/events']")
   end
 
   test "list paginates and legacy details retain saved output with honest missing records", %{
