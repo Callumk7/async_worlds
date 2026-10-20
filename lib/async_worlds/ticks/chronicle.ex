@@ -53,6 +53,7 @@ defmodule AsyncWorlds.Ticks.Chronicle do
           later: neighbor(base, row, :later)
         }
       else
+        {:error, :invalid_filter} -> Repo.rollback(:invalid_filter)
         _ -> Repo.rollback(:not_found)
       end
     end)
@@ -77,6 +78,7 @@ defmodule AsyncWorlds.Ticks.Chronicle do
          true <- page <= div(9_223_372_036_854_775_807, @size),
          {:ok, tick} <- optional(f["tick"]),
          {:ok, through} <- optional(f["through"]),
+         true <- is_nil(through) or through <= 2_147_483_647,
          {:ok, id} <- optional(f["entity_id"]),
          true <-
            (is_nil(f["entity"]) and is_nil(id)) or

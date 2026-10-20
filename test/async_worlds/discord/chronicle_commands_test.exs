@@ -119,6 +119,35 @@ defmodule AsyncWorlds.Discord.ChronicleCommandsTest do
              )
   end
 
+  test "both subcommands register int4 history boundaries" do
+    definition = AsyncWorlds.Discord.ChronicleCommands.definition()
+
+    for subcommand <- definition.options do
+      through = Enum.find(subcommand.options, &(&1.name == "through"))
+      assert through.min_value == 1
+      assert through.max_value == 2_147_483_647
+    end
+  end
+
+  test "oversized boundaries return a private filter error, not a retry warning", x do
+    for through <- [2_147_483_648, 9_007_199_254_740_991], name <- ["list", "show"] do
+      options =
+        if name == "show",
+          do: [option("tick", "1"), option("event", "crossing"), option("through", through)],
+          else: [option("through", through)]
+
+      assert {:error, :invalid_filter} =
+               Dispatcher.handle(interaction(data(name, options)), x.opts)
+
+      assert_receive {:discord, :edit_response, {_, content}}
+      assert content =~ "Invalid chronicle filter"
+      refute content =~ "check its status"
+      assert NostrumAdapter.followup_data(content).flags == 64
+    end
+
+    refute_receive {:discord, :send_public, _}
+  end
+
   test "routing rejects forged, duplicate, missing and mistyped options" do
     assert {:ok, {:chronicle, :list, %{}}, :player} = Commands.route(data("list"))
 

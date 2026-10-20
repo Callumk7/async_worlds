@@ -131,6 +131,9 @@ defmodule AsyncWorlds.Discord.Dispatcher do
         {:error, :invalid_journal_input} ->
           "Use a nonblank title (up to 100 characters) and entry (up to 4,000 characters). Nothing was saved; run /journal new to try again."
 
+        {:error, :invalid_filter} ->
+          "Invalid chronicle filter. Use /chronicle list with valid filters; through must be between 1 and 2147483647."
+
         {:error, :unknown_command} ->
           "This command is not supported."
 

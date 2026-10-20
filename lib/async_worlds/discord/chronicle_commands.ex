@@ -27,7 +27,8 @@ defmodule AsyncWorlds.Discord.ChronicleCommands do
               name: "through",
               description: "History boundary from previous page",
               type: 4,
-              min_value: 1
+              min_value: 1,
+              max_value: 2_147_483_647
             }
           ]
         },
@@ -41,7 +42,13 @@ defmodule AsyncWorlds.Discord.ChronicleCommands do
             %{name: "entity", description: "Keep reference filter", type: 3},
             %{name: "entity_id", description: "Keep reference ID", type: 3},
             %{name: "scope_tick", description: "Keep tick filter", type: 3},
-            %{name: "through", description: "Keep history boundary", type: 4, min_value: 1}
+            %{
+              name: "through",
+              description: "Keep history boundary",
+              type: 4,
+              min_value: 1,
+              max_value: 2_147_483_647
+            }
           ]
         }
       ]

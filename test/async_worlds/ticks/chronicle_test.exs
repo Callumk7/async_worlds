@@ -219,6 +219,41 @@ defmodule AsyncWorlds.Ticks.ChronicleTest do
         )
   end
 
+  test "history boundaries fit int4 while tick and entity IDs retain bigint range", x do
+    {t, d} = close(x.c)
+    assert {:ok, %{draft: d}} = edit(x, t, d, "crossing", event(x))
+    assert {:ok, _} = Ticks.publish_tick(x.c.id, t.id, d.id)
+
+    for {actor, audience} <- [{"456", :dm}, {"111", :player}] do
+      for through <- [2_147_483_647, "2147483647"] do
+        assert {:ok, %{items: [_]}} =
+                 Chronicle.list("123", actor, audience, %{"through" => through})
+
+        assert {:ok, %{event: _}} =
+                 Chronicle.fetch("123", actor, audience, t.id, "crossing", %{"through" => through})
+      end
+
+      for through <- [0, -1, 2_147_483_648, "2147483648", 9_007_199_254_740_991] do
+        assert {:error, :invalid_filter} =
+                 Chronicle.list("123", actor, audience, %{"through" => through})
+
+        assert {:error, :invalid_filter} =
+                 Chronicle.fetch("123", actor, audience, t.id, "crossing", %{"through" => through})
+      end
+
+      for id <- [2_147_483_648, "9223372036854775807"] do
+        assert {:error, :not_found} = Chronicle.fetch("123", actor, audience, id, "crossing")
+        assert {:ok, %{items: []}} = Chronicle.list("123", actor, audience, %{"tick" => id})
+
+        assert {:ok, %{items: []}} =
+                 Chronicle.list("123", actor, audience, %{
+                   "entity" => "location",
+                   "entity_id" => id
+                 })
+      end
+    end
+  end
+
   test "typed references reject foreign, hidden and forged context; private events never affect player pages",
        x do
     {:ok, foreign} =

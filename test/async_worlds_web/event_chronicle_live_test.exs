@@ -72,6 +72,20 @@ defmodule AsyncWorldsWeb.EventChronicleLiveTest do
     assert has_element?(origin, "#read-event-#{x.tick.id}-crossing")
   end
 
+  test "oversized history boundaries redirect safely instead of crashing", x do
+    for through <- ["2147483648", "9007199254740991"] do
+      for path <- [
+            ~p"/events?#{%{"through" => through}}",
+            ~p"/events/#{x.tick.id}?#{%{"event" => "crossing", "through" => through}}"
+          ] do
+        assert {:error, {:live_redirect, %{to: "/ticks/history", flash: flash}}} =
+                 live(x.conn, path)
+
+        assert flash["error"] == "Published history unavailable."
+      end
+    end
+  end
+
   test "page controls retain filters and publication boundary; detail navigation is filtered",
        x do
     d =
