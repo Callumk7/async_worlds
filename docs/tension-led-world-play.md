@@ -1,134 +1,294 @@
 # Tension-led world play
 
-**Status:** agreed product direction; proposed incremental delivery plan. No implementation is implied by this brief. Repository companion: `docs/tension-led-world-play.md`.
+Status: **Agreed product direction; incremental delivery in progress.**
 
-## Purpose
+The manual world loop (ENG-90/ENG-91) is implemented; see
+[the Tension demo](eng-90-demo.md) and [manual world loop](manual-world-loop.md).
+The remaining slices below describe planned delivery, not completed capabilities.
 
-Shift from progressing through authored content to participating in a world that is already moving. The mechanical toolkit should be small; richness comes from discussion, DM interpretation, fictional consequences, and explorable history. The app gathers intentions, supports adjudication, and preserves an understandable account of what happened. It does not need to understand every possible player action.
+- [Linear project: Tensions, Intentions & Living History](https://linear.app/warp-monster/project/async-worlds-tensions-intentions-and-living-history-6d32d6af4c50)
+- [Linear product and delivery brief](https://linear.app/warp-monster/document/tension-led-world-play-agreed-direction-and-incremental-delivery-760f20be8007)
 
-This replaces the quest-centred participation direction, not completed infrastructure or existing quest/history support. Do not automatically cancel or move older Linear issues.
+## 1. Purpose
 
-## Agreed concepts
+Shift Async Worlds from progressing through authored quest nodes to participating
+in an evolving world. Keep the mechanical vocabulary small; put the richness in
+player discussion, DM interpretation, fictional consequences, and explorable
+history.
 
-### Tensions
+The app gathers intentions, supports adjudication, and preserves an understandable
+history. It does not need to understand or execute every possible player action.
 
-A Tension is an unsettled situation: a battle, threatened harvest, uneasy succession, or developing settlement. It explains current circumstances and stakes. The Reach is a location; the struggle for control of the Reach is a Tension. A situation may involve existing locations, characters, and factions without a general-purpose relationship graph.
+This direction supersedes the quest-centred participation model in
+[Flexible actions and visible campaign activity](flexible-actions-plan.md).
+Existing quests, published history, and safe tick infrastructure remain supported;
+this is not an instruction to delete them or automatically cancel older issues.
 
-Tensions continue without player engagement. They may develop across many ticks, change substantially, or give rise to other Tensions without resolving. Do not rebuild the quest graph under another name.
+## 2. Agreed concepts
 
-### Clocks and influences
+### Tensions: unsettled situations
 
-Several clocks may describe different pressures within a Tension. Make position, influences, and possible consequences understandable. Clocks may advance or recede; a tug-of-war can have meaningful outcomes at both empty and full. Reaching an endpoint can prompt the DM to adjudicate rather than execute an authored outcome tree.
+A Tension is an ongoing situation in flux: a battle, a threatened harvest, an
+uneasy succession, or a settlement being established. It describes the current
+circumstances, what is at stake, and why the situation matters.
 
-Begin with descriptive influences, manual signed adjustments, and existing background progression where appropriate. Calculated modifiers and resource allocation are not prerequisites. Inspect legacy full-clock latching, race ordering, triggers, and frozen snapshot contracts before integrating new manual behaviour; do not inherit an arbitrary clock-ID or submission-order winner rule or silently change older resolutions.
+A location is not itself a Tension: the Reach is a place; the struggle for control
+of the Reach is a Tension. Tensions can involve existing locations, characters,
+and factions without requiring a general-purpose relationship graph.
 
-### Broad player intentions
+Tensions exist independently of player participation. Players can intervene,
+ignore them, or pursue an unexpected approach. Unattended situations still develop.
+A Tension can persist across many ticks and can change substantially without
+being resolved. Do not replace quest graphs with mandatory Tension graphs.
 
-Players describe what they want to accomplish in their own words. Discussion includes coordination, questions, plans, and fictional detail. A separate confirmation identifies committed intent; neither discussion nor confirmation establishes success.
+### Clocks: changing pressures
 
-A minimal entry has intention text and optional approach/resource text. It is not a prescribed action menu or tactical form. Commitments can be revised or withdrawn before closing. Characters may contribute to several Tensions when the fiction permits; the DM judges attention and conflicting commitments. No universal one-action-per-character limit or action-point economy.
+A Tension can have multiple clocks. They represent progress, pressure, or a
+changing balance, not necessarily a task players must complete.
 
-### Events and Resolutions
+Keep three ideas understandable:
 
-An Event records an established change: a death, resource change, agreement, discovery, territorial change, or other meaningful development. A Resolution is an Event settling a Tension. One DM-written title and short description can explain several mechanical changes; an Event can also matter without moving a clock.
+- **Position:** where the clock currently stands.
+- **Influences:** what is pushing it in either direction, and why.
+- **Consequences:** what an endpoint or threshold might mean.
 
-Permanent means the occurrence remains part of history, not that its consequences are irreversible. A destroyed bridge can be rebuilt; the destruction still happened. Published context must not silently change when current entities are renamed or edited. Events need not snapshot the whole world, and the application need not become event-sourced.
+A clock can be a countdown or a tug-of-war with meaningful outcomes at both ends.
+An endpoint can prompt DM adjudication; it need not execute an authored outcome
+tree or automatically settle the entire Tension. New Tension play must not
+inherit an arbitrary first-submission or clock-ID winner rule.
 
-Routine background progression remains inspectable without mandatory prose. The chronicle leads with meaningful developments rather than a wall of +1 entries; mechanical details sit underneath.
+Begin with descriptions, signed adjustments, and existing background progression
+where suitable. Structured, calculated influences are not a prerequisite.
 
-## The tick is the unit of play
+### Intentions: what players want to accomplish
 
-**Discuss the coming period → confirm broad commitments → close/freeze → DM adjudicate/review → publish the period's established changes.**
+Players write broad intentions in their own words. Discussion can include plans,
+questions, coordination, and fictional detail. A separate explicit confirmation
+identifies the player's actual commitment; conversation is not automatically an
+action, and a confirmed intention is not proof of success.
 
-* Opening shows ongoing Tensions and current visible circumstances, clocks, and influences in persistent Tension threads.
-* Players coordinate and confirm broad efforts over the abstract period, not individual combat manoeuvres or dialogue exchanges. The DM may clarify feasibility without resolving outcomes early.
-* Readiness is a signal to the DM, not a mandatory action quota. Missing and unresolved commitments are visible and deliberately handled. The DM can close without every player submitting; absence does not stop background world progression.
-* Closing freezes commitments and world inputs. The DM considers all intentions and ongoing pressures together. Submission order does not decide fictional order or outcomes.
-* Review stages clock/Tension changes and Event bundles. Publication establishes them together and carries unresolved situations into the next tick.
+A useful minimal entry is intention text plus optional approach and resource
+commitment text. These are not mandatory tactical forms or prescribed action lists.
+Players can revise or withdraw commitments until closing.
 
-No real-time or mid-tick consequence engine. Preserve the existing close → resolving → in review → published lifecycle, frozen inputs, authorized operations, review controls, and atomic publication. Staged review operations must not bypass clock management locks.
+There is no universal one-action-per-character-per-tick limit. A character can
+contribute to several Tensions when the fiction permits. The DM judges competing
+attention and resource commitments; no action-point system is required.
 
-## Small DM toolkit and workspace
+Players are describing efforts over a broad period, not submitting individual
+combat manoeuvres, dialogue exchanges, or a queue of smaller executable actions.
 
-* Move a clock forward/backward.
-* Create/change a clock and its ongoing progression or influence description.
-* Record an Event and optionally attach the changes it explains.
-* Open, develop, or resolve a Tension.
+### Events: established changes
 
-Freeform intentions do not need conversion into released quest choices, executable action templates, or a dice DSL. Existing quest/dice tools can remain without gating new play.
+An Event records what actually happened. Deaths, resource changes, territorial
+changes, agreements, and discoveries can all matter. A Resolution is an Event
+that settles a Tension. Other Events develop or transform an ongoing Tension.
 
-The DM workspace groups current circumstances, all relevant intentions and resources, background pressures, clocks, and draft Events by Tension. It supports synthesis, not a tactical initiative queue.
+A DM-written title and short description can bundle several mechanical changes.
+An Event can also matter without changing a clock. It need not contain a complete
+copy of world state, and this direction does not require event-sourcing the app.
 
-## History is gameplay
+Permanent means the occurrence remains part of history, not that its consequences
+can never change. A destroyed bridge can be rebuilt; its destruction still happened.
+Published records must not silently change when current names or state are edited.
 
-Maintain one connected set of Events viewed through:
+Routine background movement remains inspectable without mandatory narrative for
+every adjustment. The default chronicle shows meaningful developments, not a wall
+of +1 entries. Mechanical details explain the account when expanded.
 
-* Campaign chronicle.
-* Tick recap.
-* Tension history.
-* Existing location, character, and faction histories.
+## 3. The tick is the unit of play
 
-Show what happened, when, who/what was involved, what changed, and what it led to. One Event may concern several entities/Tensions without duplicate journal entries. A new Tension can link back to the Event that opened it.
+A tick represents a fixed but abstract period. Commitments and background pressures
+are considered together as a coherent period of world change:
 
-Start with a simple campaign/tick/Tension list and readable detail. Add typed existing-entity links, filtering/pagination, and follow-on navigation as the next layer. Player retrieval should work through Discord without requiring a new player web app. No graph editor, semantic search, or full legacy-history backfill.
+**Discuss the period → confirm broad commitments → close → DM adjudicates and
+reviews → publish established changes.**
 
-Preserve publication and privacy throughout. Hidden clocks, unpublished outcomes, and private references must not leak through titles, links, counts, or thread briefings. Start with a minimal explicit audience policy; per-character knowledge and secret-thread infrastructure are not required. Prose is not automatically redactable.
+1. **Open:** show current ongoing Tensions, their visible clocks/influences, and an
+   updated briefing in each Tension's persistent discussion thread.
+2. **Discuss:** players coordinate and explore approaches; the DM clarifies
+   feasibility and likely consequences without establishing outcomes early.
+3. **Commit:** players explicitly confirm intentions and resources. A readiness
+   signal helps the DM see who is finished, not enforce a mandatory action quota.
+4. **Close:** freeze the latest commitments and relevant world inputs. The DM can
+   close deliberately without every player submitting; missing or unresolved
+   commitments must be visible and explicitly handled rather than silently lost.
+5. **Adjudicate and review:** the DM considers the period as a whole, applies the
+   small toolkit to a draft, and writes meaningful Events.
+6. **Publish:** establish clock/Tension changes and Events together; deliver the
+   recap and carry ongoing situations into the next tick.
 
-## Resources: descriptive first
+Submission order must not decide fictional action order or outcomes. A dormant
+thread or absent player does not freeze background world progression. No automatic
+closing or real-time/mid-tick consequence engine is required.
 
-The fiction may include consumables such as gold/provisions and persistent assets such as mercenaries/ships. An asset can become unavailable elsewhere or face risk without behaving like spendable points.
+Keep the useful existing close → resolving → in review → published boundary,
+frozen inputs, review controls, and atomic publication. New review-time changes
+must be staged through that boundary, not bypass current management locks.
 
-Initially record commitments as text and adjudicate them manually. No inventory, automated spending, allocation solver, or calculated bonuses. Add named assets/availability or structured ongoing influences only after a playtest reveals a concrete tracking problem. This conditional follow-up is not required to accept the core project.
+## 4. The DM's small toolkit
 
-## Worked example
+- Move a clock forward or backward.
+- Create or change a clock, including its ongoing progression/influence description.
+- Record an Event, optionally attaching the mechanical changes it explains.
+- Open, develop, or resolve a Tension.
 
-**Battle in the Reach** has a balance-of-battle clock (empty: elven victory; full: goblin victory), elven supply exhaustion, and arriving goblin reinforcements. Begin the balance away from either endpoint.
+The DM interprets freeform intentions directly. Do not require translating them
+into released quest choices, executable action templates, a dice DSL, or a new
+rules engine. Existing dice and quest tools need not be removed, but are not
+prerequisites for this loop.
 
-A player commits: “I devote my efforts to strengthening the elven position, committing the Ash Company and seeking support from neighbouring lords.”
+A resolution workspace should gather, by Tension, current circumstances, relevant
+intentions, resource commitments, background influences, clocks, and draft Events.
+It is a workspace for synthesis, not a tactical initiative queue.
 
-At resolution, the DM considers all commitments and background pressures and drafts **The Ash Company holds the crossing**: mercenaries repel assaults and buy time for villagers to escape, but their captain is wounded.
+## 5. History is part of play
 
-This one Event can explain backward goblin progress, a completed evacuation clock, and a new Tension around the captain. Everything becomes established at publication. The battle can continue next tick. Players can follow the same account through the battle, the Reach, involved entities, the tick recap, or the follow-on Tension.
+Maintain one connected set of published Events with different views:
 
-## Incremental delivery and verification
+- Campaign chronicle: what has happened in the world?
+- Tick recap: what changed during this period?
+- Tension history: how did this situation develop?
+- Location, character, or faction history: what happened involving this entity?
 
-### 1. Manual world loop
+An Event should make it possible to understand what happened, when, who/what was
+involved, what changed, and what it led to. One Event may concern multiple
+Tensions/entities without duplicate copies in separate journals.
 
-1. DM-manage Tensions and their clocks: create/edit/detail, current circumstances, endpoint/influence text, and active/resolved presentation; retain standalone clocks.
-2. Stage manual end-of-tick changes and Event bundles, preview and publish atomically, and read basic campaign/tick/Tension history. Demonstrate two ticks with no player submissions, one continuing situation and one Resolution.
+Start with a simple campaign/tick/Tension list and readable detail view. Add typed
+links to existing entities, filtering, pagination, and follow-on Tension navigation
+as the next layer. Keep past context readable if live entities change. Do not
+invent a graph editor, semantic search, or a comprehensive legacy-history import.
 
-### 2. Player discussion and resolution
+History must respect publication and visibility. A hidden clock, unpublished
+outcome, private reference, or DM-only account must not leak through titles,
+counts, links, thread briefings, or search results.
 
-3. Persistent Discord threads and opening briefings, plus published developments. Reuse durable delivery and controlled recovery; do not promise exactly-once external delivery.
-4. Character-owned freeform confirmations across Tensions, revisions/withdrawals, optional resource text, readiness, DM retrieval, and frozen close inputs. No quest requirement.
-5. Consolidated Tension-centred resolution workspace over the same staged review/publication operations, not a second rules engine.
+## 6. Resources: begin descriptively
 
-### 3. Connected history and adoption
+The fiction may include consumables (gold, provisions, favour) and persistent
+assets (mercenaries, ships, spy networks). Committing an asset can make it
+unavailable elsewhere or expose it to risk, rather than simply spending points.
 
-6. Extend the basic chronicle with existing-entity links, filters/pagination, and navigation into follow-on Tensions.
-7. Rehearse a multi-tick disposable Discord campaign. Record evidence and a short DM/player guide; expose quest-free participation without damaging existing campaigns or published records.
+For the first playable loop, record commitments as text and let the DM adjudicate
+them. Do not require an inventory, automated spending, allocation solver, or
+calculated clock bonuses. Record relevant resulting changes in Events using the
+supported world tools. Add named assets/availability and explicit ongoing
+influences only if playtesting shows that descriptive tracking is insufficient.
+
+This is a delivery simplification, not a decision that all resources must remain
+unstructured forever.
+
+## 7. Worked example: Battle in the Reach
+
+An ongoing Tension concerns goblins advancing against elven defenders. Its clocks
+include a balance of battle (full: goblin victory; empty: elven victory), elven
+supply exhaustion, and approaching goblin reinforcements. Begin the balance clock
+away from either endpoint so the opening situation is unresolved.
+
+A player commits: “I devote my efforts to strengthening the elven position,
+committing the Ash Company and seeking support from neighbouring lords.” Other
+players can coordinate, contribute differently, or ignore the battle.
+
+At tick resolution the DM considers all commitments and background pressures,
+then drafts **The Ash Company holds the crossing**: the mercenaries repel two
+assaults and buy time for villagers to escape, but their captain is wounded.
+
+That single Event can explain a backward movement of goblin advance, completion
+of an evacuation clock, and a new Tension concerning the wounded captain. These
+become established together at publication. The battle may continue next tick.
+
+Players can later follow the account from the battle, the Reach, an involved
+character/faction, the tick recap, or the new Tension without separate journal
+entries being maintained.
+
+## 8. Incremental delivery
+
+These are proposed implementation slices, not additional game rules. Each ships a
+usable vertical slice with automated coverage and a reproducible demonstration.
+No all-at-once rewrite, speculative subsystem, or design-only foundation phase.
+
+### A. Manual world loop
+
+1. **Manage Tensions and their clocks.** DM create/edit/detail, active/resolved
+   presentation, clock association, circumstances and endpoint/influence text.
+   Verify a multi-clock situation and retain existing standalone clocks.
+2. **Adjudicate ticks into Events and basic history.** Stage manual changes and
+   Event bundles, preview, publish atomically, and read a simple campaign/tick/
+   Tension chronicle. Verify two ticks with no player commitments, including a
+   continuing and a resolved Tension. This is the first usable world simulation.
+
+### B. Player discussion and resolution
+
+3. **Persistent Discord Tension threads and briefings.** Create/reuse one logical
+   discussion thread per visible ongoing Tension, update at opening, and post
+   published developments. Reuse durable delivery and controlled recovery.
+4. **Freeform commitments and readiness.** Character-owned confirmations across
+   Tensions, revisions/withdrawals, optional resource text, DM retrieval, and
+   frozen close inputs. No quest requirement or global single-action limit.
+5. **Tension-centred DM resolution workspace.** Bring commitments, background
+   movement, clocks, and Event bundles together, using the same staged review and
+   publication operations delivered earlier.
+
+### C. Connected history and adoption
+
+6. **Explore connected history.** Extend the existing chronicle with entity links,
+   filters/pagination, and causal navigation into follow-on Tensions. Provide
+   player retrieval from Discord without requiring a new player web application.
+7. **Rehearse and adopt the loop.** Run a multi-tick disposable Discord campaign,
+   record acceptance evidence and a short operating guide, and make quest-free
+   participation discoverable without damaging existing campaigns/history.
 
 ### Conditional follow-up
 
-8. Only if the rehearsal demonstrates a need, add the smallest useful named-resource/availability or ongoing-influence layer. Keep the manual route. No mandatory economy or rules engine.
+8. **Named resources and ongoing influences, only if needed.** After rehearsal,
+   identify a concrete tracking problem before implementing a minimal asset/
+   availability or influence layer. Keep the manual route; no generic rules engine.
+   This issue is not a prerequisite for accepting the core project.
 
-Every implementation slice includes automated acceptance tests and a reproducible demonstration. Verify campaign isolation, fresh authorization, public/known/hidden clock projections, frozen-input safety, no draft leakage, atomic rollback, retry-safe publication, and controlled external delivery. Use focused tests and `mix precommit`; process tests use supervised processes and message/monitor coordination, not sleeps.
+### Tracked delivery chunks
 
-## Explicitly deferred
+| Issue | Deliverable | Depends on |
+| --- | --- | --- |
+| [ENG-90](https://linear.app/warp-monster/issue/ENG-90) | DM-managed Tensions and clocks | — |
+| [ENG-91](https://linear.app/warp-monster/issue/ENG-91) | Manual tick Events and basic chronicle | ENG-90 |
+| [ENG-92](https://linear.app/warp-monster/issue/ENG-92) | Persistent Discord threads and briefings | ENG-91 |
+| [ENG-93](https://linear.app/warp-monster/issue/ENG-93) | Freeform commitments and readiness | ENG-92 |
+| [ENG-94](https://linear.app/warp-monster/issue/ENG-94) | Tension-centred DM resolution workspace | ENG-93 |
+| [ENG-95](https://linear.app/warp-monster/issue/ENG-95) | Connected history exploration | ENG-91, ENG-92 |
+| [ENG-96](https://linear.app/warp-monster/issue/ENG-96) | Multi-tick rehearsal, guide, and adoption | ENG-94, ENG-95 |
+| [ENG-97](https://linear.app/warp-monster/issue/ENG-97) | Conditional named resources/influences | ENG-96; evidence required |
 
-Automatic natural-language interpretation, AI adjudication, tactical actions, automatic outcome graphs, a generic modifier/economy system, individual knowledge permissions, destructive quest replacement, full historical imports, and automatic cancellation of older projects/issues. Reconcile quest-centred proposal/adaptation work and separate lore retrieval explicitly when adopting this direction.
+The first seven issues form the three core milestones. ENG-97 is deliberately
+outside them and is not an acceptance dependency. The dependency links describe
+the delivery order; consult Linear for current issue status, owners, and dates.
 
-## Tracked delivery chunks
+## 9. Boundaries, verification, and outstanding choices
 
-| Issue | Deliverable | Dependency |
-| -- | -- | -- |
-| [ENG-90](<https://linear.app/warp-monster/issue/ENG-90>) | Manage Tensions and clocks | Start here |
-| [ENG-91](<https://linear.app/warp-monster/issue/ENG-91>) | Manual tick Events and basic chronicle | [ENG-90](https://linear.app/warp-monster/issue/ENG-90/manage-tensions-and-their-clocks-through-the-dm-console) |
-| [ENG-92](<https://linear.app/warp-monster/issue/ENG-92>) | Persistent Discord threads and briefings | [ENG-91](https://linear.app/warp-monster/issue/ENG-91/publish-manually-adjudicated-tick-events-and-a-basic-world-chronicle) |
-| [ENG-93](<https://linear.app/warp-monster/issue/ENG-93>) | Freeform commitments and readiness | [ENG-92](https://linear.app/warp-monster/issue/ENG-92/open-persistent-discord-tension-threads-with-tick-briefings-and) |
-| [ENG-94](<https://linear.app/warp-monster/issue/ENG-94>) | Tension-centred DM workspace | [ENG-93](https://linear.app/warp-monster/issue/ENG-93/confirm-freeform-tension-commitments-and-readiness-without-quest-or) |
-| [ENG-95](<https://linear.app/warp-monster/issue/ENG-95>) | Connected history exploration | [ENG-91](https://linear.app/warp-monster/issue/ENG-91/publish-manually-adjudicated-tick-events-and-a-basic-world-chronicle), [ENG-92](https://linear.app/warp-monster/issue/ENG-92/open-persistent-discord-tension-threads-with-tick-briefings-and) |
-| [ENG-96](<https://linear.app/warp-monster/issue/ENG-96>) | Multi-tick rehearsal and adoption | [ENG-94](https://linear.app/warp-monster/issue/ENG-94/resolve-broad-tick-commitments-in-a-tension-centred-dm-workspace), [ENG-95](https://linear.app/warp-monster/issue/ENG-95/explore-one-connected-event-history-through-tensions-ticks-and-world) |
-| [ENG-97](<https://linear.app/warp-monster/issue/ENG-97>) | Conditional resources/influences | [ENG-96](https://linear.app/warp-monster/issue/ENG-96/rehearse-and-adopt-the-tension-led-loop-in-a-multi-tick-discord) plus evidence |
+Every slice must preserve campaign isolation, fresh authorization, existing
+public/known/hidden clock projections, frozen-input safety, inspectable history,
+and retry-safe publication/delivery. Verify transaction rollback leaves no partial
+world/history/delivery writes and that unpublished drafts do not leak to players.
+Drafts are not public facts. Do not promise
+exactly-once Discord delivery or rewrite published records to recover a failure.
+Run focused tests and `mix precommit`; process tests use supervised processes and
+message/monitor coordination rather than sleeps.
 
-The first seven issues form the three core milestones. [ENG-97](https://linear.app/warp-monster/issue/ENG-97/conditional-follow-up-add-named-resources-or-explicit-influences-only) is deliberately outside them and is not an acceptance dependency. All are initially Backlog, with no invented owners or dates. Each issue contains scope boundaries, observable acceptance, test expectations, and a concrete demo.
+The initial visibility proposal is campaign-visible Tensions/Events plus DM-only
+drafts/notes, preserving existing clock secrecy. Confirm the smallest explicit
+policy before player-facing implementation; per-character knowledge and secret
+thread infrastructure are not prerequisites. An Event's text and references must
+be safe for its audience; do not assume prose can be automatically redacted.
+
+Before touching resolution, inspect the existing automatic full-clock latching,
+race ordering, trigger semantics, and snapshot versions. Introduce explicit
+Tension/manual behaviour without silently changing legacy resolution. Existing
+clock association should be simple initially; shared-clock semantics across
+multiple Tensions are not required.
+
+Older quest-centred proposal/adaptation issues and separate lore retrieval work
+need explicit reconciliation when adopted; do not automatically cancel or move
+them. Preserve completed opening/delivery/world-model work and legacy published
+history. Deprecation, migration, secret knowledge, resource automation, automatic
+outcome graphs, AI adjudication, and moment-to-moment play remain out of scope
+unless separately agreed.
