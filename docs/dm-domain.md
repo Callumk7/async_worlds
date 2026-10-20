@@ -50,7 +50,7 @@ continue using them directly. Published history uses `Ticks.History`'s DM
 boundary. Player projections and Discord’s player-visible clock reads are
 separate from DM administrative access and remain unchanged.
 
-HTTP endpoint implementation comes in subsequent issues. Controllers should pass
-`conn.assigns.current_scope` to these wrappers, not call the lower-level APIs with
-only a database campaign ID. Reminders still require their existing request ID;
-transport-neutral request identifiers are a separate issue.
+The implemented [HTTP APIs](http-api.md) pass `conn.assigns.current_scope` to
+these wrappers, not just a database campaign ID to lower-level APIs. HTTP reminders
+require a generic `Idempotency-Key`; Discord supplies its interaction ID. Both
+use the same guarded, deduplicated reminder intents; see [HTTP ticks](http-ticks.md).

@@ -1,8 +1,7 @@
 defmodule AsyncWorldsWeb.JournalController do
   use AsyncWorldsWeb, :controller
   alias AsyncWorlds.Journals
-  alias AsyncWorldsWeb.{ApiParams, ApiRequest, ApiResponse}
-  @cursor_salt "http-journal-cursor-v1"
+  alias AsyncWorldsWeb.{ApiParams, ApiRequest, ApiResponse, ApiTokens}
   @delete_salt "http-journal-delete-v1"
 
   def index(conn, _params) do
@@ -92,36 +91,19 @@ defmodule AsyncWorldsWeb.JournalController do
   defp confirmation(_), do: {:error, :invalid_parameters}
 
   defp cursor(conn, id) do
-    case conn.query_params["cursor"] do
-      nil ->
-        {:ok, nil}
-
-      token ->
-        with {:ok, %{subject: subject, cursor: cursor}} <-
-               verify(@cursor_salt, token, :invalid_cursor),
-             true <- subject == subject(conn, id) do
-          {:ok, cursor}
-        else
-          _ -> {:error, :invalid_cursor}
-        end
-    end
+    ApiTokens.decode_cursor(
+      conn.assigns.current_scope,
+      "character:#{id}:journals",
+      conn.query_params["cursor"]
+    )
   end
 
-  defp sign_cursor(_conn, _id, nil), do: nil
+  defp sign_cursor(conn, id, cursor) do
+    {:ok, token} =
+      ApiTokens.cursor(conn.assigns.current_scope, "character:#{id}:journals", cursor)
 
-  defp sign_cursor(conn, id, cursor),
-    do:
-      Phoenix.Token.sign(AsyncWorldsWeb.Endpoint, @cursor_salt, %{
-        subject: subject(conn, id),
-        cursor: cursor
-      })
-
-  defp subject(conn, id),
-    do: %{
-      campaign: conn.assigns.current_scope.campaign.id,
-      actor: conn.assigns.current_scope.discord_user_id,
-      character: id
-    }
+    token
+  end
 
   defp verify(_salt, nil, _reason), do: {:error, :precondition_required}
 

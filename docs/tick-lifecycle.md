@@ -50,7 +50,7 @@ renderer privacy, drift rejection, and atomicity. The `/4` callback form remains
 an internal trusted transaction primitive, not an interface-level publication API.
 No network I/O or other irreversible effects belong in publication transactions.
 
-## Frozen snapshot versions 1 and 2
+## Frozen snapshot versions 1, 2 and 3
 
 Snapshots are DM-only and contain:
 
@@ -63,14 +63,19 @@ Snapshots are DM-only and contain:
   quest choices, resource assignments, background rates, clock triggers, then
   quest conditions. Resource inputs remain reserved.
 
-New closes use version 2 and also freeze quest submissions, pinned revisions,
-character positions/flags and trigger target inputs. Missing or invalid choices
-are not turns or penalties. See [quest-submissions.md](quest-submissions.md) for
-identity, intervention, revalidation and readiness rules. Version 1 remains
-readable. The world-only executor explicitly refuses submitted quest work until
-ENG-18; it cannot drop choices while publishing world changes.
+Version 2 added quest submissions, pinned revisions, character positions/flags
+and trigger target inputs. Missing or invalid choices are not turns or penalties.
+See [quest-submissions.md](quest-submissions.md) for identity, intervention,
+revalidation and readiness rules. The implemented executor resolves quest work
+with durable recorded dice; see [world resolution](world-resolution.md).
 
-New v3 snapshots also include private `tension_commitments`: exact latest versions,
+New closes use version 3, adding frozen personal delivery routes, Tension/manual
+world context and typed Event references. `manual_world: true` preserves legacy
+standalone-clock behavior while Tension endpoints prompt DM adjudication rather
+than automatically completing/firing triggers; see [manual world loop](manual-world-loop.md).
+Versions 1/2 and earlier v3 snapshots remain supported without rewriting them.
+
+Current v3 snapshots also include private `tension_commitments`: exact latest versions,
 confirmed/unresolved/withdrawn states, optional descriptive approach/resources,
 readiness and absent-character participation. The same campaign lock serializes
 commitment writes against close. This optional extension does not execute intentions;

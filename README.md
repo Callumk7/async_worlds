@@ -1,9 +1,15 @@
 # AsyncWorlds
 
 A Phoenix campaign engine with PostgreSQL persistence. The active direction is
-[Flexible actions and visible campaign activity](docs/flexible-actions-plan.md).
-The [original MVP outline](docs/archive/project-outline.md) and
+[Tension-led world play](docs/tension-led-world-play.md). Start with the
+[DM and player operating guide](docs/tension-led-operating-guide.md) for the
+implemented loop and [rehearsal record](docs/tension-led-rehearsal.md) for outstanding
+live Discord validation. Existing quest campaigns remain supported.
+The [flexible-actions plan](docs/flexible-actions-plan.md),
+[original MVP outline](docs/archive/project-outline.md) and
 [implementation plan with closeout](docs/archive/project-plan.md) are historical baselines.
+See the [documentation audit](docs/documentation-audit.md) for implementation/test
+coverage and remaining verification boundaries.
 
 For production releases, runtime secrets/TLS, migration and campaign setup,
 health probes, single-bot rollouts, backup/restore and the repeatable external-DB
@@ -94,31 +100,38 @@ authorization boundaries and rotation.
 The optional supervised Nostrum bot is disabled by default. See
 [Discord setup and operating notes](docs/discord.md) for installation,
 runtime secrets, repeatable `mix discord.register_commands`, permissions and
-live smoke-test steps. ENG-3 registers and secures the milestone-1 commands;
-actual command behavior is implemented later. Normal tests always stay offline.
+live smoke-test steps. Tick controls, private character/quest/result retrieval,
+journals, Tension intentions, the Event chronicle and DM testing personas are
+implemented. Normal tests always stay offline.
 
-## World-only draft engine
+## Tick resolution and DM review
 
-`AsyncWorlds.Ticks.WorldResolver.resolve(snapshot)` deterministically resolves a
-frozen version-1 `Ticks.Snapshot` into a DM-only, JSON-compatible draft. It applies
-background rates and world triggers without database writes or Discord calls.
+`AsyncWorlds.Ticks.WorldResolver` deterministically resolves frozen world and quest
+inputs into a DM-only, JSON-compatible draft. Current closes use version-3
+snapshots; legacy version-1/2 snapshots remain supported. The pure engine applies
+quest effects, background rates and world triggers without database writes or
+Discord calls. Tension intentions are frozen for explicit DM adjudication, not
+automatically interpreted as effects.
 See [resolution decisions and the draft contract](docs/world-resolution.md).
 Closing now atomically queues an Oban resolution job, which persists the draft
 and moves the tick to review. The durable delivery outbox supports public/private
 sends and targeted failure retries; see [durable work](docs/durable-work.md).
 Audited edits and atomic publication are available through the private DM console.
 See [the console operating guide](docs/dm-console.md) for the dashboard, clock
-forms, review/preview/publish workflow, and targeted delivery retries. Gameplay
-Discord command wiring remains follow-up work. Run `mix ecto.migrate` before
-starting this version.
+forms, review/preview/publish workflow, and targeted delivery retries. The
+[Tension synthesis workspace](docs/tension-synthesis.md) adds private interpretation
+and staged Event bundles to this same publication boundary. Run `mix ecto.migrate`
+before starting an upgraded version.
 
 ## Characters
 
-The minimal DM bootstrap at `/characters` links Discord players and manages
-strictly typed flags with explicit visibility. `/character` privately retrieves
-only the invoking member's permitted state. See [character APIs and security
-boundaries](docs/characters.md). Apply migrations and re-register guild commands
-when upgrading; no quest/resource or full authoring admin is included yet.
+The DM editor at `/characters` links Discord players, supports DM-controlled
+characters and manages strictly typed flags with explicit visibility. `/character`
+privately retrieves only the invoking member's permitted state. See
+[character APIs and security boundaries](docs/characters.md). Quest assignment and
+authoring are available at `/quests` and `/quests/library`; see
+[quest operations](docs/quest-operations.md). Resource accounting is not implemented.
+Apply migrations and re-register guild commands when upgrading.
 
 ## Link history foundation
 
@@ -126,8 +139,10 @@ when upgrading; no quest/resource or full authoring admin is included yet.
 for future timelines. Trusted domain callbacks commit current-state writes and
 history atomically; changes belong to the open tick or otherwise the next tick,
 even before its row exists. See [the writer/query contract](docs/link-history.md).
-Run `mix ecto.migrate` when upgrading. Membership and location hierarchy interfaces
-remain follow-up work; this foundation adds no player outputs or gameplay effects.
+[Memberships](docs/memberships.md) and [location hierarchy](docs/locations.md) use
+this foundation through shared domain operations, DM console controls and HTTP
+APIs. They add no player relationship outputs or gameplay effects. Run
+`mix ecto.migrate` when upgrading.
 
 ## Local development credentials
 

@@ -261,6 +261,7 @@ refresh delivery status without rewriting approved content.
    longer be accessible. Never use production credentials for this checklist.
 
 These screens are the playable administrator, not an advanced graph editor or
-complete administration audit. Gameplay Discord commands remain ENG-10. The console
+complete administration audit. Implemented gameplay Discord commands are documented
+in the [Discord guide](discord.md). The console
 uses streams for displayed collections, shared core input/icon components,
 accessible labelled forms, keyboard focus styles, and reduced-motion-aware UI.

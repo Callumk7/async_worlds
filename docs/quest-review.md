@@ -1,4 +1,7 @@
-# ENG-20 quest review decisions (before implementation)
+# Quest review and publication (ENG-20)
+
+Implemented through the shared tick pipeline, DM console and
+[HTTP review API](http-tick-review.md).
 
 Review retains the original frozen submissions, pinned revision/node/position and
 choice identity. A selected die is identified by the ENG-18 JSON identity tuple;

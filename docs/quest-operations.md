@@ -41,8 +41,8 @@ copy**. Working copies are persistent but never appear in assignment controls.
    (up to 1000 bytes), separate from that private narrative. Use safe public text
    such as “Investigating the harbour”; leave it blank for generic text or secret
    quests. Save/reopen/release preserves summaries, but new releases do not update
-   existing assignments. This field prepares future briefings; it does not post to
-   Discord yet. Add ordered fixed choices with labels,
+   existing assignments. This field feeds the public [tick-opening briefing](tick-opening.md);
+   saving/releasing alone never posts to Discord. Add ordered fixed choices with labels,
    outcome text and destinations selected by human-readable node descriptions.
    Add a node for each destination, choose a **Start node**, and explicitly mark
    terminal nodes as endings. Endings must have no choices; continuing nodes need
@@ -146,8 +146,11 @@ assignment/intervention locks and the publication guard remain unchanged.
    on the existing ordered effect list. Mixed flag/clock effects stay in that
    order. Each delta clamps to **0–size immediately**: on a four-segment clock,
    `+9, -3` from zero yields **1**, not 4. Already completed clocks ignore deltas.
-   Reaching full latches completion even if a later delta drains it. Background
-   rates and clock triggers run later; inspect their source-labelled consequences.
+   For standalone legacy clocks, reaching full latches completion even if a later
+   delta drains it. In current manual-world snapshots, Tension-clock endpoints
+   instead prompt DM adjudication and do not automatically fire triggers or choose
+   race winners; see [manual world loop](manual-world-loop.md). Background rates and
+   eligible legacy triggers run later; inspect their source-labelled consequences.
    Next-node eligibility uses the **final resolved state**, including later triggers,
    not the state immediately after a choice.
 3. Save, reopen and inspect readable summaries; release validates current campaign

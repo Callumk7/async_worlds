@@ -43,6 +43,12 @@ Clock names and notification text reject NUL; background rates must fit a signed
 
 ## World-only triggers
 
+These are the legacy standalone-clock trigger semantics. In newly closed
+manual-world snapshots, clocks associated with Tensions prompt DM adjudication
+at endpoints instead of automatically latching completion, firing triggers or
+selecting race winners. Older snapshots keep their original semantics; see
+[manual world loop](manual-world-loop.md).
+
 `triggers` is an ordered list of typed embeds:
 
 ```elixir
