@@ -264,6 +264,14 @@ defmodule AsyncWorldsWeb.TickReviewController do
   defp project_operation(%{"type" => "reroll"} = op),
     do: Map.take(op, ~w(type identity old_value new_value))
 
+  defp project_operation(%{"type" => "synthesis"} = op),
+    do: %{
+      type: "synthesis",
+      tension_id: ApiResponse.id(op["tension_id"]),
+      interpretation: op["interpretation"],
+      deferred: Enum.map(op["deferred"], &ApiResponse.id/1)
+    }
+
   defp project_operation(op),
     do: %{
       type: op["type"],

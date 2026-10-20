@@ -636,6 +636,10 @@ defmodule AsyncWorlds.Ticks do
        when type in ["reroll", "outcome", "player_narration"],
        do: AsyncWorlds.Ticks.QuestReview.apply_operation(review, operation)
 
+  defp apply_review_operation(review, %{"type" => "synthesis"} = operation) do
+    AsyncWorlds.Ticks.Synthesis.apply_operation(review, operation)
+  end
+
   defp apply_review_operation(review, %{"type" => "world"} = operation) do
     AsyncWorlds.Ticks.ManualWorld.apply_operation(review, operation)
   rescue
@@ -708,6 +712,15 @@ defmodule AsyncWorlds.Ticks do
   defp validate_review_target!(%{"type" => "clock_delta", "clock_id" => id}, snapshot) do
     unless Enum.any?(snapshot.data["clocks"], &(&1["id"] == id and not &1["completed"])),
       do: Repo.rollback(:invalid_edit)
+  end
+
+  defp validate_review_target!(%{"type" => "synthesis"} = operation, snapshot) do
+    try do
+      review = AsyncWorlds.Ticks.Synthesis.apply_operation(%{}, operation)
+      AsyncWorlds.Ticks.Synthesis.validate!(snapshot.data, review)
+    rescue
+      _ -> Repo.rollback(:invalid_edit)
+    end
   end
 
   defp validate_review_target!(_, _), do: :ok
