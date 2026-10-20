@@ -13,15 +13,19 @@ These are private DM-only routes using [bearer authentication](http-api.md) and
 
 POSTs require `Content-Type: application/json`. Unknown body fields/query
 parameters are rejected. Only preview accepts a query parameter (`draft_id`).
-No caller-supplied actor, random value, payload, effect, output, routing or
-callback is accepted. Tick access is campaign-scoped and freshly authorized.
+No caller-supplied actor, random value, resolved draft payload, output, routing or
+callback is accepted. Validated manual-world changes use the `world` operation below. Tick access is campaign-scoped and freshly authorized.
 
 ## Review and preview
 
 Review returns `id` (draft UUID), `tick_id`, `input_revision` (snapshot UUID),
 integer `revision`, `inserted_at`, `world_news`, nullable `world_news_override`,
-`clocks` and `quests`. It validates canonical audit replay under the same
-campaign lock as the read; it never dumps raw draft/snapshot JSON.
+`clocks` and `quests`, plus `events`, `manual_changes`, `endpoint_prompts` and
+`tensions` (empty arrays for legacy drafts). It validates canonical audit replay
+under the same campaign lock as the read; it does not return the complete raw
+draft/snapshot JSON. The manual-world fields retain the domain's structured saved
+context, numeric IDs and stable `new:…` references rather than recursively
+converting them to resource DTOs. They are DM-only.
 
 Clocks include string `id`, `name`, `visibility`, `segments`, final `filled`,
 `paused`, `completed`, `frozen_filled`, `frozen_completed` and nullable
@@ -67,6 +71,18 @@ Supported strict operation shapes:
   to restore authored narration). Fixed choices also support narration.
 - `reroll`: `identity`, `old_value` (integer 1–6). New values are generated only
   by the domain after authorization, current-draft and target validation.
+- `world`: `key` (1–100 bytes), `event` (object or null to remove the bundle).
+  Event fields are `kind` (`event`, `resolution`, `routine`), `audience` (`dm`,
+  `public`), `title`, `text`, and `changes`. Changes use `entity`, `id` (numeric
+  existing ID, stable draft reference, or null to create), and validated `attrs`.
+  Optional `references` and `follow_on` use the [connected history](connected-history.md)
+  format. Replacing a key replaces that entire bundle, not an incremental patch.
+  See [manual world loop](manual-world-loop.md) for ordering, allowed changes,
+  public-context validation and Resolution rules. This requires a manual-world
+  snapshot; legacy snapshots do not acquire new semantics.
+
+Private `synthesis` notes are authored through the LiveView/domain workspace, not
+this HTTP edit adapter. The audit read does project their attributed operations.
 
 Reasons must be nonblank, NUL-free and at most 2000 graphemes. Domain validation
 retains all narration limits, frozen-target checks, critical bonus rules and

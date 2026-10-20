@@ -27,8 +27,8 @@ These use `DMAccess` to authorize the current DM under the campaign lock, then
 select a character belonging to that campaign. DMs may inspect previous owners'
 history, including DM-controlled characters, without impersonating a player or
 changing the Discord debug persona. Invalid or foreign character IDs return
-`{:error, :not_found}`. This prepares shared APIs for future DM HTTP endpoints;
-no endpoints are introduced here.
+`{:error, :not_found}`. The implemented [HTTP history endpoints](http-history.md)
+use these APIs for explicit DM character result/submission retrieval.
 
 ## Return values
 

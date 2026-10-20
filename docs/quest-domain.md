@@ -49,8 +49,8 @@ an ending immediately completes it. DM assign/swap/end/move operations use fresh
 campaign authorization and serialize on the campaign row. There is no player
 mutation endpoint. The pure Rules transition takes frozen definition/state and
 recorded dice and returns new state; it does not publish or persist effects.
-Future submission and publication services must use this primitive inside their
-own authorized lifecycle, not expose it as an immediate player write.
+The implemented submission/resolution/publication services use this primitive
+inside their authorized tick lifecycle, never as an immediate player-state write.
 
 Player projection looks up the fresh guild and verified player identity, never a
 player-supplied character ID. It whitelists node text and ordered choice IDs and
@@ -73,7 +73,7 @@ Clearing the field removes it and restores the generic fallback. Keep secrets ou
 of explicitly authored public text; it is not automatically redacted.
 
 `Quests.public_activities(campaign, dm_id)` is a freshly authorized, campaign-locked
-read for future DM briefing preparation. It returns a stable character-ID-ordered
+read used by DM briefing preparation. It returns a stable character-ID-ordered
 list containing only `character_id`, `name`, `summary`, and `decision_required`.
 Text comes from each character's pinned node, not the latest library revision.
 Missing summaries on active non-ending nodes say “A quest decision is required.”
@@ -83,8 +83,10 @@ while still requiring no decision. The pure `PublicActivity.project/3` helper
 exposes only summary and decision requirement, never quest names, private text,
 choices, flags, effects or conditions. Existing private player projections are unchanged.
 
-No public posting, tick-opening preview, action announcements, or custom proposals
-are implemented by this issue; these summaries are groundwork for subsequent slices.
+These summaries now feed the implemented [tick-opening preview and durable public
+briefing](tick-opening.md). Mutable quest-action announcements and quest custom
+proposals remain unimplemented; independent private [Tension intentions](tension-commitments.md)
+are available without quest nodes.
 
 ## DM operational controls
 

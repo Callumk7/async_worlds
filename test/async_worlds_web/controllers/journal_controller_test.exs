@@ -116,6 +116,26 @@ defmodule AsyncWorldsWeb.JournalControllerTest do
            )["error"]["code"] == "invalid_cursor"
   end
 
+  test "journal cursors expire when campaign configuration changes", c do
+    for n <- 1..11 do
+      {:ok, _} =
+        Journals.create_dm_entry(c.scope, c.character.id, "configuration-#{n}", %{
+          title: "Note #{n}",
+          body: "Content"
+        })
+    end
+
+    first = json_response(request(:get, c.path), 200)
+    cursor = URI.encode_www_form(first["meta"]["next_cursor"])
+
+    Repo.update!(Ecto.Changeset.change(c.campaign, public_channel_id: "33004"))
+
+    assert json_response(request(:get, c.path <> "?cursor=#{cursor}"), 422)["error"]["code"] ==
+             "invalid_cursor"
+
+    assert json_response(request(:get, c.path), 200)["data"] == first["data"]
+  end
+
   test "delete confirmation binds target and campaign configuration; foreign access stays concealed",
        c do
     {:ok, one} =

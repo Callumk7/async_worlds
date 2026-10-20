@@ -28,7 +28,9 @@ Results are `{:ok, %{id: request_uuid, entry_id: entry_id, state: :completed,
 visibility: visibility}}` or `{:error, reason}`. A deleted replay returns the same
 original entry ID with `state: :deleted`, without recreating content. No modal
 opening, interaction ID, signed component or Discord callback is required.
-These are domain APIs only; HTTP endpoints will be added in ENG-61.
+These domain APIs also back the implemented [HTTP journal endpoints](http-journals.md),
+including explicit DM character selection, retained creation outcomes and confirmed
+deletion.
 
 ## Idempotency and privacy
 

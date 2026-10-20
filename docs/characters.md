@@ -90,4 +90,10 @@ attribution and explicit origin remain immutable server-set journal fields.
 The connected DM editor shows Discord ownership, active pinned quest revision/node/status,
 the ten most recent DM-only intervention audits, and links to quest operations/content.
 Quest operations link back to the selected profile. No deletion, archive, resources,
-automatic content migration, or new quest executor is introduced. These facts are current live state; existing world-only tick snapshots/resolution remain unchanged and do not consume characters. Future quest work must freeze character inputs and apply only approved progression at publication, extending this whitelist explicitly rather than serializing schemas. Normal tests use sandbox PostgreSQL, the existing Discord fake adapter and session helpers; no OAuth or live Discord requests are required.
+automatic content migration, or separate quest executor is introduced by the character editor.
+Facts are current live state. The implemented quest tick pipeline freezes character
+inputs at close and applies approved flags/progression only at publication; see
+[quest submissions](quest-submissions.md) and [quest review](quest-review.md).
+Player projections remain explicit whitelists rather than serialized schemas.
+Normal tests use sandbox PostgreSQL, the existing Discord fake adapter and session
+helpers; no OAuth or live Discord requests are required.

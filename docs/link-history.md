@@ -1,8 +1,10 @@
 # Retained link state changes (ENG-81)
 
-`AsyncWorlds.LinkHistory` is the DM-only foundation for future membership and
-containment writers. It retains timeline data; it does not implement memberships,
-location parenting, a timeline UI, HTTP endpoints, or Discord commands.
+`AsyncWorlds.LinkHistory` is the DM-only history foundation used by
+[membership](memberships.md) and [location containment](locations.md) writers.
+Those contexts provide current-state operations, DM console controls and HTTP
+endpoints. LinkHistory itself retains and queries timeline data; it has no timeline UI,
+history HTTP endpoint or Discord command.
 
 ## Writer contract
 

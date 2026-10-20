@@ -63,5 +63,6 @@ membership counts, member identities or roles.
 [Memberships](memberships.md) documents the shared `AsyncWorlds.Memberships`
 operations for joining, role editing, leaving, faction members and character
 affiliations. They retain tick-linked history atomically and remain descriptive,
-DM-only state with no gameplay/permission effects. Membership dashboard controls
-and HTTP operations remain follow-up work.
+DM-only state with no gameplay/permission effects. Membership controls are available
+on `/factions` and `/characters`; [HTTP memberships](http-memberships.md) documents
+the implemented list, join, role-edit and leave routes.
