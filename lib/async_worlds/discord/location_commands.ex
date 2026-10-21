@@ -49,9 +49,9 @@ defmodule AsyncWorlds.Discord.LocationCommands do
         if locations == [],
           do: "No locations yet in this campaign.",
           else:
-            "Campaign locations\n" <>
-              Enum.map_join(locations, "\n", &"#{&1.id} · #{&1.name}") <>
-              "\nUse /location show location:<id> to read a location's description."
+            "## Campaign locations\n" <>
+              Enum.map_join(locations, "\n", &"- #{&1.id} · #{&1.name}") <>
+              "\n\nUse `/location show location:<id>` to read a location's description."
 
       {:ok, content}
     end
@@ -61,7 +61,7 @@ defmodule AsyncWorlds.Discord.LocationCommands do
     case Locations.get_campaign_location(campaign.discord_guild_id, id) do
       {:ok, location} ->
         {:ok,
-         "#{location.name} (ID #{location.id})\n" <>
+         "## #{location.name} (ID #{location.id})\n\n" <>
            (location.description || "No description yet.")}
 
       {:error, :not_found} ->

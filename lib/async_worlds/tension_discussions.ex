@@ -10,17 +10,22 @@ defmodule AsyncWorlds.TensionDiscussions do
   def opened(campaign, tick) do
     for t <- Tensions.list_tensions(campaign.id), t.audience == :public do
       clocks = Tensions.list_clocks(campaign.id, t.id) |> elem(1)
-      lines = ["Tick #{tick.number} · #{t.name}", t.description || ""]
+      lines = ["## Tick #{tick.number} · #{t.name}", t.description || ""]
 
       lines =
         if t.status == :resolved do
-          lines ++ ["Historical — resolved. This is not an ongoing call for participation."]
+          lines ++ ["**Historical — resolved.** This is not an ongoing call for participation."]
         else
           lines ++
             Enum.flat_map(clocks, &clock_lines/1) ++
             [
-              "Discuss plans, questions and coordination here for this period. Discussion is not a confirmed commitment or an established outcome; the DM adjudicates after closing.",
-              "Use /intent view tick:#{tick.id} privately, then /intent edit tick:#{tick.id} tension:#{t.id} version:0 intention:<broad effort> and /intent confirm with the saved version. Revise/withdraw until close. Intentions are private to owner and authorized DM; readiness is informational. Public discussion posts cannot be promised retractable."
+              "### Take part\n" <>
+                "- Discuss plans, questions and coordination here for this period.\n" <>
+                "- Discussion is **not a confirmed commitment or an established outcome**; the DM adjudicates after closing.\n" <>
+                "- Use `/intent view tick:#{tick.id}` privately to view your efforts.\n" <>
+                "- Record an effort with `/intent edit tick:#{tick.id} tension:#{t.id} version:0 intention:<broad effort>`, then `/intent confirm` with the saved version.\n" <>
+                "- **Revise or withdraw until close.** Intentions are private to owner and authorized DM; readiness is informational.\n" <>
+                "- Public discussion posts cannot be promised retractable."
             ]
         end
 
@@ -29,7 +34,7 @@ defmodule AsyncWorlds.TensionDiscussions do
         tick,
         t,
         "opening",
-        Enum.join(lines, "\n"),
+        lines |> Enum.reject(&(&1 == "")) |> Enum.join("\n\n"),
         "Tick #{tick.number} · #{t.name}#{if t.status == :resolved, do: " · historical (resolved)", else: " · ongoing"}"
       )
     end
@@ -56,9 +61,9 @@ defmodule AsyncWorlds.TensionDiscussions do
 
         if t.audience == :public do
           text =
-            "Published tick #{tick.number} · #{event["title"]}\n#{event["text"]}" <>
+            "## Published tick #{tick.number} · #{event["title"]}\n\n#{event["text"]}" <>
               if(t.status == :resolved,
-                do: "\nHistorical — resolved. No ongoing participation requested.",
+                do: "\n\n**Historical — resolved.** No ongoing participation requested.",
                 else: ""
               )
 
@@ -84,7 +89,7 @@ defmodule AsyncWorlds.TensionDiscussions do
           tick,
           t,
           "resolved-status:#{t.id}",
-          "Published tick #{tick.number} · #{t.name}\nHistorical — resolved. No ongoing participation requested.",
+          "## Published tick #{tick.number} · #{t.name}\n\n**Historical — resolved.** No ongoing participation requested.",
           nil
         )
       end
@@ -92,11 +97,11 @@ defmodule AsyncWorlds.TensionDiscussions do
   end
 
   defp clock_lines(%{visibility: :hidden}), do: []
-  defp clock_lines(%{visibility: :known} = c), do: [c.name]
+  defp clock_lines(%{visibility: :known} = c), do: ["### #{c.name}"]
 
   defp clock_lines(c),
     do: [
-      "#{c.name}: #{c.filled}/#{c.segments}",
+      "### #{c.name}: #{c.filled}/#{c.segments}",
       c.influences || "",
       c.empty_description || "",
       c.full_description || ""

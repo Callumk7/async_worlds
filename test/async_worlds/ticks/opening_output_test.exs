@@ -19,9 +19,14 @@ defmodule AsyncWorlds.Ticks.OpeningOutputTest do
 
     messages = OpeningOutput.render(7, "789", rows, "Opening narration")
     text = Enum.map_join(messages, "", & &1.content)
-    assert text =~ "Tick 7"
-    assert text =~ "Scout: Public harbour work — Quest decision required"
-    assert text =~ "Idle: No quest decision required."
+    assert text =~ "## Tick 7 is opening."
+
+    assert text =~
+             "### Character activity\n- Scout: Public harbour work — Quest decision required"
+
+    assert text =~ "- Idle: No quest decision required."
+    assert text =~ "### Quest choices\n- Run `/quest`"
+    assert text =~ "**submit or revise**"
     refute text =~ "No quest decision required. No quest decision required."
     assert text =~ "DM handles this quest decision"
     assert text =~ "Opening narration"
@@ -41,11 +46,12 @@ defmodule AsyncWorlds.Ticks.OpeningOutputTest do
     text = OpeningOutput.render(2, "789", rows, "", true) |> Enum.map_join("", & &1.content)
     refute text =~ "Rested"
     refute text =~ "No quest decision required"
-    assert text =~ "without a quest"
-    assert text =~ "/intent confirm"
+    assert text =~ "### How to take part\n**Everyone can take part without a quest.**"
+    assert text =~ "`/intent confirm`"
+    assert text =~ "**Confirmation is not success:**"
     refute text =~ "Idle"
     assert text =~ "Scout: Harbour work — Quest decision required"
-    assert text =~ "Run /quest"
+    assert text =~ "Run `/quest`"
 
     quest_free = OpeningOutput.render(2, "789", Enum.take(rows, 2), "", true)
     refute Enum.map_join(quest_free, "", & &1.content) =~ "/quest"
@@ -71,7 +77,9 @@ defmodule AsyncWorlds.Ticks.OpeningOutputTest do
 
     assert Enum.all?(
              messages,
-             &(String.valid?(&1.content) and length(String.codepoints(&1.content)) <= 1900)
+             &(String.valid?(&1.content) and
+                 byte_size(:unicode.characters_to_binary(&1.content, :utf8, {:utf16, :big})) <=
+                   3800)
            )
 
     text = Enum.map_join(messages, "", & &1.content)

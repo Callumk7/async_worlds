@@ -125,21 +125,22 @@ defmodule AsyncWorlds.Discord.IntentCommands do
   defp render_state({:ok, state}) do
     rows =
       Enum.map_join(state.participation, "\n", fn row ->
-        "Character #{row.character_id}\n" <> Enum.map_join(row.commitments, "\n", &render_entry/1)
+        "### Character #{row.character_id}\n" <>
+          Enum.map_join(row.commitments, "\n", &render_entry/1)
       end)
 
-    {:ok, header() <> "\nTick #{state.tick_id}: #{state.status}\n" <> rows}
+    {:ok, header() <> "\n\n## Tick #{state.tick_id}: #{state.status}\n" <> rows}
   end
 
   defp render_state(error), do: explain(error)
 
   defp header,
     do:
-      "Private to owner and authorized DM. Intentions are not outcomes. Readiness is informational; missing players do not block close. Discuss freely in Tension threads; use edit then confirm here. No automatic public posting."
+      "**Private to owner and authorized DM.** Intentions are not outcomes. Readiness is informational; missing players do not block close. Discuss freely in Tension threads; use edit then confirm here. No automatic public posting."
 
   defp render_entry(e),
     do:
-      "Tension #{e.tension_id} · version #{e.version} · #{e.state} · #{if e.ready, do: "ready", else: "not ready"}\n#{e.intention || ""}\n#{e.approach || ""}"
+      "**Tension #{e.tension_id}** · version #{e.version} · #{e.state} · #{if e.ready, do: "ready", else: "not ready"}\n**Intention:** #{e.intention || ""}\n**Approach:** #{e.approach || ""}"
 
   defp explain({:error, :stale_commitment}),
     do:

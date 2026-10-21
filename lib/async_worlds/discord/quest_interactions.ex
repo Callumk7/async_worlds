@@ -146,7 +146,8 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
       {:ok,
        %{
          content:
-           "#{heading}\nPage #{page + 1}/#{length(pages)}\n\n" <> Enum.at(pages, page).text,
+           "## Quest\n#{heading}\nPage #{page + 1}/#{length(pages)}\n\n" <>
+             Enum.at(pages, page).text,
          components: if(navigation == [], do: [], else: [row(navigation)])
        }}
     end
@@ -185,7 +186,7 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
 
     %{
       content:
-        "Choose below to submit or revise.\nLatest choice: #{latest}\nPage #{page + 1}/#{length(pages)}\n\n" <>
+        "## Quest\nChoose below to submit or revise.\n**Latest choice: #{latest}**\nPage #{page + 1}/#{length(pages)}\n\n" <>
           current.text,
       components:
         Enum.map(Enum.chunk_every(choices, 5), &row/1) ++
@@ -208,9 +209,8 @@ defmodule AsyncWorlds.Discord.QuestInteractions do
       text = if index == 0, do: state.quest.text <> "\n" <> labels, else: labels
 
       text
-      |> String.codepoints()
-      |> Enum.chunk_every(1400)
-      |> Enum.map(fn chunk -> %{text: Enum.join(chunk), choices: choices} end)
+      |> AsyncWorlds.Discord.Content.unicode_chunks(1400)
+      |> Enum.map(fn chunk -> %{text: chunk, choices: choices} end)
     end)
   end
 

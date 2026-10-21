@@ -20,8 +20,9 @@ defmodule AsyncWorlds.Discord.HelpTest do
   test "players without characters receive private help, with no DM commands or side effects",
        c do
     assert {:ok, content} = invoke(c, "999")
-    assert content =~ "/help — List the commands available to you"
-    assert content =~ "/quest — View your private quest and choose an action"
+    assert content =~ "## Player commands\n"
+    assert content =~ "- `/help` — List the commands available to you"
+    assert content =~ "- `/quest` — View your private quest and choose an action"
     assert content =~ "/submission"
     refute content =~ "/tick"
     refute content =~ "/admin"
@@ -37,8 +38,8 @@ defmodule AsyncWorlds.Discord.HelpTest do
   test "DMs see player, DM and debug commands with full subcommand paths", c do
     assert {:ok, content} = invoke(c, "456")
     assert content =~ "/character"
-    assert content =~ "/tick open — Open a new tick"
-    assert content =~ "/tick close — Close submissions and resolve the tick"
+    assert content =~ "- `/tick open` — Open a new tick"
+    assert content =~ "- `/tick close` — Close submissions and resolve the tick"
     assert content =~ "/admin"
     assert content =~ "/debug player character:<character>"
     assert content =~ "/debug messages enabled:<enabled>"
@@ -114,8 +115,8 @@ defmodule AsyncWorlds.Discord.HelpTest do
       end)
 
     content = Help.render(context, updated ++ [added])
-    assert content =~ "/future group inspect — New inspection"
-    assert content =~ "/quest — Updated quest description"
+    assert content =~ "- `/future group inspect` — New inspection"
+    assert content =~ "- `/quest` — Updated quest description"
     refute content =~ "/future group manage"
     refute content =~ "/result"
     refute content =~ "View your private quest and choose an action"
