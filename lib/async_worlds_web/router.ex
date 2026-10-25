@@ -123,10 +123,17 @@ defmodule AsyncWorldsWeb.Router do
     get "/campaigns/:guild_id/ticks/:id/readiness", TickController, :readiness
     get "/campaigns/:guild_id/ticks/:id/readiness/roster", TickController, :roster
 
+    get "/campaigns/:guild_id/tensions", TensionController, :index
+    get "/campaigns/:guild_id/tensions/:id", TensionController, :show
+    post "/campaigns/:guild_id/tensions", TensionController, :create
+    patch "/campaigns/:guild_id/tensions/:id", TensionController, :update
+    post "/campaigns/:guild_id/tensions/:id/clocks", ClockController, :create_for_tension
+
     get "/campaigns/:guild_id/clocks", ClockController, :index
     get "/campaigns/:guild_id/clocks/:id", ClockController, :show
     post "/campaigns/:guild_id/clocks", ClockController, :create
     patch "/campaigns/:guild_id/clocks/:id", ClockController, :update
+    patch "/campaigns/:guild_id/clocks/:id/tension", ClockController, :associate
     post "/campaigns/:guild_id/clocks/:id/adjust", ClockController, :adjust
     post "/campaigns/:guild_id/clocks/:id/pause", ClockController, :pause
     post "/campaigns/:guild_id/clocks/:id/resume", ClockController, :resume

@@ -80,7 +80,7 @@ defmodule AsyncWorldsWeb.ClockControllerTest do
 
     assert Map.keys(first) |> Enum.sort() ==
              Enum.sort(
-               ~w(id campaign_id name segments filled visibility background_rate paused completed racing_group triggers inserted_at updated_at snapshot_token)
+               ~w(id campaign_id name tension_id association_revision mode influences empty_description full_description segments filled visibility background_rate paused completed racing_group triggers inserted_at updated_at snapshot_token)
              )
 
     assert json_response(request(:get, "#{@url}/#{clock.id}"), 200)["data"]["id"] == first["id"]

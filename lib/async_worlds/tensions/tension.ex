@@ -16,7 +16,7 @@ defmodule AsyncWorlds.Tensions.Tension do
   def changeset(tension, attrs) do
     tension
     |> cast(attrs, [:name, :description, :audience])
-    |> validate_required([:name])
+    |> validate_required([:name, :audience])
     |> validate_text(:name, 200)
     |> validate_text(:description, 8000)
   end

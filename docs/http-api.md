@@ -21,6 +21,7 @@ no web-based key display, issuance or per-key permissions yet.
 
 Character and flag routes are documented in [HTTP character management](http-characters.md).
 Clock routes are documented in [HTTP clock management](http-clocks.md).
+Tension routes and clock associations are documented in [HTTP tensions](http-tensions.md).
 Faction CRUD routes are documented in [HTTP factions](http-factions.md).
 Location CRUD and DM hierarchy routes are documented in [HTTP locations](http-locations.md).
 DM faction membership list/join/role-edit/leave routes are documented in
