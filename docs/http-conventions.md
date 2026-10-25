@@ -105,6 +105,10 @@ return the domain's 409 code. There are no blind retries after stale mutations.
 - Character/flag edits carry `state_version`. Compare against the freshly loaded
   character, then pass that server-loaded record as `expected_character`; never
   reconstruct a client-supplied struct. The domain rechecks under its lock.
+- Tension edits carry `revision`. Compare against the freshly loaded tension,
+  then pass that full server-loaded record to `DM.Tensions.edit_tension`; the
+  domain rechecks it under its lock. Missing revisions return 428 and stale
+  revisions return 409 `stale_tension`. Status is publication-only, not editable.
 - Clock edits carry `snapshot_token`, issued by `ApiTokens.clock_snapshot/2`.
   Verify it against the freshly loaded clock, then pass the returned record as
   the domain's expected clock. The domain comparison still closes the race between

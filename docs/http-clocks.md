@@ -11,6 +11,7 @@ and the shared [clock domain](clock-management.md).
 | GET | `/:id` | none | 200, `data: clock` |
 | POST | (base) | editable fields | 201, `data: clock` |
 | PATCH | `/:id` | editable fields, `snapshot_token` | 200, `data: clock` |
+| PATCH | `/:id/tension` | explicit `tension_id` (null detaches), `snapshot_token` | 200, `data: clock` |
 | POST | `/:id/adjust` | integer `delta`, `snapshot_token` | 200, `data: clock` |
 | POST | `/:id/pause` | `snapshot_token` | 200, `data: clock` |
 | POST | `/:id/resume` | `snapshot_token` | 200, `data: clock` |
@@ -20,12 +21,20 @@ and the shared [clock domain](clock-management.md).
 
 Mutations require JSON objects and `Content-Type: application/json`. Query
 parameters and unknown fields are rejected. Editable fields are `name`,
-`segments`, `filled`, `visibility`, `background_rate`, `paused`, and `triggers`.
+`segments`, `filled`, `visibility`, `background_rate`, `paused`, `triggers`,
+`mode`, `influences`, `empty_description`, and `full_description`.
 Creation requires name and size; sizes are 4/6/8, visibility is public/known/hidden.
 The shared domain clamps fill to 0..size; resizing clamps existing fill. Signed
 background rates must fit the database's 32-bit integer. PATCH preserves omitted
 fields and replaces the whole ordered trigger list when supplied. Pause/resume
 are audited edits, not changes to fill. Adjustment takes a native JSON integer.
+
+Mode is descriptive (`countdown` or `tug_of_war`); descriptive text is nullable,
+UTF-8 without NUL and limited to 8000 bytes per field. Association is a separate
+snapshot-guarded operation, never a writable field on ordinary create/edit.
+Atomic creation under `/tensions/:id/clocks` defaults visibility to hidden;
+standalone creation retains its public default. See [HTTP tensions](http-tensions.md)
+for association, detachment and nested creation examples and lifecycle rules.
 
 Triggers retain shared type/payload/reference validation:
 
@@ -53,7 +62,8 @@ NUL-containing names/text, and out-of-range rates return 422 without partial wri
 
 Every clock response explicitly includes `id`, `campaign_id`, `name`, `segments`,
 `filled`, `visibility`, `background_rate`, `paused`, `completed`, `racing_group`,
-ordered `triggers`, `inserted_at`, `updated_at`, and `snapshot_token`. IDs (including
+`tension_id`, `association_revision`, `mode`, `influences`, `empty_description`,
+`full_description`, ordered `triggers`, `inserted_at`, `updated_at`, and `snapshot_token`. IDs (including
 trigger target IDs) are decimal strings, groups are UUIDs, timestamps are UTC ISO
 8601, and counts/rates are integers. This is DM-only: hidden clocks and their full
 state are intentionally included. No schemas, associations or audit snapshots are
@@ -85,8 +95,9 @@ Audits retain the active tick attribution; callers cannot supply source or actor
 Missing/foreign resources and unauthorized campaigns are concealed as 404.
 Tick locks reject all management writes with 409 `tick_locked`, but allow reads.
 Completed clocks reject edits/adjustments until reset. Reaching full alone never
-completes or executes triggers. Completion, unlocking management locks and raw
-membership edits are not HTTP management endpoints.
+completes or executes triggers. Completion and unlocking management locks are not
+HTTP management endpoints; association is available only through the explicit
+snapshot-guarded tension operation, not raw membership edits.
 
 ## Yaak examples
 

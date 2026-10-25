@@ -19,6 +19,7 @@ defmodule AsyncWorldsWeb.ApiResponse do
     :stale_campaign,
     :stale_character,
     :stale_clock,
+    :stale_tension,
     :stale_draft,
     :stale_delivery,
     :stale_working_copy,
