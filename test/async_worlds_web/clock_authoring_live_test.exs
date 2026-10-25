@@ -254,8 +254,8 @@ defmodule AsyncWorldsWeb.ClockAuthoringLiveTest do
     refute has_element?(review, "#public-preview", hidden.name)
     refute has_element?(review, "#public-preview", known.name <> ":")
     refute has_element?(review, "#public-preview", "trigger_ready")
-    assert has_element?(review, "#private-preview", hidden.name <> ": 1/4")
-    assert has_element?(review, "#private-preview", known.name <> ": 0/4")
+    assert has_element?(review, "#private-preview", hidden.name <> ": `▰▱▱▱` 1/4")
+    assert has_element?(review, "#private-preview", known.name <> ": `▱▱▱▱` 0/4")
     {:ok, preview} = Ticks.preview_draft(c.campaign.id, tick.id, draft.id)
 
     for message <- preview["players"] do

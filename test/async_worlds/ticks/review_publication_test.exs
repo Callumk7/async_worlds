@@ -95,7 +95,7 @@ defmodule AsyncWorlds.Ticks.ReviewPublicationTest do
     public_content = Enum.map_join(preview["public"], "", & &1["content"])
     assert public_content =~ "Approved narration"
     assert public_content =~ "Known target"
-    assert public_content =~ "Public clock: 0/4"
+    assert public_content =~ "Public clock: `▱▱▱▱` 0/4"
     refute public_content =~ "2/6"
     refute public_content =~ "Secret"
     assert Enum.map_join(preview["dm"], "", & &1["content"]) =~ "Secret notification"
