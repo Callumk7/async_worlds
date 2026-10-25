@@ -107,18 +107,19 @@ defmodule AsyncWorlds.Discord.ChronicleCommands do
           Enum.map_join(
             page.items,
             "\n",
-            &"Tick #{&1["tick_number"]} · #{&1["title"]}\n/chronicle show tick:#{&1["tick_id"]} event:#{&1["key"]}#{suffix(show_filters)}"
+            &"- Tick #{&1["tick_number"]} · #{&1["title"]}\n  `/chronicle show tick:#{&1["tick_id"]} event:#{&1["key"]}#{suffix(show_filters)}`"
           )
 
         {:ok,
-         "Campaign chronicle · page #{page.page}\n" <>
+         "## Campaign chronicle · page #{page.page}\n" <>
            if(lines == "", do: "No published Events on this page.", else: lines) <>
            if(page.more?,
-             do: "\nMore: /chronicle list#{suffix(Map.put(filters, "page", page.page + 1))}",
+             do: "\nMore: `/chronicle list#{suffix(Map.put(filters, "page", page.page + 1))}`",
              else: ""
            ) <>
            if(page.page > 1,
-             do: "\nPrevious: /chronicle list#{suffix(Map.put(filters, "page", page.page - 1))}",
+             do:
+               "\nPrevious: `/chronicle list#{suffix(Map.put(filters, "page", page.page - 1))}`",
              else: ""
            )}
 
@@ -176,7 +177,7 @@ defmodule AsyncWorlds.Discord.ChronicleCommands do
 
       {:ok,
        Enum.reject(
-         ["Tick #{e["tick_number"]} · #{e["title"]}", e["text"], refs, follow, changes | nav],
+         ["## Tick #{e["tick_number"]} · #{e["title"]}", e["text"], refs, follow, changes | nav],
          &(&1 == "")
        )
        |> Enum.join("\n\n")}

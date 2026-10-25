@@ -180,7 +180,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   defp route(interaction), do: Commands.route(Map.get(interaction, :data))
 
   defp response_chunks(%{content: content, components: components}) do
-    chunks = AsyncWorlds.Discord.Content.chunks(content)
+    chunks = AsyncWorlds.Discord.Content.formatted_chunks(content)
     last = length(chunks) - 1
 
     Enum.with_index(chunks, fn chunk, index ->
@@ -188,7 +188,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
     end)
   end
 
-  defp response_chunks(content), do: AsyncWorlds.Discord.Content.chunks(content)
+  defp response_chunks(content), do: AsyncWorlds.Discord.Content.formatted_chunks(content)
 
   defp authorize(interaction, permission, opts) do
     # A guild interaction must carry a guild member. Never substitute a
@@ -232,7 +232,7 @@ defmodule AsyncWorlds.Discord.Dispatcher do
   defp command_context(_, campaign, actor), do: AsyncWorlds.PlayerAccess.context(campaign, actor)
 
   defp testing_banner({:ok, response}, %{debug_character: name}, :player) do
-    banner = "Testing as #{name} · player · changes are real\n"
+    banner = "**Testing as #{name} · player · changes are real**\n\n"
 
     case response do
       content when is_binary(content) -> {:ok, banner <> content}

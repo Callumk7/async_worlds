@@ -150,7 +150,7 @@ defmodule AsyncWorlds.Discord.JournalInteractions do
         {:ok,
          %{
            content:
-             "Visibility: #{visibility_label(receipt.visibility)}. All replies stay private.\nClick Write entry within 15 minutes.",
+             "**Visibility:** #{visibility_label(receipt.visibility)}. All replies stay private.\nClick **Write entry** within 15 minutes.",
            components: rows([button("Write entry", creation_id("write", receipt.id), 1)])
          }}
       else
@@ -176,7 +176,7 @@ defmodule AsyncWorlds.Discord.JournalInteractions do
 
       lines =
         Enum.map(page.entries, fn e ->
-          "##{e.id} · #{e.title}\n#{e.character} · #{e.visibility} · #{date(e.inserted_at)}"
+          "### Entry ##{e.id} · #{e.title}\n#{e.character} · #{e.visibility} · #{date(e.inserted_at)}"
         end)
 
       opens =
@@ -232,7 +232,7 @@ defmodule AsyncWorlds.Discord.JournalInteractions do
       {:ok,
        %{
          content:
-           "#{entry.title}\nEntry ##{entry.id} · #{entry.character} · #{date(entry.inserted_at)}\n#{visibility_label(entry.visibility)} · Author: #{entry.author_discord_user_id} · #{entry.origin}\n\n#{entry.body}",
+           "## #{entry.title}\nEntry ##{entry.id} · #{entry.character} · #{date(entry.inserted_at)}\n#{visibility_label(entry.visibility)} · Author: #{entry.author_discord_user_id} · #{entry.origin}\n\n#{entry.body}",
          components: rows(buttons)
        }}
     end
@@ -246,7 +246,7 @@ defmodule AsyncWorlds.Discord.JournalInteractions do
       {:ok,
        %{
          content:
-           "Delete entry ##{target.id}: #{target.title}?\nThis removes its content from the application. Existing backups follow separate retention.",
+           "## Delete entry ##{target.id}: #{target.title}?\n\nThis removes its content from the application. Existing backups follow separate retention.",
          components:
            rows([
              button("Confirm deletion", control("confirm", mode, data, target.binding), 4),

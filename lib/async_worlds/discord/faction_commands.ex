@@ -49,9 +49,9 @@ defmodule AsyncWorlds.Discord.FactionCommands do
         if factions == [],
           do: "No factions yet in this campaign.",
           else:
-            "Campaign factions\n" <>
-              Enum.map_join(factions, "\n", &"#{&1.id} · #{&1.name}") <>
-              "\nUse /faction show faction:<id> to read a faction's description."
+            "## Campaign factions\n" <>
+              Enum.map_join(factions, "\n", &"- #{&1.id} · #{&1.name}") <>
+              "\n\nUse `/faction show faction:<id>` to read a faction's description."
 
       {:ok, content}
     end
@@ -61,7 +61,7 @@ defmodule AsyncWorlds.Discord.FactionCommands do
     case Factions.get_campaign_faction(campaign.discord_guild_id, id) do
       {:ok, faction} ->
         {:ok,
-         "#{faction.name} (ID #{faction.id})\n" <>
+         "## #{faction.name} (ID #{faction.id})\n\n" <>
            (faction.description || "No description yet.")}
 
       {:error, :not_found} ->

@@ -82,14 +82,14 @@ defmodule AsyncWorlds.Discord.CharacterCommandTest do
         "player_visible" => true
       })
 
-    expected = "Rook\ndebt: 2\nready: false\ntitle: " <> text
+    expected = "## Rook\n- debt: 2\n- ready: false\n- title: " <> text
     assert {:ok, ^expected} = Dispatcher.handle(interaction(), c.opts)
     assert_receive {:discord, :defer, _}
     assert_receive {:discord, :edit_response, {_, ^expected}}
   end
 
   test "character uses authenticated member only and replies privately with visible facts", c do
-    assert {:ok, "Rook\ndebt: 2" = content} = Dispatcher.handle(interaction(), c.opts)
+    assert {:ok, "## Rook\n- debt: 2" = content} = Dispatcher.handle(interaction(), c.opts)
     assert_receive {:discord, :defer, _}
     assert_receive {:discord, :edit_response, {_, ^content}}
     assert NostrumAdapter.followup_data(content).flags == 64
@@ -98,11 +98,11 @@ defmodule AsyncWorlds.Discord.CharacterCommandTest do
     refute content =~ "SECRET"
     refute content =~ "Someone else"
 
-    assert {:ok, "Someone else"} =
+    assert {:ok, "## Someone else"} =
              Dispatcher.handle(put_in(interaction(), [:member, :user_id], 998), c.opts)
 
     assert_receive {:discord, :defer, _}
-    assert_receive {:discord, :edit_response, {_, "Someone else"}}
+    assert_receive {:discord, :edit_response, {_, "## Someone else"}}
     refute_receive {:discord, :send_public, _}
     refute_receive {:discord, :send_private, _}
     assert {:ok, :character, :player} = Commands.route(%{name: "character"})
@@ -149,15 +149,15 @@ defmodule AsyncWorlds.Discord.CharacterCommandTest do
     assert ended.status == :ended
     assert Repo.get!(Progression, b.id) == b
     assert {:ok, %{choice_id: "loop"}} = Submissions.player_state("123", "998")
-    assert {:ok, "Rook\ndebt: 2"} = Dispatcher.handle(interaction(), c.opts)
+    assert {:ok, "## Rook\n- debt: 2"} = Dispatcher.handle(interaction(), c.opts)
     assert_receive {:discord, :defer, _}
-    assert_receive {:discord, :edit_response, {_, "Rook\ndebt: 2"}}
+    assert_receive {:discord, :edit_response, {_, "## Rook\n- debt: 2"}}
 
-    assert {:ok, "Someone else"} =
+    assert {:ok, "## Someone else"} =
              Dispatcher.handle(put_in(interaction(), [:member, :user_id], 998), c.opts)
 
     assert_receive {:discord, :defer, _}
-    assert_receive {:discord, :edit_response, {_, "Someone else"}}
+    assert_receive {:discord, :edit_response, {_, "## Someone else"}}
     refute_receive {:discord, :send_public, _}
     refute_receive {:discord, :send_private, _}
   end

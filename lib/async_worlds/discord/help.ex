@@ -54,9 +54,8 @@ defmodule AsyncWorlds.Discord.Help do
         nil
 
       available ->
-        title <>
-          "\n" <>
-          Enum.map_join(available, "\n", &"#{&1.usage} — #{&1.description}")
+        "## #{title}\n" <>
+          Enum.map_join(available, "\n", &"- `#{&1.usage}` — #{&1.description}")
     end
   end
 end

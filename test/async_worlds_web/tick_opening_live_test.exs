@@ -72,7 +72,7 @@ defmodule AsyncWorldsWeb.TickOpeningLiveTest do
 
   test "a chunk-leading newline survives parsed preview text", c do
     {:ok, view, _} = live(c.conn, ~p"/dashboard")
-    narration = String.duplicate("x", 1817)
+    narration = String.duplicate("x", 1900 - String.length("## Tick 1 is opening.\n\n"))
     {:ok, expected} = AsyncWorlds.DM.Ticks.prepare_opening(c.scope, %{"narration" => narration})
     assert String.starts_with?(Enum.at(expected.messages, 1).content, "\n")
     prepare(view, narration)

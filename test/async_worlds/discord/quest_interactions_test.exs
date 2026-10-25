@@ -421,14 +421,16 @@ defmodule AsyncWorlds.Discord.QuestInteractionsTest do
       assert joined =~ narrative
 
       for page <- pages do
-        assert length(String.codepoints(page.content)) <= 2000
+        assert byte_size(:unicode.characters_to_binary(page.content, :utf8, {:utf16, :big})) <=
+                 4000
+
         assert Enum.all?(buttons(page), &(&1.label in ["Previous", "Next"]))
         assert NostrumAdapter.response_data(page).allowed_mentions == %{parse: []}
         assert NostrumAdapter.followup_data(page).flags == 64
       end
 
       {:ok, back} = click(c, button(List.last(pages), "Previous"))
-      assert back.content == first.content
+      assert back.content == Enum.at(pages, -2).content
       refute_receive {:discord, :followup_response, _}
       refute_receive {:discord, :send_public, _}
       refute_receive {:discord, :send_private, _}

@@ -110,9 +110,13 @@ defmodule AsyncWorlds.TensionDiscussionsTest do
     assert_receive {:discord, :create_public_thread, {"789", _}}
     assert d.thread_id == "9001"
     opening = Repo.one!(from i in DiscussionIntent, where: i.discussion_id == ^d.id)
-    assert opening.content =~ "1/4"
+    assert opening.content =~ "## Tick 1 ·"
+    assert opening.content =~ "### Supply: 1/4"
     assert opening.content =~ "River traffic"
-    assert opening.content =~ "Rumour"
+    assert opening.content =~ "### Rumour"
+    assert opening.content =~ "### Take part\n- Discuss plans"
+    assert opening.content =~ "`/intent view tick:#{tick.id}`"
+    assert opening.content =~ "**Revise or withdraw until close.**"
     refute opening.content =~ "3/4"
     refute opening.content =~ "SECRET"
     assert opening.content =~ "not a confirmed commitment"
@@ -133,7 +137,7 @@ defmodule AsyncWorlds.TensionDiscussionsTest do
 
     assert Enum.any?(
              Repo.all(DiscussionIntent),
-             &String.contains?(&1.content, "Tick 2 · Battle\nThe crossing holds")
+             &String.contains?(&1.content, "## Tick 2 · Battle\n\nThe crossing holds")
            )
 
     # Resolution's automatic pause of private pressures cannot enter a public bundle.

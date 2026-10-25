@@ -124,7 +124,7 @@ defmodule AsyncWorlds.Discord.DebugInteractions do
       {:ok,
        %{
          content:
-           "Debug mode: #{mode}\nCharacter: #{if selected, do: selected.name, else: "none"}\nLinked-player message copies: #{if copies, do: "on", else: "off"} (future tick closes)\nChanges are real. /debug dm returns to DM; /debug off disables testing.\n\n#{catalogue}\n\nSelect a player character · Page #{page + 1}/#{count}",
+           "## Debug mode: #{mode}\n**Character:** #{if selected, do: selected.name, else: "none"}\n**Linked-player message copies:** #{if copies, do: "on", else: "off"} (future tick closes)\n**Changes are real.** `/debug dm` returns to DM; `/debug off` disables testing.\n\n#{catalogue}\n\nSelect a player character · Page #{page + 1}/#{count}",
          components:
            Enum.map(Enum.chunk_every(buttons, 5), &row/1) ++
              if(navigation == [], do: [], else: [row(navigation)])

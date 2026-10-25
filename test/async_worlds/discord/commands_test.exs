@@ -59,7 +59,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     clock(c, %{name: "Known", segments: 6, filled: 3, visibility: :known})
     clock(c, %{name: "Hidden", segments: 8, filled: 7, visibility: :hidden})
 
-    assert {:ok, "Public: 1/4\nKnown"} = invoke(c, :clocks, 1, 999)
+    assert {:ok, "## Campaign clocks\n- Public: 1/4\n- Known"} = invoke(c, :clocks, 1, 999)
     assert {:ok, _} = invoke(c, :open, 2)
     tick = Ticks.active_tick(c.campaign.id)
     assert {:ok, _} = invoke(c, :close, 3)
@@ -72,7 +72,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
                input_revision: snapshot.revision
              })
 
-    assert {:ok, "Public: 1/4\nKnown"} = invoke(c, :clocks, 4, 999)
+    assert {:ok, "## Campaign clocks\n- Public: 1/4\n- Known"} = invoke(c, :clocks, 4, 999)
     refute_receive {:discord, :send_public, _}
   end
 
@@ -218,12 +218,17 @@ defmodule AsyncWorlds.Discord.CommandsTest do
 
     clock(c, %{name: "Secret", segments: 4, visibility: :hidden})
     assert {:ok, content} = invoke(c, :clocks, 1, 999)
-    assert_receive {:discord, :edit_response, {_, first}}
-    assert_receive {:discord, :followup_response, {_, second}}
-    assert first <> second == content
+    [first, second | rest] = AsyncWorlds.Discord.Content.formatted_chunks(content)
+    assert_receive {:discord, :edit_response, {_, ^first}}
 
-    for chunk <- [first, second] do
-      assert length(String.codepoints(chunk)) <= 2000
+    for chunk <- [second | rest] do
+      assert_receive {:discord, :followup_response, {_, ^chunk}}
+    end
+
+    assert Enum.join([first, second | rest]) == content
+
+    for chunk <- [first, second | rest] do
+      assert byte_size(:unicode.characters_to_binary(chunk, :utf8, {:utf16, :big})) <= 3800
       assert String.valid?(chunk)
       refute chunk =~ "Secret"
     end
@@ -286,7 +291,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
 
   test "open and its outbox intent roll back together on an outbox failure", c do
     Repo.query!(
-      "ALTER TABLE discord_deliveries ADD CONSTRAINT reject_test_announcement CHECK (content NOT LIKE 'Tick 1 is opening.%') NOT VALID"
+      "ALTER TABLE discord_deliveries ADD CONSTRAINT reject_test_announcement CHECK (content NOT LIKE '## Tick 1 is opening.%') NOT VALID"
     )
 
     assert_raise Ecto.ConstraintError, fn ->

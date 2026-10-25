@@ -66,7 +66,7 @@ defmodule AsyncWorlds.Discord.FactionCommandsTest do
       assert list =~ "#{faction.id} · Guild"
       refute list =~ "First"
       assert {:ok, detail} = Dispatcher.handle(interaction(show_data(faction.id), user), c.opts)
-      assert detail == "Guild (ID #{faction.id})\nFirst\nSecond @everyone"
+      assert detail == "## Guild (ID #{faction.id})\n\nFirst\nSecond @everyone"
       assert_receive {:discord, :defer, _}
       assert_receive {:discord, :edit_response, {_, ^list}}
       assert_receive {:discord, :defer, _}
@@ -190,7 +190,7 @@ defmodule AsyncWorlds.Discord.FactionCommandsTest do
     description = String.duplicate("Lore 🌍\n", 500)
     {:ok, faction} = Factions.create_faction(c.scope, %{name: "Guild", description: description})
     assert {:ok, content} = Dispatcher.handle(interaction(show_data(faction.id)), c.opts)
-    chunks = AsyncWorlds.Discord.Content.chunks(content)
+    chunks = AsyncWorlds.Discord.Content.formatted_chunks(content)
     [first | rest] = chunks
     assert_receive {:discord, :edit_response, {_, ^first}}
 
@@ -200,7 +200,7 @@ defmodule AsyncWorlds.Discord.FactionCommandsTest do
       assert NostrumAdapter.followup_data(chunk).flags == 64
     end
 
-    assert Enum.join(chunks) == "Guild (ID #{faction.id})\n" <> description
+    assert Enum.join(chunks) == "## Guild (ID #{faction.id})\n\n" <> description
 
     for i <- 1..15,
         do: Factions.create_faction(c.scope, %{name: "#{i}-" <> String.duplicate("x", 190)})

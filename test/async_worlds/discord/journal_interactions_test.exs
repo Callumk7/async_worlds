@@ -142,15 +142,19 @@ defmodule AsyncWorlds.Discord.JournalInteractionsTest do
              )
 
     assert_receive {:discord, :defer, _}
-    assert_receive {:discord, :edit_response, {_, first}}
-    assert_receive {:discord, :followup_response, {_, second}}
-    assert_receive {:discord, :followup_response, {_, third}}
-    assert first.content <> second.content <> third.content == opened.content
+    [first | rest] = AsyncWorlds.Discord.Content.formatted_chunks(opened.content)
+    assert_receive {:discord, :edit_response, {_, %{content: ^first}}}
+
+    for chunk <- rest do
+      assert_receive {:discord, :followup_response, {_, %{content: ^chunk}}}
+    end
+
+    assert Enum.join([first | rest]) == opened.content
     assert String.ends_with?(opened.content, body)
     assert opened.components == []
 
-    for chunk <- [first, second, third] do
-      assert length(String.codepoints(chunk.content)) <= 1900
+    for chunk <- [first | rest] do
+      assert byte_size(:unicode.characters_to_binary(chunk, :utf8, {:utf16, :big})) <= 3800
       assert NostrumAdapter.response_data(chunk).allowed_mentions == %{parse: []}
       assert NostrumAdapter.followup_data(chunk).flags == 64
     end

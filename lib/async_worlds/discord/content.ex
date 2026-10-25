@@ -10,26 +10,45 @@ defmodule AsyncWorlds.Discord.Content do
     |> Enum.map(&Enum.join/1)
   end
 
-  def unicode_chunks(content) when is_binary(content) do
+  @doc "Prefer newline boundaries for formatted replies; oversized lines fall back to grapheme-safe chunks."
+  def formatted_chunks(content) when is_binary(content) do
+    content
+    |> String.split("\n")
+    |> Enum.map_intersperse("\n", & &1)
+    |> Enum.flat_map(&unicode_chunks/1)
+    |> Enum.reduce({[], ""}, fn part, {chunks, current} ->
+      if units(current) + units(part) > @limit do
+        {[current | chunks], part}
+      else
+        {chunks, current <> part}
+      end
+    end)
+    |> then(fn {chunks, current} ->
+      Enum.reverse(if current == "", do: chunks, else: [current | chunks])
+    end)
+  end
+
+  def unicode_chunks(content, limit \\ @limit)
+      when is_binary(content) and is_integer(limit) and limit >= 2 and limit <= @limit do
     unless String.valid?(content), do: raise(ArgumentError, "content must be valid UTF-8")
 
     content
     |> String.graphemes()
-    |> Enum.flat_map(&bounded_parts/1)
-    |> Enum.reduce({[], [], 0}, &append/2)
+    |> Enum.flat_map(&bounded_parts(&1, limit))
+    |> Enum.reduce({[], [], 0}, &append(&1, &2, limit))
     |> finish()
   end
 
   # Pathological combining sequences can exceed a whole message. Split those
   # at codepoint boundaries rather than truncate, emit invalid UTF-8 or oversize.
-  defp bounded_parts(grapheme) do
-    if units(grapheme) <= @limit, do: [grapheme], else: String.codepoints(grapheme)
+  defp bounded_parts(grapheme, limit) do
+    if units(grapheme) <= limit, do: [grapheme], else: String.codepoints(grapheme)
   end
 
-  defp append(part, {chunks, current, size}) do
+  defp append(part, {chunks, current, size}, limit) do
     length = units(part)
 
-    if size + length > @limit do
+    if size + length > limit do
       {[join(current) | chunks], [part], length}
     else
       {chunks, [part | current], size + length}

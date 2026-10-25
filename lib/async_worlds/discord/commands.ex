@@ -246,7 +246,11 @@ defmodule AsyncWorlds.Discord.Commands do
           else: "#{clock.name}: #{clock.filled}/#{clock.segments}"
       end)
 
-    {:ok, if(lines == [], do: "No visible clocks yet.", else: Enum.join(lines, "\n"))}
+    {:ok,
+     if(lines == [],
+       do: "No visible clocks yet.",
+       else: "## Campaign clocks\n" <> Enum.map_join(lines, "\n", &("- " <> &1))
+     )}
   end
 
   def execute(:character, %{campaign: campaign} = context) do
@@ -258,14 +262,14 @@ defmodule AsyncWorlds.Discord.Commands do
       facts =
         payload.flags
         |> Enum.sort()
-        |> Enum.map(fn {key, flag} -> "#{key}: #{to_string(flag["value"])}" end)
+        |> Enum.map(fn {key, flag} -> "- #{key}: #{to_string(flag["value"])}" end)
 
-      {:ok, Enum.join([payload.name | facts], "\n")}
+      {:ok, Enum.join(["## #{payload.name}" | facts], "\n")}
     end
   end
 
   def execute(:admin, _context) do
-    {:ok, "DM console: #{admin_url()}\nSign in with your configured DM Discord account."}
+    {:ok, "## DM console\n#{admin_url()}\n\nSign in with your configured DM Discord account."}
   end
 
   def execute(:tick_open, context) do
@@ -288,7 +292,7 @@ defmodule AsyncWorlds.Discord.Commands do
 
       {:ok, %{tick: closed}} ->
         {:ok,
-         "Tick #{closed.number}: #{status(closed.status)}\nClosing queues a private draft; nothing is published automatically. Quest choices resolve privately from frozen inputs; management stays locked until publication. Review in #{admin_url()}"}
+         "## Tick #{closed.number}\n#{status(closed.status)}\n\nClosing queues a **private draft**; nothing is published automatically. Quest choices resolve privately from frozen inputs; management stays locked until publication. Review in #{admin_url()}"}
 
       error ->
         error
@@ -311,14 +315,14 @@ defmodule AsyncWorlds.Discord.Commands do
   defp tick_status_content(campaign, user_id, tick) do
     content =
       if tick,
-        do: "Tick #{tick.number}: #{status(tick.status)}",
+        do: "## Tick #{tick.number}\n#{status(tick.status)}",
         else: "No ticks yet. Ready to open the first world tick."
 
     readiness =
       if tick do
         case AsyncWorlds.Quests.Submissions.readiness(campaign, user_id, tick.id) do
           {:ok, counts} ->
-            "\nQuest choices: #{counts.submitted}/#{counts.active} ready, #{counts.missing} missing. Informational only; no automatic close."
+            "\n\n**Quest choices: #{counts.submitted}/#{counts.active} ready, #{counts.missing} missing.**\nInformational only; no automatic close."
 
           _ ->
             ""

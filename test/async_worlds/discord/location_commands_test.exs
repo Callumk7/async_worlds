@@ -66,7 +66,7 @@ defmodule AsyncWorlds.Discord.LocationCommandsTest do
       assert list =~ "#{location.id} · Guild"
       refute list =~ "First"
       assert {:ok, detail} = Dispatcher.handle(interaction(show_data(location.id), user), c.opts)
-      assert detail == "Guild (ID #{location.id})\nFirst\nSecond @everyone"
+      assert detail == "## Guild (ID #{location.id})\n\nFirst\nSecond @everyone"
       assert_receive {:discord, :defer, _}
       assert_receive {:discord, :edit_response, {_, ^list}}
       assert_receive {:discord, :defer, _}
@@ -193,7 +193,7 @@ defmodule AsyncWorlds.Discord.LocationCommandsTest do
       Locations.create_location(c.scope, %{name: "Guild", description: description})
 
     assert {:ok, content} = Dispatcher.handle(interaction(show_data(location.id)), c.opts)
-    chunks = AsyncWorlds.Discord.Content.chunks(content)
+    chunks = AsyncWorlds.Discord.Content.formatted_chunks(content)
     [first | rest] = chunks
     assert_receive {:discord, :edit_response, {_, ^first}}
 
@@ -203,7 +203,7 @@ defmodule AsyncWorlds.Discord.LocationCommandsTest do
       assert NostrumAdapter.followup_data(chunk).flags == 64
     end
 
-    assert Enum.join(chunks) == "Guild (ID #{location.id})\n" <> description
+    assert Enum.join(chunks) == "## Guild (ID #{location.id})\n\n" <> description
 
     for i <- 1..15,
         do: Locations.create_location(c.scope, %{name: "#{i}-" <> String.duplicate("x", 190)})
