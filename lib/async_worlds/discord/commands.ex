@@ -243,7 +243,8 @@ defmodule AsyncWorlds.Discord.Commands do
       |> Enum.map(fn clock ->
         if clock.visibility == :known,
           do: clock.name,
-          else: "#{clock.name}: #{clock.filled}/#{clock.segments}"
+          else:
+            "#{clock.name}: #{AsyncWorlds.Discord.ClockProgress.render(clock.filled, clock.segments)}"
       end)
 
     {:ok,

@@ -101,7 +101,7 @@ defmodule AsyncWorlds.TensionDiscussions do
 
   defp clock_lines(c),
     do: [
-      "### #{c.name}: #{c.filled}/#{c.segments}",
+      "### #{c.name}: #{AsyncWorlds.Discord.ClockProgress.render(c.filled, c.segments)}",
       c.influences || "",
       c.empty_description || "",
       c.full_description || ""

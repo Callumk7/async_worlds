@@ -2,6 +2,43 @@ defmodule AsyncWorlds.Ticks.OutputTest do
   use ExUnit.Case, async: true
   alias AsyncWorlds.Ticks.Output
 
+  test "tick summaries render clock bars while preserving public visibility" do
+    clocks =
+      for {name, filled, visibility} <- [
+            {"Escape the castle", 4, "public"},
+            {"Sample Clock", 3, "public"},
+            {"Empty", 0, "public"},
+            {"Known", 2, "known"},
+            {"Secret", 1, "hidden"}
+          ] do
+        %{
+          "name" => name,
+          "filled" => filled,
+          "segments" => 4,
+          "visibility" => visibility,
+          "paused" => false,
+          "completed" => filled == 4
+        }
+      end
+
+    outputs =
+      Output.render(
+        %{"tick_number" => 4, "world_news" => [], "dm_notifications" => [], "clocks" => clocks},
+        %{"dm_user_id" => "456", "public_channel_id" => "789"}
+      )
+
+    public = Enum.map_join(outputs["public"], "", & &1["content"])
+    dm = Enum.map_join(outputs["dm"], "", & &1["content"])
+
+    assert public ==
+             "Tick 4\nEscape the castle: `▰▰▰▰` 4/4\nSample Clock: `▰▰▰▱` 3/4\nEmpty: `▱▱▱▱` 0/4\nKnown"
+
+    assert dm =~ "Escape the castle: `▰▰▰▰` 4/4"
+    assert dm =~ "Sample Clock: `▰▰▰▱` 3/4"
+    assert dm =~ "Known: `▰▰▱▱` 2/4"
+    assert dm =~ "Secret: `▰▱▱▱` 1/4"
+  end
+
   test "large Unicode narration splits deterministically into bounded exact messages" do
     news = String.duplicate("🌍", 2000)
 

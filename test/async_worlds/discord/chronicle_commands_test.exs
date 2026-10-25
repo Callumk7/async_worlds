@@ -42,6 +42,14 @@ defmodule AsyncWorlds.Discord.ChronicleCommandsTest do
   test "dispatcher retrieval is private, published-only and shares the public projection", x do
     assert {:ok, empty} = Dispatcher.handle(interaction(data("list")), x.opts)
     assert empty =~ "No published Events"
+
+    {:ok, clock} =
+      AsyncWorlds.Clocks.create_clock(
+        x.c.id,
+        %{name: "Crossing secured", segments: 4, filled: 1},
+        "456"
+      )
+
     {:ok, tick} = Ticks.open_tick(x.c.id)
     {:ok, %{snapshot: s}} = Ticks.close_tick(x.c.id, tick.id)
     {:ok, p} = AsyncWorlds.Ticks.WorldResolver.resolve(s)
@@ -68,7 +76,11 @@ defmodule AsyncWorlds.Discord.ChronicleCommandsTest do
                   text: "@everyone Account",
                   kind: "event",
                   audience: audience,
-                  changes: []
+                  changes:
+                    if(audience == "public",
+                      do: [%{entity: "clock", id: clock.id, attrs: %{filled: 3}}],
+                      else: []
+                    )
                 }
               },
               "456",
@@ -101,6 +113,7 @@ defmodule AsyncWorlds.Discord.ChronicleCommandsTest do
              )
 
     assert detail =~ "@everyone Account"
+    assert detail =~ "Crossing secured: 1 → `▰▰▰▱` 3/4"
     refute detail =~ "PRIVATE REVIEW REASON"
     assert_receive {:discord, :edit_response, _}
     assert NostrumAdapter.followup_data(detail).flags == 64

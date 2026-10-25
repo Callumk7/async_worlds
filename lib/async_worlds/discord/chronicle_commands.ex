@@ -170,7 +170,7 @@ defmodule AsyncWorlds.Discord.ChronicleCommands do
 
           if ch["entity"] == "clock",
             do:
-              "#{after_record["name"]}: #{before["filled"] || 0} → #{after_record["filled"]}/#{after_record["segments"]}",
+              "#{after_record["name"]}: #{before["filled"] || 0} → #{AsyncWorlds.Discord.ClockProgress.render(after_record["filled"], after_record["segments"])}",
             else:
               "#{after_record["name"]}: #{before["status"] || "new"} → #{after_record["status"]}"
         end)

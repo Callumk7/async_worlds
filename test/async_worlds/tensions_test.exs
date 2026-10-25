@@ -183,7 +183,7 @@ defmodule AsyncWorlds.TensionsTest do
     output = AsyncWorlds.Ticks.Output.render(payload, snap.data["campaign"])
     public = Enum.map_join(output["public"], "\n", & &1["content"])
     assert public =~ "Known pressure"
-    assert public =~ "Standalone public: 2/4"
+    assert public =~ "Standalone public: `▰▰▱▱` 2/4"
     refute public =~ "Known pressure:"
 
     for secret <- [

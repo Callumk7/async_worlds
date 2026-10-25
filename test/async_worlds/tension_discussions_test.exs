@@ -111,7 +111,7 @@ defmodule AsyncWorlds.TensionDiscussionsTest do
     assert d.thread_id == "9001"
     opening = Repo.one!(from i in DiscussionIntent, where: i.discussion_id == ^d.id)
     assert opening.content =~ "## Tick 1 ·"
-    assert opening.content =~ "### Supply: 1/4"
+    assert opening.content =~ "### Supply: `▰▱▱▱` 1/4"
     assert opening.content =~ "River traffic"
     assert opening.content =~ "### Rumour"
     assert opening.content =~ "### Take part\n- Discuss plans"

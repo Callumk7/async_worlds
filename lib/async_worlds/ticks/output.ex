@@ -1,6 +1,8 @@
 defmodule AsyncWorlds.Ticks.Output do
   @moduledoc "Shared exact preview/delivery renderer. Draft callers must authorize the DM."
 
+  alias AsyncWorlds.Discord.ClockProgress
+
   def render(payload, campaign) do
     public_clocks =
       payload["clocks"]
@@ -8,12 +10,12 @@ defmodule AsyncWorlds.Ticks.Output do
       |> Enum.map(fn clock ->
         if clock["visibility"] == "known",
           do: clock["name"],
-          else: "#{clock["name"]}: #{clock["filled"]}/#{clock["segments"]}"
+          else: "#{clock["name"]}: #{ClockProgress.render(clock["filled"], clock["segments"])}"
       end)
 
     dm_clocks =
       Enum.map(payload["clocks"], fn clock ->
-        "#{clock["name"]}: #{clock["filled"]}/#{clock["segments"]}, paused=#{clock["paused"]}, completed=#{clock["completed"]}"
+        "#{clock["name"]}: #{ClockProgress.render(clock["filled"], clock["segments"])}, paused=#{clock["paused"]}, completed=#{clock["completed"]}"
       end)
 
     title = "Tick #{payload["tick_number"]}"

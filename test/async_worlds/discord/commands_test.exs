@@ -59,7 +59,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     clock(c, %{name: "Known", segments: 6, filled: 3, visibility: :known})
     clock(c, %{name: "Hidden", segments: 8, filled: 7, visibility: :hidden})
 
-    assert {:ok, "## Campaign clocks\n- Public: 1/4\n- Known"} = invoke(c, :clocks, 1, 999)
+    assert {:ok, "## Campaign clocks\n- Public: `▰▱▱▱` 1/4\n- Known"} = invoke(c, :clocks, 1, 999)
     assert {:ok, _} = invoke(c, :open, 2)
     tick = Ticks.active_tick(c.campaign.id)
     assert {:ok, _} = invoke(c, :close, 3)
@@ -72,8 +72,19 @@ defmodule AsyncWorlds.Discord.CommandsTest do
                input_revision: snapshot.revision
              })
 
-    assert {:ok, "## Campaign clocks\n- Public: 1/4\n- Known"} = invoke(c, :clocks, 4, 999)
+    assert {:ok, "## Campaign clocks\n- Public: `▰▱▱▱` 1/4\n- Known"} = invoke(c, :clocks, 4, 999)
     refute_receive {:discord, :send_public, _}
+  end
+
+  test "clock bars show one segment per step, including empty and full clocks", c do
+    clock(c, %{name: "Empty", segments: 4, filled: 0})
+    clock(c, %{name: "Partial", segments: 6, filled: 4})
+    clock(c, %{name: "Full", segments: 8, filled: 8})
+
+    assert {:ok, content} = invoke(c, :clocks, 1, 999)
+    assert content =~ "Empty: `▱▱▱▱` 0/4"
+    assert content =~ "Partial: `▰▰▰▰▱▱` 4/6"
+    assert content =~ "Full: `▰▰▰▰▰▰▰▰` 8/8"
   end
 
   test "DM lifecycle is repeat-safe, closes privately, and reports informational readiness", c do
@@ -198,7 +209,7 @@ defmodule AsyncWorlds.Discord.CommandsTest do
     assert opening.content =~ "Tick 1 is opening."
     assert_receive {:discord, :send_public, {"789", payload}}
     assert payload.content =~ "Approved news"
-    assert payload.content =~ "Public: 1/4"
+    assert payload.content =~ "Public: `▰▱▱▱` 1/4"
     assert payload.content =~ "Known"
     refute payload.content =~ "3/6"
     refute payload.content =~ "Secret"
